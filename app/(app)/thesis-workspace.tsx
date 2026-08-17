@@ -750,6 +750,13 @@ export default function ThesisWorkspaceScreen() {
         </View>
         </Animated.View>
 
+        {/* Top-pinned document search (find/replace + semantic). Inside the
+            floating host so it lands BELOW the pills rather than behind them, but
+            OUTSIDE the collapsing wrapper above — it must never fade with the bar
+            (searchOpen also pins the bar shown). It draws its own fill, unlike
+            everything else up here, because a find field over running text is
+            unreadable. Renders nothing at all while search is closed. */}
+        {liveDoc && <SearchPanel thesisId={thesisId} blocks={liveDoc.blocks} />}
       </View>
 
       {/* The scheduled-run banner used to sit here — a "Working…" strip under the
@@ -922,19 +929,6 @@ export default function ThesisWorkspaceScreen() {
           as a root push drawer from the ✦ bubble's ⋮⋮ drop target, and block
           formatting lives in the bubble itself. */}
       <BlockComposer thesisId={thesisId} rtl={docRtl} insetValue={composerInset} />
-
-      {/* Document search (find/replace + semantic), docked ON TOP OF THE KEYBOARD.
-          It used to hang under the header, which put it at the opposite end of the
-          screen from the keys typing into it — and hid the matches it was finding
-          behind the keyboard in between.
-
-          Mounted HERE, inside the KeyboardAvoidingView, for that to work: on iOS
-          the KAV shrinks this container so a bottom-docked bar clears the keys on
-          its own, and on Android (where the KAV is a no-op — see the note on it)
-          the panel lifts itself by the measured height. It draws its own fill,
-          unlike everything else on this screen, because a find field over running
-          text is unreadable. Renders nothing at all while search is closed. */}
-      {liveDoc && <SearchPanel thesisId={thesisId} blocks={liveDoc.blocks} />}
         </View>
       </KeyboardAvoidingView>
 
