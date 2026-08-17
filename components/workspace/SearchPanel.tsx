@@ -20,11 +20,20 @@ import { computeMatches, type SearchMatch } from "@/lib/search-match";
 import { normalize } from "@/lib/text-normalize";
 import { searchThesisSemantic, type DocBlockDTO } from "@/lib/api";
 import { hSelection } from "@/lib/haptics";
+import { useBottomInset, useKeyboardLift } from "@/hooks/useBottomInset";
 
 /**
- * Top-pinned document search (find & replace + semantic), rendered directly
- * under the workspace header so it survives keyboard dismissal (the dock bar
- * doesn't). Exact matching is fully client-side over the in-memory blocks;
+ * Keyboard-docked document search (find & replace + semantic).
+ *
+ * It rides directly ON TOP OF THE KEYBOARD rather than sitting under the header.
+ * The field takes focus the moment it opens, so the keyboard is up for the whole
+ * life of the panel — and pinned to the header it ended up at the far end of the
+ * screen from the keys typing into it, with the matches it was finding hidden
+ * behind the keyboard in between. Docked, the query, the match counter, the
+ * next/previous arrows and the result rows all sit in the same place as the
+ * thumbs driving them.
+ *
+ * Exact matching is fully client-side over the in-memory blocks;
  * "Search by meaning" flushes the op queue (AI-turn rule: never query a stale
  * server doc) then hits GET /api/thesis/:id/search. Writer view only — the
  * openers close any docx/PDF preview, and opening a preview closes the panel.
@@ -50,6 +59,15 @@ export function SearchPanel({ thesisId, blocks }: { thesisId: string; blocks: Do
   const previewMode = useWorkspaceStore((s) => s.previewMode);
 
   const inputRef = useRef<TextInput>(null);
+  // How far to lift off the bottom edge. ANDROID ONLY by design — the screen
+  // draws edge-to-edge, so the window is never resized for the IME and a
+  // bottom-docked bar would sit BEHIND the keys; on iOS the screen's
+  // KeyboardAvoidingView already shrinks the container and this returns 0, so
+  // the two never double-count. Same contract BlockComposer's dock runs on.
+  const keyboardLift = useKeyboardLift();
+  // Clearance underneath: the navigation bar / home indicator while the keyboard
+  // is down, and nothing once it is up (the keys already cover that strip).
+  const bottomInset = useBottomInset(6);
 
   // Debounced recompute over the in-memory blocks. Also re-runs when the doc
   // mutates — every optimistic patch yields a fresh `blocks` array.
@@ -205,7 +223,12 @@ export function SearchPanel({ thesisId, blocks }: { thesisId: string; blocks: Do
     <View
       style={[
         styles.wrap,
-        { backgroundColor: colors.bgPrimary, borderBottomColor: colors.borderDefault },
+        {
+          backgroundColor: colors.bgPrimary,
+          borderTopColor: colors.borderDefault,
+          bottom: keyboardLift,
+          paddingBottom: 8 + bottomInset,
+        },
       ]}
     >
       <View style={[styles.row, { flexDirection }]}>
@@ -368,10 +391,24 @@ export function SearchPanel({ thesisId, blocks }: { thesisId: string; blocks: Do
 }
 
 const styles = StyleSheet.create({
+  // Docked to the BOTTOM edge and lifted over the keyboard, so `bottom` is set
+  // from the measured lift at render. Absolute, not in flow: this screen's rule
+  // is that everything but the paper floats, and putting a growing panel in the
+  // flow would reflow the document every time a result row appeared.
+  //
+  // Its rule is the panel's TOP edge now — it is the last thing above the keys,
+  // not the first thing under the header. zIndex AND elevation: on Android touch
+  // dispatch follows elevation, so a zIndex-only bar paints over the page and
+  // still loses the tap to it.
   wrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    zIndex: 30,
+    elevation: 30,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
     gap: 6,
   },
   row: { alignItems: "center", gap: 8 },
