@@ -1006,6 +1006,30 @@ export function WorkspaceLexicalView({
       }
       return;
     }
+    // ── SELECT MODE OWNS THE SELECTION ──
+    // While checkbox select is on, the store is the ONLY writer of the pick and
+    // this report must not touch it. A tap on a row still reaches the browser: the
+    // editor is read-only and the rows are user-select:none, but the tap collapses
+    // the DOM selection anyway, Lexical turns that into an update, and EditorBridge
+    // faithfully reports the tapped block. The sync below would then REPLACE the
+    // whole pick with that one block — so every checkbox landed, and was instantly
+    // undone. That is the reported "I cannot select more than 1 paragraph": tap A
+    // gives [A], tap B toggles to [A,B] and the report immediately cuts it to [B].
+    // Always exactly one, always the last one touched.
+    //
+    // The phantom-collapse guard below cannot cover this. It only fires when the
+    // report is NOT user-driven, and a checkbox tap is as user-driven as it gets —
+    // the tap itself stamps `drivenAt` through EditorBridge's capture listeners, so
+    // that guard is disarmed at precisely the moment this needs one.
+    if (useWorkspaceStore.getState().selectMode) {
+      // Forget the last reported key too. Leaving select mode KEEPS the pick (see
+      // toggleSelectMode), so without this a first tap that happened to match the
+      // key from before the mode was entered would be skipped as a repeat and the
+      // stale checkbox pick would survive into normal editing.
+      lastSelKeyRef.current = "";
+      return;
+    }
+
     // ── PHANTOM COLLAPSE GUARD ──
     // Focus leaving the WebView costs the page its text selection, and tapping
     // ✦ Ask AI is precisely that: the dock's input takes focus and the keyboard
