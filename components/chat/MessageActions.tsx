@@ -33,6 +33,7 @@ import { useZoomOriginStore } from "@/stores/zoom-origin-store";
 import { exportThesis } from "@/lib/api";
 import { downloadExport } from "@/lib/download-export";
 import { visualRow } from "@/lib/rtl-layout";
+import { TASKS_ENABLED } from "@/lib/tasks-enabled";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The row under a finished assistant answer.
@@ -362,19 +363,24 @@ export function MessageActions({
                   disabled: !f.ready,
                   onPress: () => void handleDownload(),
                 })),
-                {
-                  key: "tasks",
-                  label: t("tasks.title"),
-                  icon: ListChecks,
-                  onPress: (e: GestureResponderEvent) => {
-                    // Same tap-point capture the chips do — Tasks grows out of the
-                    // row that was pressed, which here is inside the popup.
-                    useZoomOriginStore
-                      .getState()
-                      .setOrigin(e.nativeEvent.pageX, e.nativeEvent.pageY);
-                    router.push({ pathname: "/(app)/tasks", params: { thesisId } } as any);
-                  },
-                },
+                // Tasks — HIDDEN, not deleted (see lib/tasks-enabled.ts).
+                ...(TASKS_ENABLED
+                  ? [
+                      {
+                        key: "tasks",
+                        label: t("tasks.title"),
+                        icon: ListChecks,
+                        onPress: (e: GestureResponderEvent) => {
+                          // Same tap-point capture the chips do — Tasks grows out
+                          // of the row that was pressed, here inside the popup.
+                          useZoomOriginStore
+                            .getState()
+                            .setOrigin(e.nativeEvent.pageX, e.nativeEvent.pageY);
+                          router.push({ pathname: "/(app)/tasks", params: { thesisId } } as any);
+                        },
+                      },
+                    ]
+                  : []),
               ]
             : []),
         ]}

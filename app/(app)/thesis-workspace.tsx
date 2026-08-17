@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RunningBanner } from "@/components/tasks/RunningBanner";
 import { ProposalStepper } from "@/components/workspace/ProposalStepper";
 import { useTasksStore } from "@/stores/tasks-store";
+import { TASKS_ENABLED } from "@/lib/tasks-enabled";
 import {
   View,
   Text,
@@ -186,13 +187,17 @@ export default function ThesisWorkspaceScreen() {
   // Gated on the document, not on mount: a proposal can only be matched to a
   // paragraph that exists, so hydrating early found nothing and voided the lot.
   // A boolean selector is safe to subscribe to — it flips once, on load.
+  //
+  // ⚠️ Both effects are gated on TASKS_ENABLED — the feature is off (see
+  // lib/tasks-enabled.ts) and the poll below is a network round-trip every 20
+  // seconds for runs the student can no longer start.
   const docReady = useThesisDocStore((s) => !!s.byId[thesisId ?? ""]?.available);
   useEffect(() => {
-    if (!thesisId || !docReady) return;
+    if (!TASKS_ENABLED || !thesisId || !docReady) return;
     void useTasksStore.getState().hydrateProposals(thesisId);
   }, [thesisId, liveRunId, docReady]);
   useEffect(() => {
-    if (!thesisId) return;
+    if (!TASKS_ENABLED || !thesisId) return;
     let cancelled = false;
     const tick = async () => {
       const justFinished = await useTasksStore.getState().watchLive(thesisId);
@@ -1004,7 +1009,7 @@ const styles = StyleSheet.create({
   // Out of the flow entirely, so the page runs under it and the bar's collapse
   // costs the document no reflow. `elevation` as well as `zIndex`: on Android
   // touch dispatch follows elevation, so a zIndex-only bar paints above the page
-  // and still loses the tap to it (same reason PushDrawer's edge strip has both).
+  // and still loses the tap to it.
   headerHost: { position: "absolute", left: 0, right: 0, zIndex: 20, elevation: 20 },
   topBar: {
     flexDirection: "row",

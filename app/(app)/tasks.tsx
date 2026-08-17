@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRTL } from "@/hooks/useRTL";
@@ -14,8 +14,23 @@ import { ScheduleSheet } from "@/components/tasks/ScheduleSheet";
 import { useTasksStore, needsYou } from "@/stores/tasks-store";
 import { useBottomSheet } from "@/stores/bottom-sheet-store";
 import { AlertTriangle, Plus, Clock } from "lucide-react-native";
+import { TASKS_ENABLED } from "@/lib/tasks-enabled";
 
+/**
+ * ⚠️ The route is CLOSED — see lib/tasks-enabled.ts.
+ *
+ * A guard rather than a deleted file: a link can still be in flight (a
+ * notification tap for a run queued before the switch, a stale deep link), and
+ * it should land on the chat rather than on a screen whose "add task" button no
+ * longer leads anywhere. The screen below is untouched and comes back whole the
+ * moment the flag flips — its hooks never run while this returns first.
+ */
 export default function TasksScreen() {
+  if (!TASKS_ENABLED) return <Redirect href={"/(app)/chat" as any} />;
+  return <TasksScreenInner />;
+}
+
+function TasksScreenInner() {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const router = useRouter();

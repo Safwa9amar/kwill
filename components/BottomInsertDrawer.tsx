@@ -43,7 +43,7 @@ function clamp(v: number, lo: number, hi: number): number {
 
 /**
  * Root-level bottom "push" drawer for the Insert menu — the vertical twin of
- * PushDrawer. Opening (driven by `insert-menu-store`, from `/` or the dock `+`)
+ * the navigation drawer. Opening (driven by `insert-menu-store`, from `/` or the dock `+`)
  * slides the insert panel up from the bottom while the whole app recedes behind
  * it. The block index for structural inserts comes from the store's `anchor`;
  * the thesis id is read from the current-thesis store (no per-screen wiring).

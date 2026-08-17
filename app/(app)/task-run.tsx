@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, Alert } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRTL } from "@/hooks/useRTL";
@@ -10,6 +10,7 @@ import { TaskRow } from "@/components/tasks/TaskRow";
 import { getRun, decideAllProposals, undoRun, type TaskRun, type TaskItem, type TaskProposal } from "@/lib/tasks-api";
 import { useTasksStore } from "@/stores/tasks-store";
 import { useThesisDocStore } from "@/stores/thesis-doc-store";
+import { TASKS_ENABLED } from "@/lib/tasks-enabled";
 
 /**
  * What one run did. Owns the things the document itself cannot show: what was
@@ -21,8 +22,16 @@ import { useThesisDocStore } from "@/stores/thesis-doc-store";
  * what is waiting, hands the student over to the document, and owns the two
  * things the document cannot do: deciding them all at once, and undoing the
  * whole run.
+ *
+ * ⚠️ The route is CLOSED — see lib/tasks-enabled.ts and the note on the Tasks
+ * screen's own guard. Everything below survives intact behind it.
  */
 export default function TaskRunScreen() {
+  if (!TASKS_ENABLED) return <Redirect href={"/(app)/chat" as any} />;
+  return <TaskRunScreenInner />;
+}
+
+function TaskRunScreenInner() {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const { textAlign, flexDirection } = useRTL();

@@ -9,9 +9,11 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Keyboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, usePathname } from "expo-router";
+import { useDrawerStatus, type DrawerContentComponentProps } from "expo-router/drawer";
 import { useTranslation } from "react-i18next";
 import {
   Search,
@@ -34,7 +36,7 @@ import {
 
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRTL } from "@/hooks/useRTL";
-import { useNavDrawerStore } from "@/stores/nav-drawer-store";
+import { registerDrawerControls, useNavDrawerStore } from "@/stores/nav-drawer-store";
 import { useThesisStore } from "@/stores/thesis-store";
 import { useChatThreadsStore } from "@/stores/chat-threads-store";
 import { useProfileStore } from "@/stores/profile-store";
@@ -62,10 +64,16 @@ const WORDMARK_LIGHT = require("../assets/wordmark-light.png");
 // of your work. The whole body scrolls — see the note on it for why nothing
 // between the brand and the account foot can be pinned.
 //
-// It is the "app" view of the root `PushDrawer`; the "outline" view is the thesis
+// It is the "app" view of the root drawer; the "outline" view is the thesis
 // structure, which used to own the drawer outright. Both stay mounted (state is
 // preserved across the switch) and the hidden one is display:none — see the note
 // on `open` in ThesisOutlinePanel for why that matters.
+//
+// This component is the `drawerContent` of Expo Router's `Drawer` navigator (see
+// app/_layout.tsx), which is why it is handed a navigation object: it is the one
+// place in the app that is BOTH always mounted with the drawer and inside it, so
+// it is where the navigator's imperative handle is published to the store for
+// every ☰ button and fling elsewhere in the app to use.
 // -----------------------------------------------------------------------------
 
 type Row = {
@@ -76,9 +84,34 @@ type Row = {
   accent?: boolean;
 };
 
-export function AppDrawer() {
+export function AppDrawer({ navigation }: DrawerContentComponentProps) {
   const view = useNavDrawerStore((s) => s.view);
   const setView = useNavDrawerStore((s) => s.setView);
+  // 'open' the moment the action is dispatched, not when the slide finishes —
+  // it is derived from navigation state. That is what `AppIndex` wants: its
+  // lists start refreshing as the panel begins to move, so they are current by
+  // the time it has arrived.
+  const status = useDrawerStatus();
+
+  // Hand the navigator's own open/close to the store, so the rest of the app can
+  // ask for the drawer from places that have no navigation prop.
+  useEffect(() => {
+    registerDrawerControls({
+      open: () => navigation.openDrawer(),
+      close: () => navigation.closeDrawer(),
+      toggle: () => navigation.toggleDrawer(),
+    });
+    return () => registerDrawerControls(null);
+  }, [navigation]);
+
+  useEffect(() => {
+    const open = status === "open";
+    useNavDrawerStore.getState().syncOpen(open);
+    // `keyboardDismissMode: "on-drag"` covers the swipe; this covers the ☰, the
+    // writer's fling and the dock. The writer's keyboard is up more often than
+    // not, and an app dragged aside with it still standing is the wrong picture.
+    if (open) Keyboard.dismiss();
+  }, [status]);
 
   return (
     <View style={styles.host}>

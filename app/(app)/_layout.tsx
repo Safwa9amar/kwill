@@ -17,12 +17,12 @@ import { Stack } from "expo-router";
 // underneath the zoom and the two would fight.
 //
 // `animation: "none"`, NOT `presentation: "modal"`, for the separate reason that
-// the drawer is not part of this navigator: `PushDrawer` WRAPS it (see
-// app/_layout.tsx), sliding the whole stack aside as one piece with the panel as
-// a sibling behind. A native modal is presented above that entire arrangement,
-// so a modal screen's hamburger — and the hamburger on anything pushed onward
-// from it, the Writer opened from the Library or from a task run — would open
-// the drawer BEHIND the sheet.
+// the drawer is not part of this navigator: it is the `Drawer` navigator this
+// whole stack is a SCREEN OF (see app/_layout.tsx), which slides the stack aside
+// as one piece with the panel beside it. A native modal is presented above that
+// entire arrangement, so a modal screen's hamburger — and the hamburger on
+// anything pushed onward from it, the Writer opened from the Library or from a
+// task run — would open the drawer BEHIND the sheet.
 const FROM_CHAT = { animation: "none" } as const;
 
 export default function AppLayout() {

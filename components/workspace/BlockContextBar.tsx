@@ -36,6 +36,7 @@ import { AnimatedChip } from "./AnimatedChip";
 import { PictureCropModal } from "./PictureCropModal";
 import { TOOLBARS, ToolbarProvider, CHIP, toolStyles, type ToolbarCtx, type ChromeSelection, type ParagraphBlock, type Align } from "./bubble-tools";
 import { visualRow } from "@/lib/rtl-layout";
+import { TASKS_ENABLED } from "@/lib/tasks-enabled";
 
 // ── Vertical (column) form geometry ──
 // Shared with FloatingPill, which sizes + clamps the drag host from these: one chip
@@ -455,7 +456,10 @@ export function BlockContextBar({
   // with the formatting tools. Hidden for a header/footer band and for a
   // picture, for the same reasons the pinned sparkle is: neither has a
   // paragraph to act on.
-  const canTask = !isHfBand && selectedBlock?.kind === "paragraph";
+  // ⚠️ `TASKS_ENABLED` first — the whole feature is off (see lib/tasks-enabled.ts),
+  // which takes the ☑ chip out of every toolbar that renders `TaskBtn` and the
+  // sheet with it, in one place rather than at four call sites.
+  const canTask = TASKS_ENABLED && !isHfBand && selectedBlock?.kind === "paragraph";
   const taskSnippet = selectedBlock?.kind === "paragraph" ? selectedBlock.text : "";
   const TaskBtn = canTask ? (
     <Pressable

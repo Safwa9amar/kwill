@@ -323,7 +323,8 @@ function ListSkeleton({
  * Headings come from the cached `outline-store`; tables & figures from the cached
  * `thesis-doc-store` blocks. Each entry labels itself by its caption when present,
  * else a native "Table N"/"Figure N". Tapping any entry closes the drawer and
- * scrolls the workspace to that block. Hosted by the root `PushDrawer`.
+ * scrolls the workspace to that block. Hosted by the root drawer, as the second
+ * view of `AppDrawer`.
  */
 /**
  * The thesis structure (Contents / Tables / Figures). It no longer owns the root
@@ -348,7 +349,8 @@ export function ThesisOutlinePanel({ onBack }: { onBack?: () => void } = {}) {
   const docTick = useThesisDocStore((s) => (thesis ? s.tick[thesis.id] ?? 0 : 0));
   // "You are here" anchor: the caret's block while inline-editing, else the block
   // at the top of the doc view (from the outline view's scroll). Primitive selectors,
-  // GATED ON `open`: this panel is always mounted (it lives in the root PushDrawer),
+  // GATED ON `open`: this panel is always mounted (it lives in the root drawer's
+  // content, which the navigator keeps rendered and merely `display: none`s),
   // and `activeBlockIndex` is rewritten on every viewability change while the reader
   // scrolls — subscribing unconditionally re-rendered the whole invisible drawer
   // (flatten + every visible row) on each of those. While closed the selectors

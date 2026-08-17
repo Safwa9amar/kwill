@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Platform } from "react-native";
-import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
+import { AppState, BackHandler, I18nManager, Platform, useWindowDimensions } from "react-native";
+import { SplashScreen, useRouter, usePathname, useSegments } from "expo-router";
+import { Drawer } from "expo-router/drawer";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { PushDrawer } from "@/components/PushDrawer";
+import { AppDrawer } from "@/components/AppDrawer";
 import { BottomInsertDrawer } from "@/components/BottomInsertDrawer";
 import { DockToolsSheet } from "@/components/DockToolsSheet";
 import { HeaderFooterSheet } from "@/components/HeaderFooterSheet";
@@ -19,6 +20,7 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useNotificationStore } from "@/stores/notification-store";
 import { useProfileStore } from "@/stores/profile-store";
 import { useThesisStore } from "@/stores/thesis-store";
+import { forceCloseDrawer, useNavDrawerStore } from "@/stores/nav-drawer-store";
 import { listTheses } from "@/lib/api";
 import { registerForPushNotificationsAsync, addNotificationListeners } from "@/lib/push-notifications";
 import { useAuthDeepLink } from "@/lib/auth-deeplink";
@@ -35,6 +37,59 @@ SplashScreen.preventAutoHideAsync();
 // thesis from the store, restored below), and with no thesis at all it renders the
 // empty writer's starters, so this href is correct in every state.
 const HOME_HREF = "/(app)/chat";
+
+// The drawer covers 72% of the width; the pushed screen keeps a 28% dimmed peek.
+const DRAWER_FRACTION = 0.72;
+// Width of the leading-edge zone that starts an open-swipe. Wide enough to be
+// found without looking — this is the only gesture into the app's index, from
+// every screen, so it can't be a hairline. (React Navigation's own default is
+// the same 32, but state it rather than inherit it: it is a product decision.)
+const SWIPE_EDGE_WIDTH = 32;
+// Which side the drawer lives on. The navigator would derive this itself from
+// the locale direction, but `I18nManager` is what the REST of the app mirrors
+// off (see lib/rtl-layout.ts), and the two must not be allowed to disagree:
+// RTL (Arabic) → right edge, LTR (fr/en) → left.
+const DRAWER_POSITION = I18nManager.isRTL ? "right" : "left";
+
+/**
+ * The three things the navigator does not do for us.
+ *
+ * Everything else about the drawer — the pan, the slide, the scrim, the side —
+ * belongs to `Drawer` now and is deliberately NOT reimplemented here.
+ */
+function useDrawerHousekeeping() {
+  const pathname = usePathname();
+  const open = useNavDrawerStore((s) => s.open);
+
+  // 1. Close on every route change. The drawer's own rows already close before
+  //    they navigate, but the writer, the chat chips and the notification taps
+  //    can all move the stack underneath an open panel.
+  useEffect(() => {
+    useNavDrawerStore.getState().closeDrawer();
+  }, [pathname]);
+
+  // 2. Android hardware back closes the drawer rather than leaving the screen.
+  //    The drawer's router would do this, but only if the request reached it —
+  //    back is offered to the FOCUSED navigator first, and that is the (app)
+  //    stack, which happily pops the screen behind the open panel instead.
+  //    Registered only while open, so it is the newest listener and runs first.
+  useEffect(() => {
+    if (!open) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      useNavDrawerStore.getState().closeDrawer();
+      return true;
+    });
+    return () => sub.remove();
+  }, [open]);
+
+  // 3. Force it shut on every return to the foreground — see forceCloseDrawer.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") forceCloseDrawer();
+    });
+    return () => sub.remove();
+  }, []);
+}
 
 function useProtectedRoute() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -87,6 +142,8 @@ export default function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const drawerWidth = Math.round(width * DRAWER_FRACTION);
 
   const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
 
@@ -171,6 +228,7 @@ export default function RootLayout() {
   }, [isAuthenticated]);
 
   useProtectedRoute();
+  useDrawerHousekeeping();
 
   // A password-reset or confirmation link coming back into the app. Gated on the
   // same condition as the render below, because it navigates: the router does
@@ -189,10 +247,6 @@ export default function RootLayout() {
               everything that can throw. A render error below this point used to
               unmount the whole app and leave a white screen. */}
           <RootErrorBoundary>
-          {/* Root-level push drawer: opening the Thesis Structure outline slides
-              the whole app left (header, document, tab bar) and reveals it on the
-              right. Wraps everything so the push moves the entire tree as one. */}
-          <PushDrawer>
             <BottomInsertDrawer>
             {/* Running header / footer editor — same push-drawer surface as the Insert
                 menu. Nested INSIDE it: only one of the two is ever open. */}
@@ -208,13 +262,41 @@ export default function RootLayout() {
             <DockToolsSheet>
             <BottomSheetModalProvider>
               <NetworkBanner />
-              {/* gestureEnabled: false — see app/(app)/_layout.tsx. The root stack
-                  claims the same leading edge the drawer's open-swipe needs. */}
-              <Stack screenOptions={{ headerShown: false, gestureEnabled: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(app)" />
-              </Stack>
+              {/* THE app's index, and the root navigator with it. Every screen
+                  hangs off `(app)`, so putting the drawer here is what makes it
+                  reachable from all of them with no per-screen wiring — the same
+                  job the old hand-rolled `PushDrawer` did by wrapping the tree,
+                  minus the gesture, scrim, back-handling and RTL mirroring it had
+                  to reimplement.
+
+                  `drawerType: "slide"` is the push: the whole screen travels with
+                  the panel instead of the panel floating over it, which is the
+                  movement the app has always had.
+
+                  ⚠️ `(auth)` and `index` turn the swipe OFF. There is no app to
+                  index before sign-in, and login / onboarding own their own
+                  horizontal gestures. The option is read from the FOCUSED route,
+                  so this is per-screen and not a global switch. */}
+              <Drawer
+                drawerContent={(props) => <AppDrawer {...props} />}
+                screenOptions={{
+                  headerShown: false,
+                  drawerType: "slide",
+                  drawerPosition: DRAWER_POSITION,
+                  // Transparent: `AppDrawer` paints the panel itself, in the
+                  // theme's colours. The navigator's default is the navigation
+                  // theme's card colour, which is white in either app theme.
+                  drawerStyle: { width: drawerWidth, backgroundColor: "transparent" },
+                  swipeEdgeWidth: SWIPE_EDGE_WIDTH,
+                  // The writer's keyboard is up more often than not, and dragging
+                  // the app aside while it stays is the wrong picture.
+                  keyboardDismissMode: "on-drag",
+                }}
+              >
+                <Drawer.Screen name="index" options={{ swipeEnabled: false }} />
+                <Drawer.Screen name="(auth)" options={{ swipeEnabled: false }} />
+                <Drawer.Screen name="(app)" />
+              </Drawer>
               {/* Last child, so it paints over the stack: the seconds between
                   tapping an emailed link and arriving somewhere. */}
               <AuthLinkOverlay />
@@ -226,7 +308,6 @@ export default function RootLayout() {
             </CaptionSheet>
             </HeaderFooterSheet>
             </BottomInsertDrawer>
-          </PushDrawer>
           </RootErrorBoundary>
         </ThemeProvider>
       </SafeAreaProvider>
