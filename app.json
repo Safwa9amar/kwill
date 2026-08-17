@@ -62,8 +62,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#121220",
           "android": {
-            "image": "./assets/splash-icon-android.png",
-            "imageWidth": 200,
+            "image": "./assets/splash-icon.png",
+            "imageWidth": 156,
             "resizeMode": "contain",
             "backgroundColor": "#121220"
           }
