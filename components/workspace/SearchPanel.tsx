@@ -9,7 +9,6 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
-import Animated, { useAnimatedKeyboard, useAnimatedStyle } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { Search, X, ChevronUp, ChevronDown, Replace, Sparkles } from "lucide-react-native";
 import { useThemeColors } from "@/hooks/useThemeColors";
@@ -21,7 +20,7 @@ import { computeMatches, type SearchMatch } from "@/lib/search-match";
 import { normalize } from "@/lib/text-normalize";
 import { searchThesisSemantic, type DocBlockDTO } from "@/lib/api";
 import { hSelection } from "@/lib/haptics";
-import { useBottomInset } from "@/hooks/useBottomInset";
+import { useBottomInset, useKeyboardLift } from "@/hooks/useBottomInset";
 
 /**
  * Keyboard-docked document search (find & replace + semantic).
@@ -60,39 +59,14 @@ export function SearchPanel({ thesisId, blocks }: { thesisId: string; blocks: Do
   const previewMode = useWorkspaceStore((s) => s.previewMode);
 
   const inputRef = useRef<TextInput>(null);
-
-  // The panel RIDES the keyboard rather than being told where it ended up.
-  //
-  // `useKeyboardLift()` — what BlockComposer and FloatingPill dock with — is
-  // driven by `keyboardDidShow`, which fires AFTER the keyboard has finished
-  // animating. A bar positioned from it snaps into place a beat late, and on the
-  // way down it drops to the bottom edge while the keys are still sliding, so it
-  // is briefly stranded over the page. Fine for a bar you glance at; wrong for
-  // the one your thumbs are typing into.
-  //
-  // This is a shared value updated on the UI thread every frame of the keyboard's
-  // own animation, so the panel moves WITH the keys on both platforms, with no
-  // JS round-trip. The translucent flags are not optional: the app draws
-  // edge-to-edge, and without them the reported height is measured against a
-  // window that does not match the one being drawn.
-  //
-  // ⚠️ Deprecated in Reanimated 4 in favour of `react-native-keyboard-controller`
-  // — which is a NATIVE dependency, so adopting it moves the fingerprint and
-  // costs a new binary. Deliberately staying on the deprecated hook until there
-  // is a rebuild worth attaching that to.
-  const keyboard = useAnimatedKeyboard({
-    isStatusBarTranslucentAndroid: true,
-    isNavigationBarTranslucentAndroid: true,
-  });
-  const dockStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: -keyboard.height.value }],
-  }));
-
+  // How far to lift off the bottom edge. ANDROID ONLY by design — the screen
+  // draws edge-to-edge, so the window is never resized for the IME and a
+  // bottom-docked bar would sit BEHIND the keys; on iOS the screen's
+  // KeyboardAvoidingView already shrinks the container and this returns 0, so
+  // the two never double-count. Same contract BlockComposer's dock runs on.
+  const keyboardLift = useKeyboardLift();
   // Clearance underneath: the navigation bar / home indicator while the keyboard
-  // is down, and nothing once it is up (the keys already cover that strip). Still
-  // a discrete JS value — it is a question about which of two resting states we
-  // are in, not about the travel between them, and that is what `translateY`
-  // above is for.
+  // is down, and nothing once it is up (the keys already cover that strip).
   const bottomInset = useBottomInset(6);
 
   // Debounced recompute over the in-memory blocks. Also re-runs when the doc
@@ -246,15 +220,15 @@ export function SearchPanel({ thesisId, blocks }: { thesisId: string; blocks: Do
   const iconColor = (enabled: boolean) => (enabled ? colors.textPrimary : colors.textPlaceholder);
 
   return (
-    <Animated.View
+    <View
       style={[
         styles.wrap,
         {
           backgroundColor: colors.bgPrimary,
           borderTopColor: colors.borderDefault,
+          bottom: keyboardLift,
           paddingBottom: 8 + bottomInset,
         },
-        dockStyle,
       ]}
     >
       <View style={[styles.row, { flexDirection }]}>
@@ -412,7 +386,7 @@ export function SearchPanel({ thesisId, blocks }: { thesisId: string; blocks: Do
           ))}
         </ScrollView>
       )}
-    </Animated.View>
+    </View>
   );
 }
 

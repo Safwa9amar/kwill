@@ -922,26 +922,21 @@ export default function ThesisWorkspaceScreen() {
           as a root push drawer from the ✦ bubble's ⋮⋮ drop target, and block
           formatting lives in the bubble itself. */}
       <BlockComposer thesisId={thesisId} rtl={docRtl} insetValue={composerInset} />
+
+      {/* Document search (find/replace + semantic), docked ON TOP OF THE KEYBOARD.
+          It used to hang under the header, which put it at the opposite end of the
+          screen from the keys typing into it — and hid the matches it was finding
+          behind the keyboard in between.
+
+          Mounted HERE, inside the KeyboardAvoidingView, for that to work: on iOS
+          the KAV shrinks this container so a bottom-docked bar clears the keys on
+          its own, and on Android (where the KAV is a no-op — see the note on it)
+          the panel lifts itself by the measured height. It draws its own fill,
+          unlike everything else on this screen, because a find field over running
+          text is unreadable. Renders nothing at all while search is closed. */}
+      {liveDoc && <SearchPanel thesisId={thesisId} blocks={liveDoc.blocks} />}
         </View>
       </KeyboardAvoidingView>
-
-      {/* Document search (find/replace + semantic), docked ON TOP OF THE KEYBOARD
-          and travelling with it frame by frame (see the note in SearchPanel).
-          It used to hang under the header, which put it at the opposite end of the
-          screen from the keys typing into it, with the matches it was finding
-          hidden behind the keyboard in between.
-
-          ⚠️ OUTSIDE the KeyboardAvoidingView, and that placement is load-bearing.
-          The panel translates itself by the live keyboard height; inside the KAV,
-          iOS would ALSO shrink the container under it and the two would stack —
-          the panel would ride up twice the keyboard's height and leave the screen.
-          Out here it measures against the window, which is what it wants, and
-          Android is unaffected either way (the KAV is a no-op there).
-
-          It draws its own fill, unlike everything else floating on this screen,
-          because a find field over running text is unreadable. Renders nothing at
-          all while search is closed. */}
-      {liveDoc && <SearchPanel thesisId={thesisId} blocks={liveDoc.blocks} />}
 
       {/* Persistent floating formatting pill — draggable screen overlay; closes
           only by drag-to-X. Replaces the old inline per-block pill. */}
