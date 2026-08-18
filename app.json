@@ -22,8 +22,10 @@
       "icon": "./assets/AppIcon.icon",
       "supportsTablet": false,
       "bundleIdentifier": "com.kwill.app",
+      "buildNumber": "1",
       "usesAppleSignIn": true,
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSSpeechRecognitionUsageDescription": "Kwill uses speech recognition to turn your voice into text in your thesis.",
         "NSMicrophoneUsageDescription": "Kwill uses your microphone to dictate text into your thesis."
       },
