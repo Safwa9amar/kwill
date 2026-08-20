@@ -42,7 +42,6 @@ import { useChatThreadsStore } from "@/stores/chat-threads-store";
 import { useProfileStore } from "@/stores/profile-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useChatHead } from "@/stores/chat-head-store";
-import { useImportStore } from "@/stores/import-store";
 import { useCombineStore } from "@/stores/combine-store";
 import { AvatarPicker } from "@/components/AvatarPicker";
 import { ThesisOutlinePanel } from "@/components/workspace/ThesisOutlinePanel";
@@ -208,39 +207,9 @@ function AppIndex() {
     [closeDrawer],
   );
 
-  const handleImport = useCallback(async () => {
-    closeDrawer();
-    // An import IS a new thesis, so the plan's ceiling applies. Asked before the
-    // picker: refusing after the student has chosen a file and waited out the
-    // upload would be the same wall arrived at expensively.
-    if (!(await guardThesisLimit())) return;
-    const store = useImportStore.getState();
-    store.reset();
-    // Reading a thesis to base64 and analysing it server-side takes tens of
-    // seconds. Push the analysis screen the moment the picker closes so that
-    // work happens on ITS processing view — waiting on the previous page with
-    // nothing moving is what read as a hang.
-    let navigated = false;
-    const result = await store.pickAndImport({
-      onPicked: () => {
-        navigated = true;
-        router.push("/(app)/import-analysis" as any);
-      },
-    });
-    if (result === "ok") {
-      const thesis = useImportStore.getState().thesis;
-      if (thesis) useThesisStore.getState().upsertThesis(thesis);
-      if (!navigated) router.push("/(app)/import-analysis" as any);
-    } else if (result === "error" && !navigated) {
-      // Failures after the push are the analysis screen's to show (it has a
-      // retry); only a failure before it — a dead picker, a non-.docx — alerts.
-      Alert.alert(t("import.title"), useImportStore.getState().errorMessage || t("thesis.genericError"));
-    }
-  }, [closeDrawer, router, t]);
-
   const handleCombine = useCallback(async () => {
     closeDrawer();
-    // A combine also ends in a new thesis — see handleImport.
+    // A combine also ends in a new thesis, so the plan's ceiling applies.
     if (!(await guardThesisLimit())) return;
     const store = useCombineStore.getState();
     store.reset();
@@ -305,7 +274,15 @@ function AppIndex() {
       label: t("drawer.templates"),
       onPress: () => go(() => router.push("/(app)/browse-templates" as any)),
     },
-    { key: "import", icon: FolderUp, label: t("home.importDocx"), onPress: handleImport },
+    {
+      key: "import",
+      icon: FolderUp,
+      label: t("rescue.title"),
+      // The rescue lane replaces the old direct-import destination: a norm
+      // profile must be chosen (the server refuses a diagnose without one)
+      // before the document picker can even open.
+      onPress: () => go(() => router.push("/(app)/rescue-norms" as any)),
+    },
     { key: "combine", icon: Combine, label: t("combine.short"), onPress: handleCombine },
     // Export is COMMENTED OUT, not deleted — it is expected back.
     //
