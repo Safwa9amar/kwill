@@ -160,6 +160,15 @@ subresource on the page may load, and this product renders Supabase-hosted figur
 images inside the document. Paying with the images to buy SQL we do not need is
 a bad trade.
 
+This is not a prediction. `scripts/publish-update.sh` already carries the
+post-mortem: *"The web export dies on expo-sqlite: its web build imports
+`./wa-sqlite/wa-sqlite.wasm`, that file is not in the published package, and
+Metro fails the whole export over it."* Someone here has already run this
+experiment. The `.web.ts` twins are therefore what makes a web build possible at
+all, not an optimisation — removing the last web-reachable `expo-sqlite` import
+is the fix. (That same comment independently reaches this spec's conclusion
+about `app.json` being a fingerprint input.)
+
 Instead: **IndexedDB twins** with identical exports. This is safe because the
 modules are already written as narrow, failure-swallowing interfaces —
 `thesis-op-queue.ts` is 118 lines whose contract is explicitly "persistence is a
