@@ -138,9 +138,11 @@ async ({ userId, thesisId, title, headingDepth, atIndex, includePageNumbers, use
   return withThesisDoc(guard.thesis, async (doc) => {
     const res = await insertTocWithPolicy(doc, {
       title, headingDepth, atIndex, includePageNumbers, useHyperlinks,
-      // The TOOL's defaults differ from the runner's: the model must ask before
-      // destroying, so absent flags stay falsy exactly as before.
-      replaceExisting: replaceExisting ?? false,
+      // The TOOL's defaults: replaceExisting was effectively TRUE in the old
+      // handler (`!== false` gate — omitted means refresh, per its docstring);
+      // replaceManualToc stays falsy (the model must ask before destroying a
+      // student-typed TOC).
+      replaceExisting: replaceExisting ?? true,
       replaceManualToc: replaceManualToc ?? false,
       autoDetectHeadings, minConfidence, rtl,
     });
