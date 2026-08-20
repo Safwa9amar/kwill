@@ -89,6 +89,23 @@ of this design, not afterthoughts:
    now allow the web origin — and Supabase must allow-list that same origin as a
    redirect URL, or OAuth dead-ends after the provider hands control back.
 
+### Adding `web` to app.json moves the native runtime version
+
+`app.json` is a fingerprint input, and `fingerprint.config.js` ignores only
+Gradle build output — so adding a `web` block **changes the Android and iOS
+runtime version**. Every already-installed binary stops being offered OTA
+updates until a new APK is built at the new fingerprint.
+
+This is accepted rather than worked around. The alternative — a conditional
+`app.config.js` that hides the `web` key from native fingerprint resolution —
+trades a one-time rebuild for permanent fragility in the release path, and this
+repo's release order is already the most delicate thing it does. The
+consequence is a sequencing rule, not a code change: the commit adding the
+`web` block is **native-affecting**, and must be followed by the existing order
+— commit → build the APK → verify its fingerprint → publish the OTA. The plan
+resolves the fingerprint before and after so the move is observed rather than
+discovered.
+
 ### The environment trap
 
 `EXPO_PUBLIC_*` values are inlined into the bundle at build time. A web build run
@@ -164,10 +181,12 @@ need no base file, so these are pure additions.
 
 `lib/push-notifications.ts` already lazy-`require`s `expo-notifications` behind
 an Expo Go check, so it does not break the bundle; it needs a `web` branch added
-to that same guard so every push path becomes a no-op. `lib/i18n.ts` pulls
-`expo-updates` for `restartApp` — on web that is `location.reload()`, which is
-both simpler and more correct, since the language switch that calls it needs a
-genuine document reload to re-apply direction.
+to that same guard so every push path becomes a no-op. `lib/i18n.ts` calls
+`reloadAppAsync` from `expo` for `restartApp` — **not** `expo-updates`; the
+comment there is explicit that no updates dependency is wanted. Its web
+behaviour is not relied upon: `restartApp` gets an explicit web branch calling
+`location.reload()`, which is what the language switch needs anyway, since
+re-applying text direction requires a genuine document reload.
 
 ## The desktop layout
 
