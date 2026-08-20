@@ -1075,6 +1075,99 @@ export async function formatThesis(
 }
 
 // ============================================================
+// Rescue lane API — mirrors the server DTOs from /api/rescue/*.
+// Diagnosis is FREE and creates no thesis; repair 402s on the free plan.
+//
+// The four endpoints do NOT all return the same shape — RescueRun below is
+// the union of every field any of them can send; each function's return type
+// picks the subset that endpoint actually sends (verified against
+// modakerati-server/src/routes/rescue.ts's c.json(...) calls, not just the
+// route's intent):
+//   - POST /diagnose        → runId, status, degraded, verdict, questions, steps
+//   - GET /:id               → all of the above PLUS thesisId, conformity
+//   - POST /:id/answers      → runId, verdict, questions, steps (no status/degraded)
+//   - POST /:id/repair       → runId, status, thesisId, conformity, steps?
+//                              (steps is present on the normal completion path,
+//                              ABSENT on the early "already done" short-circuit —
+//                              never verdict/questions/degraded either way)
+// ============================================================
+
+export type RescueStepId =
+  | "snapshot" | "clean" | "structure" | "norms"
+  | "sections-numbering" | "pagination" | "captions" | "apparatus" | "finish";
+
+export interface RescueStep {
+  id: RescueStepId;
+  status: "pending" | "running" | "done" | "failed" | "skipped";
+  error?: string;
+}
+
+export interface RescueVerdictIssue {
+  code: string;
+  severity: "error" | "warning" | "info";
+  count: number;
+  message: string;
+}
+
+export interface RescueVerdict { issues: RescueVerdictIssue[]; total: number }
+
+export interface RescueQuestion {
+  id: string;
+  index: number;
+  textHead: string;
+  before: string;
+  after: string;
+  suggested: { role: string; level?: number };
+  choices: Array<{ role: string; level?: number }>;
+}
+
+export interface RescueConformityCheck { code: string; ok: boolean; detail: string }
+
+export interface RescueRun {
+  runId: string;
+  status: "diagnosing" | "diagnosed" | "repairing" | "done" | "failed" | "expired";
+  degraded: boolean;
+  verdict: RescueVerdict | null;
+  questions: RescueQuestion[];
+  steps: RescueStep[];
+  thesisId?: string | null;
+  conformity?: { checks: RescueConformityCheck[]; degraded: boolean } | null;
+}
+
+export async function rescueDiagnose(
+  input: { base64: string; filename: string; normProfileId: string },
+  opts?: LongPostOptions,
+): Promise<RescueRun> {
+  // Minutes on a real thesis: upload + parse + one windowed AI pass.
+  return apiPostLong("/api/rescue/diagnose", input, opts);
+}
+
+export async function getRescueRun(runId: string): Promise<RescueRun> {
+  return apiGet(`/api/rescue/${runId}`);
+}
+
+export async function submitRescueAnswers(
+  runId: string,
+  answers: Record<string, { role: string; level?: number }>,
+): Promise<Pick<RescueRun, "runId" | "verdict" | "questions" | "steps">> {
+  return apiPost(`/api/rescue/${runId}/answers`, { answers });
+}
+
+export async function rescueRepair(
+  runId: string,
+  opts?: LongPostOptions,
+): Promise<Pick<RescueRun, "runId" | "status" | "thesisId" | "conformity"> & { steps?: RescueStep[] }> {
+  // The longest call in the lane — the whole FormatPlan runs inside it. Note
+  // for callers: on a non-2xx response this rejects with a bare Error whose
+  // `.message` is the server's `error` string ("payment_required" / 402,
+  // "repair_in_progress" / 409, "source_expired" / 410) — apiPostLong does
+  // NOT attach `.status` or `.code` the way the fetch-based apiPost/apiGet do
+  // (see decorateApiError), so detect these by matching `err.message`, not
+  // `err.status`.
+  return apiPostLong(`/api/rescue/${runId}/repair`, {}, opts);
+}
+
+// ============================================================
 // Combine documents API
 // Mirrors the server DTOs from POST /api/thesis/combine/classify and /combine.
 // ============================================================
