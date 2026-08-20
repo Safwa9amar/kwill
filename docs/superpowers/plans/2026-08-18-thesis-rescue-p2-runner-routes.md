@@ -657,25 +657,11 @@ import { classifyWindows } from "../lib/format/classify";
 import { reconcile, type Answers } from "../lib/format/reconcile";
 import { buildVerdict } from "../lib/format/verdict";
 import { buildFormatPlan } from "../lib/format/plan";
-import { extractFormatting } from "../lib/thesis-extractor";
+import { hasFieldToc, longestHeadingGap } from "../lib/format/verify";
+import { extractFormatting, LIST_OF_FIGURES_RE, LIST_OF_TABLES_RE } from "../lib/thesis-extractor";
 import { detectLanguage } from "../lib/thesis-classify";
 
 export const rescueRoutes = new Hono<{ Variables: AppVariables }>();
-
-/** Longest run of body paragraphs with neither a real heading nor a heading label. */
-function longestHeadingGap(
-  facts: import("../lib/format/types").BlockFacts[],
-  labels: import("../lib/format/types").BlockLabel[],
-): number {
-  const heads = new Set(labels.filter((l) => l.role === "heading").map((l) => l.index));
-  let gap = 0, worst = 0;
-  for (const f of facts) {
-    if (f.kind !== "paragraph") continue;
-    if (f.headingLevel > 0 || heads.has(f.index)) gap = 0;
-    else worst = Math.max(worst, ++gap);
-  }
-  return worst;
-}
 
 /** Opportunistic sweep — runs on each diagnose; no cron to configure or forget. */
 async function sweepExpired(): Promise<void> {
@@ -719,10 +705,14 @@ rescueRoutes.post("/diagnose", async (c) => {
 
     // The net is ACCOUNTABLE (spec): a long stretch with no heading means the
     // net failed — widen once and re-classify before pricing a verdict on it.
-    if (longestHeadingGap(facts, labels) > 150) {
+    // One gap metric, shared with verify.ts — label indices count as headings here.
+    let aiLabels = cls.labels;
+    const headIdx = () => new Set(labels.filter((l) => l.role === "heading").map((l) => l.index));
+    if (longestHeadingGap(facts, headIdx()) > 150) {
       const wide = buildCandidates(facts, { maxHeadingWords: 24 });
       const cls2 = await classifyWindows(wide.windows, language);
-      const again = reconcile(facts, [...cls.labels, ...cls2.labels], {});
+      aiLabels = [...cls.labels, ...cls2.labels];
+      const again = reconcile(facts, aiLabels, {});
       labels = again.labels;
       questions = again.questions;
       degraded = degraded || cls2.degraded || wide.truncated;
@@ -736,16 +726,21 @@ rescueRoutes.post("/diagnose", async (c) => {
     const figureIdx = new Set<number>(facts.filter((f) => f.kind === "image").map((f) => f.index));
     for (const l of labels) if (l.role === "figure") figureIdx.add(l.index);
     const figureCount = figureIdx.size;
+    // tableCount is structural (block kind) while figureCount also counts AI
+    // "figure" labels — figures legitimately live inside paragraphs as drawings;
+    // tables never do.
     const tableCount = facts.filter((f) => f.kind === "table").length;
-    const hasRealToc = /\bTOC\s+\\o\b/.test(xml);
+    const hasRealToc = hasFieldToc(xml);
+    const hasListOfFigures = facts.some((f) => LIST_OF_FIGURES_RE.test(f.text));
+    const hasListOfTables = facts.some((f) => LIST_OF_TABLES_RE.test(f.text));
 
     const verdict = buildVerdict({
       labels, detected, expected: profile.formatting,
       hasRealToc, typedCaptionCount: scan.converted.length,
-      figureCount, hasListOfFigures: false, tableCount, hasListOfTables: false,
+      figureCount, hasListOfFigures, tableCount, hasListOfTables,
     });
     const plan = buildFormatPlan({
-      labels, questions, profileId: profile.id, degraded,
+      labels, questions, aiLabels, profileId: profile.id, degraded,
       typedCaptionCount: scan.converted.length, figureCount, tableCount, hasRealToc,
     });
 
@@ -826,23 +821,40 @@ rescueRoutes.post("/:id/answers", async (c) => {
   if (run.status !== "diagnosed") return c.json({ error: `Run is ${run.status}` }, 409);
 
   // Re-reconcile with the student's answers folded in, and rebuild the plan.
+  // plan.aiLabels is the model's RAW opinion set, persisted verbatim at
+  // diagnosis — plan.labels alone loses the medium/low labels that became
+  // questions, which would make every answer a silent no-op.
   const buffer = await downloadDocx(run.docPath);
   const doc = Doc.from(await Mdocxengine.loadFromBuffer(buffer));
   const facts = await collectFacts(doc);
-  const prior = (run.plan as { labels?: unknown[] } | null)?.labels ?? [];
-  const aiLabels = (prior as import("../lib/format/types").BlockLabel[]).filter((l) => l.source === "ai");
+  const oldPlanForLabels = run.plan as import("../lib/format/types").FormatPlan;
+  const aiLabels = oldPlanForLabels.aiLabels ?? [];
   const merged = { ...(run.answers as Answers ?? {}), ...(answers ?? {}) };
   const { labels, questions } = reconcile(facts, aiLabels, merged);
 
   // The document-level signals were captured once at diagnosis and ride on the
   // plan — rebuild reads them verbatim, never re-derives them.
-  const oldPlan = run.plan as import("../lib/format/types").FormatPlan;
+  const oldPlan = oldPlanForLabels;
   const plan = buildFormatPlan({
-    labels, questions, profileId: run.normProfileId!, degraded: run.degraded,
+    labels, questions, aiLabels, profileId: run.normProfileId!, degraded: run.degraded,
     ...oldPlan.signals,
   });
-  await db.update(rescueRuns).set({ answers: merged, plan }).where(eq(rescueRuns.id, run.id));
-  return c.json({ runId: run.id, questions: plan.questions, steps: plan.steps.map((s) => ({ id: s.id, status: s.status })) });
+  // The verdict must not outlive the answers that changed it — rebuild it from
+  // the same labels so GET /:id never shows a stale count next to a fresh plan.
+  const xml = doc.engine.zip.readAsText("word/document.xml") ?? "";
+  const [vProfile] = await db.select().from(normProfiles).where(eq(normProfiles.id, run.normProfileId!));
+  const verdict = vProfile ? buildVerdict({
+    labels, detected: extractFormatting(xml),
+    expected: vProfile.formatting,
+    hasRealToc: Boolean(oldPlan.signals.hasRealToc),
+    typedCaptionCount: Number(oldPlan.signals.typedCaptionCount),
+    figureCount: Number(oldPlan.signals.figureCount),
+    hasListOfFigures: facts.some((f) => LIST_OF_FIGURES_RE.test(f.text)),
+    tableCount: Number(oldPlan.signals.tableCount),
+    hasListOfTables: facts.some((f) => LIST_OF_TABLES_RE.test(f.text)),
+  }) : run.verdict;
+  await db.update(rescueRuns).set({ answers: merged, plan, verdict }).where(eq(rescueRuns.id, run.id));
+  return c.json({ runId: run.id, verdict, questions: plan.questions, steps: plan.steps.map((s) => ({ id: s.id, status: s.status })) });
 });
 ```
 
@@ -951,12 +963,18 @@ rescueRoutes.post("/:id/repair", async (c) => {
             out = await stepStructure(doc,
               (step.params as { promotions: Array<{ index: number; textHead: string; level: number }> } | undefined) ?? { promotions: [] });
             break;
-          case "norms":
+          case "norms": {
+            // step.params carries the profileId chosen at plan build — the
+            // single source of truth, like every other step's params.
+            const pid = (step.params as { profileId?: string } | undefined)?.profileId ?? run.normProfileId!;
+            const [normsProfile] = await db.select().from(normProfiles).where(eq(normProfiles.id, pid));
+            if (!normsProfile) throw new Error("norm profile not found");
             out = await stepNorms(doc, {
-              formatting: profile!.formatting, bindingSide: profile!.bindingSide,
+              formatting: normsProfile.formatting, bindingSide: normsProfile.bindingSide,
               language: run.language ?? undefined,
             });
             break;
+          }
           case "sections-numbering": {
             // The anchor was stored on the step at plan build (P1 plan.ts).
             const anchor = (step.params as { bodyStart?: { index: number; textHead: string } })?.bodyStart;
