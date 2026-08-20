@@ -942,16 +942,14 @@ rescueRoutes.post("/:id/repair", async (c) => {
             out = { note: "before-formatting snapshot" };
             break;
           case "clean":
-            out = await stepClean(doc, {
-              targets: p.labels.filter((l) => l.role === "noise")
-                .map((l) => ({ index: l.index, textHead: l.textHead })),
-            });
+            // step.params is the SINGLE source of truth (P1 review decision) —
+            // never rebuilt from p.labels, so the two can't drift.
+            out = await stepClean(doc,
+              (step.params as { targets: Array<{ index: number; textHead: string }> } | undefined) ?? { targets: [] });
             break;
           case "structure":
-            out = await stepStructure(doc, {
-              promotions: p.labels.filter((l) => l.role === "heading" && l.source !== "styled")
-                .map((l) => ({ index: l.index, textHead: l.textHead, level: l.level ?? 2 })),
-            });
+            out = await stepStructure(doc,
+              (step.params as { promotions: Array<{ index: number; textHead: string; level: number }> } | undefined) ?? { promotions: [] });
             break;
           case "norms":
             out = await stepNorms(doc, {
