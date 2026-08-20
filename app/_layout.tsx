@@ -20,6 +20,7 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useNotificationStore } from "@/stores/notification-store";
 import { useProfileStore } from "@/stores/profile-store";
 import { useThesisStore } from "@/stores/thesis-store";
+import { useRescueStore } from "@/stores/rescue-store";
 import { forceCloseDrawer, useNavDrawerStore } from "@/stores/nav-drawer-store";
 import { listTheses } from "@/lib/api";
 import { registerForPushNotificationsAsync, addNotificationListeners } from "@/lib/push-notifications";
@@ -222,6 +223,24 @@ export default function RootLayout() {
       .catch(() => {
         // Offline / transient: keep whatever the persisted id gave us.
       });
+
+    // Cold-start: an unfinished rescue run (paid repair in flight, finished, or
+    // still waiting at its verdict) resumes into the actual screen instead of
+    // silently vanishing back to the app root — best-effort, same as the
+    // profile/preferences/notification calls above. The lastThesisId restore
+    // just above never navigates: chat is already HOME_HREF, so setting the id
+    // is enough for the root route to pick it up. Rescue has no such luxury —
+    // rescue-working/result/verdict are not the root — so it navigates for real,
+    // the same way the notification listener below does (a bare router call in
+    // this same effect, not gated on appReady since it's fire-and-forget).
+    (async () => {
+      const resumed = await useRescueStore.getState().resume();
+      if (!resumed) return;
+      const status = useRescueStore.getState().status;
+      if (status === "repairing") router.replace("/(app)/rescue-working" as any);
+      else if (status === "done") router.replace("/(app)/rescue-result" as any);
+      else if (status === "verdict") router.replace("/(app)/rescue-verdict" as any);
+    })().catch(() => {});
 
     const cleanup = addNotificationListeners((route) => router.push(route as never));
     return cleanup;

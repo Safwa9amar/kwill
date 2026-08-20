@@ -49,7 +49,11 @@ export default function RescueResultScreen() {
         onPress: async () => {
           await undoThesisHistory(thesisId);
           reset();
-          router.back();
+          // dismissTo, not back: a `back()` here would land the student on the
+          // now-stale verdict/working screen underneath — the lane is finished,
+          // there is nothing left in it to return to. Same call AppDrawer uses
+          // to always land on the app root.
+          router.dismissTo("/(app)/chat" as any);
         },
       },
     ]);

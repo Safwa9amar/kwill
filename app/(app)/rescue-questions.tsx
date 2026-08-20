@@ -44,6 +44,11 @@ export default function RescueQuestionsScreen() {
 
   if (!q) return null;
 
+  // A "noise" candidate (a typed page number, a stray running header line) is
+  // a different question from "is this a heading" — asking it the heading way
+  // reads as a non-sequitur next to a line with no chapter-title shape at all.
+  const isNoise = q.suggested.role === "noise";
+
   // Question text is the student's own document — its direction follows the
   // content, not the app locale (same rule as a chat message; see
   // components/chat/MessageBubble.tsx). The context lines are often too short
@@ -65,7 +70,9 @@ export default function RescueQuestionsScreen() {
         </Text>
       </View>
       <View style={styles.body}>
-        <Text style={[styles.ask, { color: colors.textPrimary }]}>{t("rescue.isThisAHeading")}</Text>
+        <Text style={[styles.ask, { color: colors.textPrimary }]}>
+          {t(isNoise ? "rescue.isThisNoise" : "rescue.isThisAHeading")}
+        </Text>
         <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.borderDefault }]}>
           <Text style={[styles.ctx, beforeStyle, { color: colors.textSecondary }]} numberOfLines={1}>{q.before}</Text>
           <Text style={[styles.target, headStyle, { color: colors.textPrimary }]}>{q.textHead}</Text>
@@ -81,7 +88,9 @@ export default function RescueQuestionsScreen() {
             </Pressable>
           ))}
           <Pressable onPress={() => dismissQuestion(q.id)} style={styles.skip}>
-            <Text style={{ color: colors.textSecondary }}>{t("rescue.notAHeading")}</Text>
+            <Text style={{ color: colors.textSecondary }}>
+              {t(isNoise ? "rescue.keepIt" : "rescue.notAHeading")}
+            </Text>
           </Pressable>
         </View>
       </View>

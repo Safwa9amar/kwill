@@ -1151,6 +1151,8 @@
     "headingLevel3": "Sub-section (المطلب)",
     "headingLevel4": "Finer subdivision (الفرع)",
     "notAHeading": "Not a title — leave it",
+    "isThisNoise": "Is this a page number or stray text that should be removed?",
+    "keepIt": "Keep it — it's not stray text",
     "skipAll": "Skip the rest — use the safe defaults",
     "workingTitle": "Formatting your thesis…",
     "step": {

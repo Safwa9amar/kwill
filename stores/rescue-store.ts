@@ -10,6 +10,8 @@ import {
   rescueDiagnose, getRescueRun, submitRescueAnswers, rescueRepair,
   type RescueRun, type RescueQuestion, type RescueStep, type RescueVerdict, type RescueRole,
 } from "@/lib/api";
+import { rememberThesisLimit, thesisLimitBody } from "@/lib/thesis-limit";
+import { isThesisLimitError } from "@/types/billing";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const ACTIVE_KEY = "rescue.activeRunId";
@@ -142,7 +144,7 @@ export const useRescueStore = create<RescueState>((set, get) => ({
 
   startRepair: async () => {
     const { runId, answers, status: currentStatus } = get();
-    if (!runId) return "error";
+    if (!runId) { set({ status: "error", errorMessage: "generic" }); return "error"; }
     // Double-tap guard; a retry from "error" is allowed.
     if (currentStatus === "repairing") return "ok";
 
@@ -165,7 +167,10 @@ export const useRescueStore = create<RescueState>((set, get) => ({
     try {
       const run = await rescueRepair(runId);
       absorb(run, set);
-      await AsyncStorage.removeItem(ACTIVE_KEY);
+      // Only a DONE run retires the pointer — a failed repair must still be
+      // resumable (the verdict screen's CTA retries the same runId), so the
+      // key stays live until the student either finishes or abandons the lane.
+      if (run.status === "done") await AsyncStorage.removeItem(ACTIVE_KEY);
       set({ status: run.status === "done" ? "done" : "error", errorMessage: run.status === "done" ? null : "repair" });
       return run.status === "done" ? "ok" : "error";
     } catch (err) {
@@ -174,6 +179,16 @@ export const useRescueStore = create<RescueState>((set, get) => ({
       // message-regex fallback. This mapping applies only to errors thrown by
       // rescueRepair itself — the answers submission above is handled on its
       // own, separate from these codes.
+      // The plan's thesis ceiling is also a 402, but a DIFFERENT one from the
+      // repair paywall below — it means the run itself can never be repaired
+      // (no thesis slot to write it into), not "pay to unlock this feature".
+      // Must be checked before the generic 402 branch, which would otherwise
+      // route it into the subscription screen with the wrong story.
+      if (isThesisLimitError(err)) {
+        rememberThesisLimit(err);
+        set({ status: "error", errorMessage: thesisLimitBody(err) });
+        return "error";
+      }
       const status = (err as { status?: number })?.status;
       // A 402 is the paywall, not a failure.
       if (status === 402) {
@@ -205,8 +220,9 @@ export const useRescueStore = create<RescueState>((set, get) => ({
       const run = await getRescueRun(runId);
       absorb(run, set);
       if (run.status === "failed") {
+        // Keep the key: a failed run is still resumable — the retry CTA on the
+        // verdict screen (via resume()) needs it to still point at this runId.
         set({ status: "error", errorMessage: "repair" });
-        await AsyncStorage.removeItem(ACTIVE_KEY).catch(() => {});
         return;
       }
       if (run.status === "done") { set({ status: "done" }); await AsyncStorage.removeItem(ACTIVE_KEY); }
@@ -226,10 +242,10 @@ export const useRescueStore = create<RescueState>((set, get) => ({
     try {
       const run = await getRescueRun(saved);
       // The "expired" status is never actually returned here — a swept run's
-      // GET 404s into the catch below, which already clears the key. Only
-      // "failed" is a live 200 response worth checking for.
-      if (run.status === "failed") { await AsyncStorage.removeItem(ACTIVE_KEY); return false; }
+      // GET 404s into the catch below, which already clears the key.
       absorb(run, set);
+      // A failed run resumes into the verdict screen — its CTA retries; the
+      // server's claim accepts failed runs.
       set({ status: run.status === "done" ? "done" : run.status === "repairing" ? "repairing" : "verdict" });
       return true;
     } catch {

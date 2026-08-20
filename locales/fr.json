@@ -1151,6 +1151,8 @@
     "headingLevel3": "Sous-section (المطلب)",
     "headingLevel4": "Subdivision plus fine (الفرع)",
     "notAHeading": "Pas un titre — laisser tel quel",
+    "isThisNoise": "Est-ce un numéro de page ou un texte superflu à supprimer ?",
+    "keepIt": "Le garder — ce n'est pas superflu",
     "skipAll": "Passer le reste — utiliser les valeurs par défaut sûres",
     "workingTitle": "Mise en forme de votre mémoire…",
     "step": {

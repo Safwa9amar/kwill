@@ -5,7 +5,7 @@
 // in the moment a file is chosen (diagnose), and rescue-verdict/rescue-
 // questions route in again once the student starts the paid repair.
 import { useEffect } from "react";
-import { View, StyleSheet, BackHandler } from "react-native";
+import { View, StyleSheet, BackHandler, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -20,6 +20,7 @@ export default function RescueWorkingScreen() {
   const status = useRescueStore((s) => s.status);
   const steps = useRescueStore((s) => s.steps);
   const fileName = useRescueStore((s) => s.fileName);
+  const errorMessage = useRescueStore((s) => s.errorMessage);
   const refresh = useRescueStore((s) => s.refresh);
 
   const isBusy = status === "repairing" || status === "diagnosing" || status === "uploading";
@@ -49,8 +50,20 @@ export default function RescueWorkingScreen() {
   useEffect(() => {
     if (status === "done") router.replace("/(app)/rescue-result" as any);
     else if (status === "payment") router.replace("/(app)/subscription" as any);
-    else if (status === "error") router.back();
-  }, [status, router]);
+    else if (status === "error") {
+      // errorMessage is either a rescue error CODE (looked up below) or, for
+      // the thesis-limit case, an already-human sentence from thesisLimitBody()
+      // — a sentence never matches a translation key, so the defaultValue is
+      // what actually shows for it. A silent router.back() left the student
+      // wondering what happened; this says why before returning them to the
+      // verdict screen to retry.
+      Alert.alert(
+        t("rescue.title"),
+        t(`rescue.error.${errorMessage}`, { defaultValue: errorMessage ?? t("thesis.genericError") }),
+      );
+      router.back();
+    }
+  }, [status, errorMessage, router, t]);
 
   // A server "failed" step still surfaces as "done" here — the progress list
   // is not where a student debugs a broken run; the failure itself reaches

@@ -1,6 +1,7 @@
 // app/(app)/rescue-verdict.tsx
 // The free diagnosis — the sales pitch. "مذكرتك بها N مخالفة لمعايير كليتك"
 // with the issue list; the CTA starts the paid repair (or routes to payment).
+import { useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -27,9 +28,19 @@ export default function RescueVerdictScreen() {
   const total = verdict?.total ?? 0;
   const issues = verdict?.issues ?? [];
 
+  // Double-tap guard — the CTA fires a paid repair; a second tap while the
+  // first is already navigating/starting must be a no-op, not a second run.
+  const [busy, setBusy] = useState(false);
+
   const onRepair = async () => {
-    if (questionCount > 0) { router.push("/(app)/rescue-questions" as any); return; }
-    router.push("/(app)/rescue-working" as any);
+    if (busy) return;
+    setBusy(true);
+    // replace, not push: the verdict screen is done being useful once the
+    // student commits — leaving it on the stack would let Android back (or a
+    // later dismissTo) land them on a now-stale verdict instead of exiting
+    // the lane cleanly.
+    if (questionCount > 0) { router.replace("/(app)/rescue-questions" as any); return; }
+    router.replace("/(app)/rescue-working" as any);
     const res = await startRepair();
     if (res === "payment") router.replace("/(app)/subscription" as any);
   };
@@ -59,7 +70,11 @@ export default function RescueVerdictScreen() {
         </View>
       </ScrollView>
       <View style={styles.footer}>
-        <Pressable onPress={onRepair} style={[styles.cta, { backgroundColor: colors.brandPrimary }]}>
+        <Pressable
+          onPress={onRepair}
+          disabled={busy}
+          style={[styles.cta, { backgroundColor: colors.brandPrimary, opacity: busy ? 0.6 : 1 }]}
+        >
           <Wrench size={18} color={colors.brandOnPrimary} />
           <Text style={[styles.ctaText, { color: colors.brandOnPrimary }]}>
             {t(total === 0 ? "rescue.formatAnyway" : "rescue.repairCta")}
