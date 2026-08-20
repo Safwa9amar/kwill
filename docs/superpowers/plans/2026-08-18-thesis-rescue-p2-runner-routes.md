@@ -1006,6 +1006,10 @@ rescueRoutes.post("/:id/repair", async (c) => {
   const failed = finished.steps.some((s) => s.status === "failed");
   await db.update(rescueRuns).set({ status: failed ? "failed" : "done", plan: finished }).where(eq(rescueRuns.id, run.id));
 
+  // The temp diagnosis blob is no longer needed once the thesis owns the bytes;
+  // the sweep excludes done/repairing rows, so this is the only cleanup point.
+  if (!failed) await removeDocx(run.docPath).catch(() => {});
+
   const [fresh] = await db.select().from(rescueRuns).where(eq(rescueRuns.id, run.id));
   return c.json({ runId: run.id, status: fresh.status, thesisId, conformity: fresh.conformity,
     steps: finished.steps.map((s) => ({ id: s.id, status: s.status, error: s.error })) });
