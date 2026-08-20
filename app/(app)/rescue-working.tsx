@@ -54,14 +54,23 @@ export default function RescueWorkingScreen() {
       // errorMessage is either a rescue error CODE (looked up below) or, for
       // the thesis-limit case, an already-human sentence from thesisLimitBody()
       // — a sentence never matches a translation key, so the defaultValue is
-      // what actually shows for it. A silent router.back() left the student
-      // wondering what happened; this says why before returning them to the
-      // verdict screen to retry.
+      // what actually shows for it. Retry re-fires startRepair in place (the
+      // server's claim accepts a failed run, and the runner redoes only the
+      // failed steps); Close returns to the app root — the verdict screen was
+      // evicted from the stack when the repair began.
       Alert.alert(
         t("rescue.title"),
         t(`rescue.error.${errorMessage}`, { defaultValue: errorMessage ?? t("thesis.genericError") }),
+        [
+          { text: t("common.close"), style: "cancel", onPress: () => router.back() },
+          {
+            text: t("common.retry"),
+            onPress: () => {
+              void useRescueStore.getState().startRepair();
+            },
+          },
+        ],
       );
-      router.back();
     }
   }, [status, errorMessage, router, t]);
 
