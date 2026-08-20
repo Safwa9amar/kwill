@@ -1169,13 +1169,11 @@ export async function rescueRepair(
   runId: string,
   opts?: LongPostOptions,
 ): Promise<Pick<RescueRun, "runId" | "status" | "thesisId" | "conformity"> & { steps?: RescueStep[] }> {
-  // The longest call in the lane — the whole FormatPlan runs inside it. Note
-  // for callers: on a non-2xx response this rejects with a bare Error whose
-  // `.message` is the server's `error` string ("payment_required" / 402,
-  // "repair_in_progress" / 409, "source_expired" / 410) — apiPostLong does
-  // NOT attach `.status` or `.code` the way the fetch-based apiPost/apiGet do
-  // (see decorateApiError), so detect these by matching `err.message`, not
-  // `err.status`.
+  // The longest call in the lane — the whole FormatPlan runs inside it. On a
+  // non-2xx response this rejects with a decorated Error (`.status`, `.code`
+  // when the body carries one — apiPostLong runs decorateApiError like every
+  // other verb): 402 "payment_required", 409 "repair_in_progress",
+  // 410 "source_expired". Detect by `err.status`.
   return apiPostLong(`/api/rescue/${runId}/repair`, {}, opts);
 }
 
