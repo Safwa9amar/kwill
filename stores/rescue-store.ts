@@ -8,7 +8,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   rescueDiagnose, getRescueRun, submitRescueAnswers, rescueRepair,
-  type RescueRun, type RescueQuestion, type RescueStep, type RescueVerdict,
+  type RescueRun, type RescueQuestion, type RescueStep, type RescueVerdict, type RescueRole,
 } from "@/lib/api";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -16,7 +16,7 @@ const ACTIVE_KEY = "rescue.activeRunId";
 
 export type RescueStatus =
   | "idle" | "picking" | "uploading" | "diagnosing"
-  | "verdict" | "questions" | "repairing" | "done" | "payment" | "error";
+  | "verdict" | "repairing" | "done" | "payment" | "error";
 
 interface RescueState {
   status: RescueStatus;
@@ -27,7 +27,7 @@ interface RescueState {
   verdict: RescueVerdict | null;
   degraded: boolean;
   questions: RescueQuestion[];
-  answers: Record<string, { role: string; level?: number }>;
+  answers: Record<string, { role: RescueRole; level?: 1 | 2 | 3 | 4 }>;
   steps: RescueStep[];
   thesisId: string | null;
   conformityOk: number;
@@ -37,7 +37,7 @@ interface RescueState {
   setNormProfileId: (id: string | null) => void;
   /** onPicked fires the moment a valid .docx is chosen — navigate THEN. */
   pickAndDiagnose: (opts?: { onPicked?: (fileName: string) => void }) => Promise<"ok" | "canceled" | "error">;
-  answerQuestion: (id: string, choice: { role: string; level?: number }) => void;
+  answerQuestion: (id: string, choice: { role: RescueRole; level?: 1 | 2 | 3 | 4 }) => void;
   dismissQuestion: (id: string) => void;
   /** Sends answers (if any), then starts the paid repair. */
   startRepair: () => Promise<"ok" | "payment" | "error">;
@@ -57,7 +57,7 @@ const INITIAL = {
   verdict: null as RescueVerdict | null,
   degraded: false,
   questions: [] as RescueQuestion[],
-  answers: {} as Record<string, { role: string; level?: number }>,
+  answers: {} as Record<string, { role: RescueRole; level?: 1 | 2 | 3 | 4 }>,
   steps: [] as RescueStep[],
   thesisId: null as string | null,
   conformityOk: 0,
@@ -98,6 +98,8 @@ export const useRescueStore = create<RescueState>((set, get) => ({
 
   pickAndDiagnose: async (opts) => {
     set({ ...INITIAL, normProfileId: get().normProfileId, status: "picking" });
+    // A crash mid-diagnose must not resume the PREVIOUS run.
+    void AsyncStorage.removeItem(ACTIVE_KEY).catch(() => {});
 
     let picked: DocumentPicker.DocumentPickerResult;
     try {
@@ -120,8 +122,10 @@ export const useRescueStore = create<RescueState>((set, get) => ({
         { onUploadProgress: (f) => set(f >= 1 ? { status: "diagnosing", uploadProgress: 1 } : { uploadProgress: f }) },
       );
       absorb(run, set);
-      await AsyncStorage.setItem(ACTIVE_KEY, run.runId);
       set({ status: "verdict" });
+      // Resume is a convenience; a storage failure must not discard a
+      // minutes-long diagnosis that already succeeded.
+      void AsyncStorage.setItem(ACTIVE_KEY, run.runId).catch(() => {});
       return "ok";
     } catch (err) {
       set({ status: "error", errorMessage: (err as Error)?.message ?? "diagnose" });
@@ -137,14 +141,28 @@ export const useRescueStore = create<RescueState>((set, get) => ({
     set((s) => ({ answers: { ...s.answers, [id]: { role: "body" } }, questions: s.questions.filter((q) => q.id !== id) })),
 
   startRepair: async () => {
-    const { runId, answers } = get();
+    const { runId, answers, status: currentStatus } = get();
     if (!runId) return "error";
-    try {
-      if (Object.keys(answers).length > 0) {
+    // Double-tap guard; a retry from "error" is allowed.
+    if (currentStatus === "repairing") return "ok";
+
+    if (Object.keys(answers).length > 0) {
+      try {
         const res = await submitRescueAnswers(runId, answers);
         absorb(res, set);
+        // Persisted server-side in run.answers now — resubmitting them on a
+        // retry would only 409 against a run that already recorded them.
+        set({ answers: {} });
+      } catch (err) {
+        // The run may already be claimed/failed — answers can no longer
+        // change it, but the repair itself must still fire; the server
+        // merges recorded answers server-side.
+        console.warn("[rescue] answers submit failed, continuing to repair", err);
       }
-      set({ status: "repairing" });
+    }
+
+    set({ status: "repairing" });
+    try {
       const run = await rescueRepair(runId);
       absorb(run, set);
       await AsyncStorage.removeItem(ACTIVE_KEY);
@@ -153,7 +171,9 @@ export const useRescueStore = create<RescueState>((set, get) => ({
     } catch (err) {
       // apiPostLong decorates every rejection with `.status`/`.code` now (same
       // as apiGet/apiPost), so a bare status check replaces the old
-      // message-regex fallback.
+      // message-regex fallback. This mapping applies only to errors thrown by
+      // rescueRepair itself — the answers submission above is handled on its
+      // own, separate from these codes.
       const status = (err as { status?: number })?.status;
       // A 402 is the paywall, not a failure.
       if (status === 402) {
@@ -184,8 +204,20 @@ export const useRescueStore = create<RescueState>((set, get) => ({
     try {
       const run = await getRescueRun(runId);
       absorb(run, set);
+      if (run.status === "failed") {
+        set({ status: "error", errorMessage: "repair" });
+        await AsyncStorage.removeItem(ACTIVE_KEY).catch(() => {});
+        return;
+      }
       if (run.status === "done") { set({ status: "done" }); await AsyncStorage.removeItem(ACTIVE_KEY); }
-    } catch { /* polling is best-effort; the long POST is the source of truth */ }
+    } catch (err) {
+      // A swept run — stop polling a ghost.
+      if ((err as { status?: number })?.status === 404) {
+        set({ status: "error", errorMessage: "repair" });
+        await AsyncStorage.removeItem(ACTIVE_KEY).catch(() => {});
+      }
+      // otherwise: polling is best-effort; the long POST is the source of truth
+    }
   },
 
   resume: async () => {
@@ -193,7 +225,10 @@ export const useRescueStore = create<RescueState>((set, get) => ({
     if (!saved) return false;
     try {
       const run = await getRescueRun(saved);
-      if (run.status === "expired" || run.status === "failed") { await AsyncStorage.removeItem(ACTIVE_KEY); return false; }
+      // The "expired" status is never actually returned here — a swept run's
+      // GET 404s into the catch below, which already clears the key. Only
+      // "failed" is a live 200 response worth checking for.
+      if (run.status === "failed") { await AsyncStorage.removeItem(ACTIVE_KEY); return false; }
       absorb(run, set);
       set({ status: run.status === "done" ? "done" : run.status === "repairing" ? "repairing" : "verdict" });
       return true;

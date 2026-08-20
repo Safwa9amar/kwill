@@ -1117,14 +1117,20 @@ export interface RescueVerdictIssue {
 
 export interface RescueVerdict { issues: RescueVerdictIssue[]; total: number }
 
+export type RescueRole =
+  | "title-page" | "dedication" | "thanks" | "abstract" | "toc"
+  | "list-of-figures" | "list-of-tables" | "abbreviations" | "heading"
+  | "body" | "quote" | "annex" | "table" | "table-caption" | "figure"
+  | "figure-caption" | "noise";
+
 export interface RescueQuestion {
   id: string;
   index: number;
   textHead: string;
   before: string;
   after: string;
-  suggested: { role: string; level?: number };
-  choices: Array<{ role: string; level?: number }>;
+  suggested: { role: RescueRole; level?: 1 | 2 | 3 | 4 };
+  choices: Array<{ role: RescueRole; level?: 1 | 2 | 3 | 4 }>;
 }
 
 export interface RescueConformityCheck { code: string; ok: boolean; detail: string }
@@ -1154,7 +1160,7 @@ export async function getRescueRun(runId: string): Promise<RescueRun> {
 
 export async function submitRescueAnswers(
   runId: string,
-  answers: Record<string, { role: string; level?: number }>,
+  answers: Record<string, { role: RescueRole; level?: 1 | 2 | 3 | 4 }>,
 ): Promise<Pick<RescueRun, "runId" | "verdict" | "questions" | "steps">> {
   return apiPost(`/api/rescue/${runId}/answers`, { answers });
 }
