@@ -255,8 +255,14 @@ async function apiPostLong<T>(path: string, body: any, opts: LongPostOptions = {
       if (parsed?.byok && isByokErrorCode(parsed.error)) {
         useByokStore.getState().setLastError(parsed.error);
       }
-      reject(new Error(parsed?.error || `API Error: ${xhr.status}`));
+      // Same decoration the fetch verbs get from raiseApiError — without it,
+      // a caller matching on err.status/err.code (isThesisLimitError, the
+      // rescue lane's 402/409/410) never fires for anything sent through XHR.
+      reject(decorateApiError(new Error(parsed?.error || `API Error: ${xhr.status}`), xhr.status, parsed));
     };
+    // No response ever arrived on these three, so there is no status/body to
+    // decorate with — left as plain Errors, `.status` stays undefined, same
+    // as before.
     xhr.onerror = () => reject(new Error("Network request failed"));
     xhr.ontimeout = () =>
       reject(new Error(`The server took longer than ${Math.round(xhr.timeout / 60000)} minutes`));
