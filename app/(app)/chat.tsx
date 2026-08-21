@@ -1396,12 +1396,14 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
                 Disabled mid-turn: the mode is sent WITH the turn, so changing it
                 under one that is already running would say nothing and mean
                 nothing. */}
-            <ChatModeChip
-              mode={chatMode}
-              onPress={() => setModeSheetOpen(true)}
-              rtl={i18n.language === "ar"}
-              disabled={isGenerating}
-            />
+            <View style={styles.modeChipSlot}>
+              <ChatModeChip
+                mode={chatMode}
+                onPress={() => setModeSheetOpen(true)}
+                rtl={i18n.language === "ar"}
+                disabled={isGenerating}
+              />
+            </View>
 
             <RNTextInput
               ref={inputRef}
@@ -1710,6 +1712,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
+  // The chip is ~26 tall and the buttons are 34, and the pill aligns its row on
+  // flex-end — so bottom-aligning the chip parked its optical centre four points
+  // below the ＋ and the mic, which is the "sitting too low" everyone could see
+  // and nobody could name. Give it the buttons' own 34-point box and centre it
+  // inside: one centre line across the row on a single-line input, and the box
+  // still hugs the bottom as the input grows, exactly like the buttons do.
+  // (flex-end stays — it is what makes a multi-line input grow UPWARD.)
+  modeChipSlot: { height: 34, justifyContent: "center" },
   // Ghost buttons: no fill, sized for the thumb, aligned with the input's last line.
   plusBtn: { width: 34, height: 34, alignItems: "center", justifyContent: "center" },
   micBtn: { width: 34, height: 34, alignItems: "center", justifyContent: "center" },
