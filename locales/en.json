@@ -866,7 +866,14 @@
   "chatModes": {
     "title": "How should the assistant work?",
     "ask": { "label": "Ask", "hint": "Answers your questions. Never changes the document." },
-    "plan": { "label": "Plan", "hint": "Works out what it would do and shows you, before anything changes." },
+    "plan": {
+      "label": "Plan",
+      "hint": "Works out what it would do and shows you, before anything changes.",
+      "execute": "Execute",
+      "running": "Working…",
+      "done": "Done",
+      "askChanges": "Ask for changes"
+    },
     "assist": { "label": "Assist", "hint": "Edits your thesis, and asks before anything it cannot take back." },
     "agent": { "label": "Agent", "hint": "Does the whole job without stopping to ask. Undo it all in one tap." }
   },
