@@ -8,5 +8,5 @@
       "@/*": ["./*"]
     }
   },
-  "exclude": ["node_modules", "**/*.check.ts"]
+  "exclude": ["node_modules", "**/*.check.ts", "dist", "dist-web"]
 }
