@@ -14,8 +14,31 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
  * iOS returns 0: there the screen's KeyboardAvoidingView (behavior="padding")
  * already shrinks the container, and adding a lift on top would double-count —
  * which is the bug behavior="height" used to cause on Android.
+ *
+ * ⚠️ THE HEIGHT REACT NATIVE REPORTS IS SHORT BY THE NAVIGATION BAR. On API 30+
+ * ReactRootView.checkForKeyboardEvents() sends us
+ *
+ *     height = imeInsets.bottom - systemBars().bottom
+ *
+ * which is right only when the window is inset by the navigation bar. We draw
+ * EDGE-TO-EDGE (android/gradle.properties `edgeToEdgeEnabled=true`), so the root
+ * view spans the navigation bar and the honest number is the whole
+ * `imeInsets.bottom`. Every Android student was therefore lifted short by their
+ * navigation bar's height — about 16dp on gesture navigation, which reads as a
+ * tight fit, and about 48dp on a three-button bar, which puts the input BEHIND
+ * the keys. That is the "only on some phones" in the bug report: it is not the
+ * phone, it is which navigation the phone uses.
+ *
+ * Adding the safe-area bottom inset back is exact, not a fudge: safe-area-context
+ * asks for `statusBars | displayCutout | navigationBars | captionBar` and
+ * pointedly NOT `ime()`, so at the bottom edge it returns the very inset RN
+ * subtracted, and it keeps returning it while the keyboard is up.
+ *
+ * API < 30 is left alone: RN falls back to a visible-display-frame diff there,
+ * which already measures the full height, and adding to it would over-lift.
  */
 export function useKeyboardLift(): number {
+  const insets = useSafeAreaInsets();
   const [height, setHeight] = useState(0);
 
   useEffect(() => {
@@ -32,7 +55,9 @@ export function useKeyboardLift(): number {
     };
   }, []);
 
-  return height;
+  if (height <= 0) return 0;
+  const underReported = Platform.OS === "android" && Number(Platform.Version) >= 30;
+  return underReported ? height + insets.bottom : height;
 }
 
 /**
