@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ChatMessage, AskPayload, ChatImage, FilePayload, ConfirmPayload, DocChangesPayload, ToolTracePayload } from "@/types/chat";
+import type { PlanPayload } from "@/lib/plan-frames";
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
@@ -22,6 +23,10 @@ const IDLE_TURN = {
 
 // Stable empty trace — a fresh `[]` from a selector would re-render forever.
 const EMPTY_TOOL_TRACE: ToolTracePayload[] = [];
+
+// Same reason: the "already run" list starts as ONE array, shared by every
+// selector until a plan actually finishes.
+const NO_PLANS_DONE: string[] = [];
 
 // Stamp the end of reasoning on `id` wherever it lives. Stop is a global control
 // with no thread in hand, so the bubble is found by id across the loaded
@@ -95,6 +100,16 @@ interface ChatState {
   // is a developer one (AI_SHOW_TOOLS); empty in every student build, which is why
   // the UI reading it renders nothing at all rather than a translated fallback.
   toolTrace: ToolTracePayload[];
+  // The plan currently EXECUTING, by id, or null. A primitive on purpose: it is
+  // read by every plan card on screen to decide whether its Execute button is
+  // live, and the whole point of it is to refuse a second run — running a plan
+  // twice applies every edit in it twice.
+  runningPlanId: string | null;
+  // Plans whose run has finished. Their cards stay as the record of what was
+  // done, with Execute retired rather than offered again. In memory only: the
+  // frame the card is rebuilt from on a reload carries no "already run" bit, so
+  // this lasts the session, which is as long as the temptation does.
+  donePlanIds: string[];
   // Last AI turn's doc changes per thesis → drives the "Undo AI changes" chip.
   // Deliberately keyed by thesisId, not threadId: the checkpoint belongs to
   // the DOCUMENT, and two threads editing the same thesis must share it. Do not
@@ -121,6 +136,15 @@ interface ChatState {
   appendToThinking: (threadId: string, id: string, chunk: string) => void;
   markThinkingEnded: (threadId: string, id: string) => void;
   addFileToMessage: (threadId: string, id: string, file: FilePayload) => void;
+  /** Attach a plan the LIVE stream produced. The pump consumes the frame, so it
+   *  is never in `content` for a streaming message — a reload re-parses it from
+   *  there instead (see lib/plan-frames). Deduped by plan id. */
+  addPlanToMessage: (threadId: string, id: string, plan: PlanPayload) => void;
+  /** Claim the single execute slot. Returns false when a plan is already running
+   *  — the caller must NOT start a second one. */
+  beginPlanRun: (planId: string) => boolean;
+  /** Release the slot. `done: true` also retires the card's Execute button. */
+  endPlanRun: (planId: string, done: boolean) => void;
   setGenerating: (generating: boolean) => void;
   // Turn ownership. `beginTurn` claims the generating state and returns the
   // token the caller must carry; `isTurnActive` gates every write the turn makes;
@@ -161,6 +185,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   pendingAsk: null,
   pendingConfirm: null,
   toolTrace: EMPTY_TOOL_TRACE,
+  runningPlanId: null,
+  donePlanIds: NO_PLANS_DONE,
   docChanges: {},
 
   getMessages: (threadId) => get().messages[threadId] ?? EMPTY_MESSAGES,
@@ -313,6 +339,42 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
     }),
 
+  addPlanToMessage: (threadId, id, plan) =>
+    set((s) => {
+      const list = s.messages[threadId];
+      if (!list) return s;
+      return {
+        lastEventAt: Date.now(),
+        messages: {
+          ...s.messages,
+          [threadId]: list.map((m) => {
+            if (m.id !== id) return m;
+            // Deduped by id so a replayed frame doesn't stack two identical cards
+            // — each with its own Execute button for the same work.
+            if (m.plans?.some((p) => p.id === plan.id)) return m;
+            return { ...m, plans: [...(m.plans ?? []), plan] };
+          }),
+        },
+      };
+    }),
+
+  // One plan at a time, for the whole app. The check and the claim happen in the
+  // same tick — a card that asks twice (a double tap, or two cards showing the
+  // same plan) gets false the second time and must stop there.
+  beginPlanRun: (planId) => {
+    if (get().runningPlanId) return false;
+    set({ runningPlanId: planId });
+    return true;
+  },
+
+  endPlanRun: (planId, done) =>
+    set((s) => ({
+      // Only if this run still owns the slot: a stale unwind must not release a
+      // run that has since started.
+      runningPlanId: s.runningPlanId === planId ? null : s.runningPlanId,
+      donePlanIds: done && !s.donePlanIds.includes(planId) ? [...s.donePlanIds, planId] : s.donePlanIds,
+    })),
+
   // Starting a turn arms the wall clock the "still working" note counts from,
   // and seeds `lastEventAt` so the quiet gap is measured from the send, not from
   // 1970. Ending it disarms both so a finished turn can never look busy.
@@ -413,6 +475,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
     set((s) => ({
       ...IDLE_TURN,
+      // Stop must leave NOTHING latched. A plan run whose transport never honours
+      // the abort (expo/fetch can hang reader.read()) would otherwise hold the
+      // single execute slot for the rest of the session and kill every Execute
+      // button on screen. Retired rather than merely released: the server may
+      // already have applied part of the plan, so offering to run it again is the
+      // one thing this must not do.
+      runningPlanId: null,
+      donePlanIds:
+        s.runningPlanId && !s.donePlanIds.includes(s.runningPlanId)
+          ? [...s.donePlanIds, s.runningPlanId]
+          : s.donePlanIds,
       // The turn is over: stop the reasoning clock on the bubble it was writing.
       messages: streamingId ? stampThinkingEnded(s.messages, streamingId) : s.messages,
     }));

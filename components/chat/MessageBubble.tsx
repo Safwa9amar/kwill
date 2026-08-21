@@ -8,7 +8,9 @@ import { ThinkingTrace } from "@/components/ThinkingTrace";
 import { AiWorkingNote } from "@/components/AiWorkingNote";
 import { ChatImageGrid } from "@/components/ChatImages";
 import { MessageActions } from "@/components/chat/MessageActions";
+import { PlanCard } from "@/components/chat/PlanCard";
 import { splitFileFrames } from "@/lib/file-frames";
+import { parsePlanFrames, stripPlanFrames, type PlanPayload } from "@/lib/plan-frames";
 import { splitImageFrames } from "@/lib/chat-images";
 import { deriveThinkingMs } from "@/lib/thinking";
 import { getTextDirection } from "@/lib/text-direction";
@@ -42,6 +44,11 @@ const EXPAND_THRESHOLD = 1200;
 // Height of the clipped preview shown before the reader expands the message.
 const COLLAPSED_HEIGHT = 420;
 
+// Shared empties, so "no plans" / "nothing run yet" is the same reference on
+// every render rather than a fresh array each time.
+const NO_PLANS: PlanPayload[] = [];
+const NO_DONE: string[] = [];
+
 /**
  * Gradient-style fade from transparent to the page color, masking the hard clip
  * at the bottom of a collapsed answer. Built from stacked opacity bands so we
@@ -72,6 +79,14 @@ interface Props {
   onRetryMessage?: (id: string) => void;
   onViewImage?: (image: ChatImage) => void;
   onBlockPress?: (link: BlockLink, label: string) => void;
+  /** Plan mode: run the plan on this message's card. */
+  onExecutePlan?: (planId: string) => void;
+  /** Plan mode: the student wants it different — hands them back the composer. */
+  onAskPlanChanges?: () => void;
+  /** The plan executing right now, app-wide (chat-store). */
+  runningPlanId?: string | null;
+  /** Plans already run this session — their cards keep the steps, lose the button. */
+  donePlanIds?: string[];
 }
 
 export const MessageBubble = memo(function MessageBubble({
@@ -87,6 +102,10 @@ export const MessageBubble = memo(function MessageBubble({
   onRetryMessage,
   onViewImage,
   onBlockPress,
+  onExecutePlan,
+  onAskPlanChanges,
+  runningPlanId,
+  donePlanIds = NO_DONE,
 }: Props) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
@@ -96,11 +115,23 @@ export const MessageBubble = memo(function MessageBubble({
   // [[MODK_IMG]] attachments → thumbnails. Live sends arrive on item.files /
   // item.images with the frame already handled; a message reloaded from history
   // still holds it, so parse here too and prefer the live copy when there is one.
-  const { text: bodyText, files: framedFiles, images: framedImages } = isUser
+  const { text: framedText, files: framedFiles, images: framedImages } = isUser
     ? { ...splitImageFrames(item.content), files: [] as FilePayload[] }
     : { ...splitFileFrames(item.content), images: [] as ChatImage[] };
   const files = item.files?.length ? item.files : framedFiles;
   const images = item.images?.length ? item.images : framedImages;
+  // [[MODK_PLAN]] reaches this component by TWO different routes and both are
+  // real. LIVE: the stream pump eats the frame and fires onPlan, so ai-service
+  // has already put the plan on item.plans and the streamed content never held
+  // it — parsePlanFrames here would find nothing. RELOAD: the server persists the
+  // frame onto the stored message, so a bubble read back from history has it in
+  // `content` and nothing has ever called onPlan for it. Handle one and the card
+  // works in one of the two situations only.
+  const plans = isUser ? NO_PLANS : item.plans?.length ? item.plans : parsePlanFrames(item.content);
+  // …and whichever route it came by, the frame itself must never be readable as
+  // text. stripPlanFrames also drops a DANGLING open frame, which an aborted turn
+  // can leave persisted.
+  const bodyText = isUser ? framedText : stripPlanFrames(framedText);
   // Whether there's answer text below the thinking block. While the model is
   // still reasoning, content is empty — so the thinking wrapper must not draw
   // its separator/spacing or it renders as an empty framed box.
@@ -223,6 +254,30 @@ export const MessageBubble = memo(function MessageBubble({
           ))}
         </View>
       )}
+      {/* Plan mode: what Kwill proposes to do, and the tap that starts it. Sits
+          under the prose that introduced it, like the file cards.
+
+          Withheld until the turn has ENDED, like the action row below. A plan is
+          the turn's last word, so the wait is a moment — and executing one takes
+          the floor from whatever turn is still running, which is not what a
+          student tapping "Execute" is asking for. It also keeps the card's
+          own double-tap latch out of a state it cannot leave: the latch closes on
+          the press and only reopens when a run it started has ended. */}
+      {!isStreaming && plans.length > 0 && (
+        <View style={[styles.planCards, hasContent && styles.fileCardsSpaced]}>
+          {plans.map((p) => (
+            <PlanCard
+              key={p.id}
+              plan={p}
+              rtl={rtl}
+              running={runningPlanId === p.id}
+              done={donePlanIds.includes(p.id)}
+              onExecute={() => onExecutePlan?.(p.id)}
+              onAskChanges={() => onAskPlanChanges?.()}
+            />
+          ))}
+        </View>
+      )}
       {/* Nothing to act on while the answer is still arriving, and nothing to
           copy or read aloud from a turn that produced no text. */}
       {!isStreaming && (hasContent || canRegenerate) && (
@@ -254,6 +309,7 @@ const styles = StyleSheet.create({
   fadeOverlay: { position: "absolute", left: 0, right: 0, bottom: 0, justifyContent: "flex-end" },
   bubbleImagesSpaced: { marginBottom: 8 },
   fileCards: { gap: 8 },
+  planCards: { gap: 8 },
   fileCardsSpaced: { marginTop: 10 },
   retryRow: { alignItems: "center", columnGap: 14, marginTop: 6, paddingHorizontal: 2 },
   retryItem: { alignItems: "center", columnGap: 5 },

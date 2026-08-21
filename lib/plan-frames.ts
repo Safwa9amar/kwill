@@ -27,5 +27,14 @@ export function parsePlanFrames(text: string): PlanPayload[] {
 
 /** The message text with its plan frames removed — what the bubble should show. */
 export function stripPlanFrames(text: string): string {
-  return text.replace(PLAN_FRAME_RE, "").trim();
+  return (
+    text
+      .replace(PLAN_FRAME_RE, "")
+      // A frame that never got its closing marker — an aborted turn can persist
+      // one — matches nothing above, and what is left is a wall of raw JSON at
+      // the end of the answer. Everything from a dangling open marker onwards is
+      // payload by definition, so it goes. Same guard as lib/file-frames.ts.
+      .replace(/\[\[MODK_PLAN\]\][\s\S]*$/g, "")
+      .trim()
+  );
 }

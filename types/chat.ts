@@ -1,3 +1,5 @@
+import type { PlanPayload } from "@/lib/plan-frames";
+
 export interface ChatMessage {
   id: string;
   threadId: string;
@@ -32,6 +34,12 @@ export interface ChatMessage {
   // finishes); once the server row syncs back they are re-parsed from the
   // [[MODK_IMG]] frames in `content` and point at the stored URL instead.
   images?: ChatImage[];
+  // Plans the assistant proposed on this turn (Plan mode), rendered as cards with
+  // an Execute button. Carried live via the stream's [[MODK_PLAN]] frame, which
+  // the pump CONSUMES — so a live message's `content` never holds it. The server
+  // persists the frame onto the stored message, so a reload re-parses it from
+  // `content` instead (parsePlanFrames). Both routes are real; see MessageBubble.
+  plans?: PlanPayload[];
 }
 
 // One image on a user message. Exactly one of `url` / `uri` is meaningful at a

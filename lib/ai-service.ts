@@ -4,7 +4,7 @@ import { useThesisDocStore } from "@/stores/thesis-doc-store";
 import { useOutlineStore } from "@/stores/outline-store";
 import { useThesisStore } from "@/stores/thesis-store";
 import { useLexicalEditorStore } from "@/stores/lexical-editor-store";
-import { chatSend, chatSendStream, chatConfirmAction, chatCancelAction, getChatHistory, getChatHistoryPage, listThreads } from "./api";
+import { chatSend, chatSendStream, chatConfirmAction, chatCancelAction, chatExecutePlan, getChatHistory, getChatHistoryPage, listThreads, type ChatStreamHandlers } from "./api";
 import { getLatestMessages, getOlderMessages, upsertMessages, deletePending, deleteStalePending, getLastSyncedAt, setLastSyncedAt } from "./chat-cache";
 import { IMG_FRAME_OPEN, splitImageFrames, restageImage, toAttachment, toChatImage, type StagedImage } from "./chat-images";
 import i18n from "./i18n";
@@ -531,6 +531,24 @@ async function runAssistantTurn(
               pump.flush(); // the card belongs under the text that announced it
               s.addFileToMessage(threadId, assistantId, file);
             },
+            // Plan mode. The stream pump CONSUMES the [[MODK_PLAN]] frame, so it
+            // never reaches onDelta and the live message's content never holds it
+            // — this handler is the only route to the card while the turn runs.
+            // (A reopened conversation takes the other one: the server persists
+            // the frame onto the stored message and MessageBubble re-parses it.)
+            onPlan: (plan) => {
+              if (!live()) return;
+              markAlive();
+              const s = useChatStore.getState();
+              // A plan can arrive with no answer text in front of it.
+              if (!assistantId) {
+                assistantId = s.addMessage(threadId, "assistant", "", { pending: true });
+                s.setStreamingId(assistantId);
+              }
+              producedOutput = true; // the card IS the turn's output, like a file or an ask
+              pump.flush(); // the card belongs under the text that proposed it
+              s.addPlanToMessage(threadId, assistantId, plan);
+            },
             // Developer trace only (server-side AI_SHOW_TOOLS): NOT producedOutput —
             // running tools is not an answer to the student.
             onTool: (tool) => {
@@ -808,9 +826,10 @@ async function persistCache(threadId: string): Promise<void> {
   await upsertMessages(threadId, store.getMessages(threadId));
 }
 
-// Approve or decline a parked destructive action. The continuation streams into
-// a fresh assistant bubble through the same handlers as a normal turn, so the
-// workspace's after-turn refresh (isGenerating true→false) fires as usual.
+// A follow-up the student authorised: approving or declining a parked destructive
+// action, or executing a proposed plan. The continuation streams into a fresh
+// assistant bubble through the same handlers as a normal turn, so the workspace's
+// after-turn refresh (isGenerating true→false) fires as usual.
 //
 // Deliberately NOT auto-retried, unlike runAssistantTurn. The whole point of a
 // parked action is that it is destructive, and the server executes the STORED
@@ -818,12 +837,11 @@ async function persistCache(threadId: string): Promise<void> {
 // from "it ran, and then the stream died on the way back". Repeating that guess
 // three times is how a student's deleted section gets deleted twice. A failure
 // here keeps its error note and its Retry — the one place where asking a human
-// is the right answer.
-async function runActionContinuation(
+// is the right answer. A plan run is the same bargain, several edits at a time.
+async function runStreamContinuation(
   threadId: string,
   thesisId: string | null,
-  actionId: string,
-  call: typeof chatConfirmAction,
+  call: (handlers: ChatStreamHandlers, signal: AbortSignal) => Promise<void>,
 ): Promise<void> {
   // thesisId, not threadId — see the field comment on chat-store's docChanges.
   // syncDocumentAfterTurn and docChanges both need the real thesis id.
@@ -850,7 +868,7 @@ async function runActionContinuation(
     return s;
   };
   try {
-    await call(actionId, {
+    await call({
       onDelta: (chunk) => {
         if (!live()) return;
         const s = ensureBubble();
@@ -875,6 +893,15 @@ async function runActionContinuation(
         producedOutput = true;
         pump.flush();
         s.addFileToMessage(threadId, assistantId!, file);
+      },
+      // A continuation can propose a plan of its own (an approved action that
+      // turns out to need several steps). Same live route as runAssistantTurn.
+      onPlan: (plan) => {
+        if (!live()) return;
+        const s = ensureBubble();
+        producedOutput = true;
+        pump.flush();
+        s.addPlanToMessage(threadId, assistantId!, plan);
       },
       // Developer trace only — see runAssistantTurn.
       onTool: (tool) => { if (!live()) return; useChatStore.getState().pushToolTrace(tool); },
@@ -908,9 +935,47 @@ async function runActionContinuation(
 }
 
 export function approvePendingAction(threadId: string, thesisId: string | null, actionId: string): Promise<void> {
-  return runActionContinuation(threadId, thesisId, actionId, chatConfirmAction);
+  return runStreamContinuation(threadId, thesisId, (handlers, signal) =>
+    chatConfirmAction(actionId, handlers, signal),
+  );
 }
 
 export function declinePendingAction(threadId: string, thesisId: string | null, actionId: string): Promise<void> {
-  return runActionContinuation(threadId, thesisId, actionId, chatCancelAction);
+  return runStreamContinuation(threadId, thesisId, (handlers, signal) =>
+    chatCancelAction(actionId, handlers, signal),
+  );
+}
+
+/**
+ * Run a plan the assistant proposed — the Execute button on its card.
+ *
+ * The work streams back through exactly the same handlers a normal turn uses, so
+ * the reply lands in the thread like any other answer: same bubble, same
+ * reasoning trace, same undo chip, same after-turn document sync. Not retried,
+ * for the same reason an approved destructive action isn't (see
+ * runStreamContinuation): the server starts applying the plan the moment the
+ * request lands, and a stream that dies on the way back cannot tell "it never
+ * ran" from "it ran". Guessing that twice edits the thesis twice.
+ *
+ * ⚠️ The double-run guard is the store's, not this function's caller's: the slot
+ * is claimed BEFORE the request opens, so a second tap — or a second card
+ * showing the same plan — is refused in the same tick rather than after a round
+ * trip. Returns without doing anything when a plan is already running.
+ */
+export async function executePlan(threadId: string, thesisId: string | null, planId: string): Promise<void> {
+  const store = useChatStore.getState();
+  if (!store.beginPlanRun(planId)) return;
+  try {
+    await runStreamContinuation(threadId, thesisId, (handlers, signal) =>
+      chatExecutePlan(threadId, planId, handlers, signal),
+    );
+  } finally {
+    // Retired whatever happened, including a run that ended in an error note.
+    // The request reached the server, and from here nothing can tell "it never
+    // ran" from "it ran, and the stream died on the way back" — so the card
+    // stops offering to do it again. A dead button costs the student one
+    // sentence in the chat; a thesis edited twice costs them their document.
+    // (The error note in the bubble is what tells them to ask again.)
+    useChatStore.getState().endPlanRun(planId, true);
+  }
 }

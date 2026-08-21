@@ -10,7 +10,7 @@ import { useChatStore } from "@/stores/chat-store";
 import { useChatThreadsStore } from "@/stores/chat-threads-store";
 import { useBottomSheet } from "@/stores/bottom-sheet-store";
 import { useChatHead } from "@/stores/chat-head-store";
-import { sendMessageToAI, loadInitialMessages, loadOlderMessages, regenerateLastResponse, retryFailedMessage, approvePendingAction, declinePendingAction } from "@/lib/ai-service";
+import { sendMessageToAI, loadInitialMessages, loadOlderMessages, regenerateLastResponse, retryFailedMessage, approvePendingAction, declinePendingAction, executePlan } from "@/lib/ai-service";
 import { ComposerConfirm } from "@/components/workspace/ComposerConfirm";
 import { ArrowUp, Plus, Mic, Paperclip, Image as ImageIcon, Camera, ClipboardPaste, ChevronDown, Square, X, FileText, SquarePen, History } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -280,6 +280,12 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
   const loadingOlder = useChatStore((s) => s.getLoadingOlder(threadId ?? ""));
   const isGenerating = useChatStore((s) => s.isGenerating);
   const streamingId = useChatStore((s) => s.streamingId);
+  // Plan mode. A primitive and a STORED array — never a fresh literal out of a
+  // selector. Both feed every plan card in the list, so the FlatList has to be
+  // told about them too (see extraData below) or a card would keep the state it
+  // was rendered with.
+  const runningPlanId = useChatStore((s) => s.runningPlanId);
+  const donePlanIds = useChatStore((s) => s.donePlanIds);
   const loadedRef = useRef(false);
   const rotation = useSharedValue(0);
   const micPulse = useSharedValue(1);
@@ -729,6 +735,25 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
     });
   }, [thesisId, onClose, router]);
 
+  // Run a plan the assistant proposed. The streamed work lands in this thread as
+  // an ordinary turn, so the chat snaps to the bottom the way a send does.
+  // Double-run protection is NOT here: it belongs in the store, where every card
+  // on screen shares one slot — see executePlan / beginPlanRun. Running a plan
+  // twice applies every edit in it twice.
+  const handleExecutePlan = useCallback((planId: string) => {
+    if (!threadId) return;
+    stopSpeaking();
+    isNearBottomRef.current = true;
+    setShowScrollDown(false);
+    void executePlan(threadId, thesisId, planId);
+  }, [threadId, thesisId, stopSpeaking]);
+
+  // "Ask for changes" is not a mode — the student answering in their own words IS
+  // the revision. So it just hands them the composer.
+  const handleAskPlanChanges = useCallback(() => {
+    inputRef.current?.focus();
+  }, []);
+
   // Retry a send that never landed. Re-runs the turn for the EXISTING user row —
   // no second bubble, and no server-side regenerate (that path deletes the reply
   // it means to replace).
@@ -796,9 +821,7 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
     // The thread may have only just come into existence (createThreadForSend), so
     // whatever was picked while there was none to key it on gets written to it now
     // — before the turn that carries it opens.
-    if (chatMode !== DEFAULT_CHAT_MODE || threadId !== tid) {
-      useChatThreadsStore.getState().setMode(tid, chatMode);
-    }
+    useChatThreadsStore.getState().setMode(tid, chatMode);
 
     // A staged document goes to the thesis's source materials before the turn
     // opens — that is the only route by which the AI can read it. The composer
@@ -1134,13 +1157,20 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
                   onRetryMessage={handleRetryMessage}
                   onViewImage={setViewerImage}
                   onBlockPress={openThesisBlock}
+                  onExecutePlan={handleExecutePlan}
+                  onAskPlanChanges={handleAskPlanChanges}
+                  runningPlanId={runningPlanId}
+                  donePlanIds={donePlanIds}
                 />
               </>
             )}
             keyExtractor={(item) => item.id}
-            // The live-turn flag lives outside `data`, so tell the list about it —
-            // otherwise the last bubble can keep its working note after the turn ends.
-            extraData={liveTurnId}
+            // The live-turn flag and the plan-run state live outside `data`, so
+            // tell the list about them — otherwise the last bubble keeps its
+            // working note after the turn ends, and a plan card keeps its
+            // Execute button spinning after the run finishes. One STRING, not an
+            // object: a fresh literal here re-renders every row on every render.
+            extraData={`${liveTurnId ?? ""}|${runningPlanId ?? ""}|${donePlanIds.length}`}
             contentContainerStyle={styles.messageList}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
