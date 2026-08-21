@@ -16,6 +16,7 @@ import type {
 import type { Thesis, Template, NormProfile, University, StartingPoint } from "@/types/thesis";
 import type { QuotaResponse, PlanCatalogue, SubscriptionState, PlanCode } from "@/types/billing";
 import type { ThesisSource } from "@/types/source";
+import type { PlanPayload } from "@/lib/plan-frames";
 import { byokHeaders, whenByokHydrated, useByokStore, isByokErrorCode } from "@/stores/byok-store";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL
@@ -452,6 +453,11 @@ export interface ChatStreamHandlers {
   onThinking?: (chunk: string) => void;
   onFile?: (file: FilePayload) => void;
   onConfirm?: (confirm: ConfirmPayload) => void;
+  /** A plan the assistant proposed (Plan mode). Fired once the WHOLE frame has
+   *  arrived. Unlike the confirm frame this one is also persisted onto the saved
+   *  message, so a reopened conversation re-reads it with parsePlanFrames instead
+   *  — this handler only covers the live turn. */
+  onPlan?: (plan: PlanPayload) => void;
   onDocChanges?: (changes: DocChangesPayload) => void;
   /** Developer tool trace — only ever arrives from a server with AI_SHOW_TOOLS on. */
   onTool?: (tool: ToolTracePayload) => void;
@@ -572,6 +578,8 @@ async function postChatStream(
   const TOOL_CLOSE = "[[/MODK_TOOL]]";
   const TITLE_OPEN = "[[MODK_TITLE]]";
   const TITLE_CLOSE = "[[/MODK_TITLE]]";
+  const PLAN_OPEN = "[[MODK_PLAN]]";
+  const PLAN_CLOSE = "[[/MODK_PLAN]]";
 
   let mode: "answer" | "think" = "answer";
   let buf = ""; // unescaped text awaiting routing
@@ -599,9 +607,10 @@ async function postChatStream(
         const di = buf.indexOf(DC_OPEN);
         const oi = buf.indexOf(TOOL_OPEN);
         const li = buf.indexOf(TITLE_OPEN);
-        const first = [ti, ai, fi, ci, di, oi, li].filter((i) => i !== -1).sort((a, b) => a - b)[0];
+        const pi = buf.indexOf(PLAN_OPEN);
+        const first = [ti, ai, fi, ci, di, oi, li, pi].filter((i) => i !== -1).sort((a, b) => a - b)[0];
         if (first === undefined) {
-          const hold = isFinal ? 0 : heldLen(buf, [THINK_OPEN, ASK_OPEN, FILE_OPEN, CONFIRM_OPEN, DC_OPEN, TOOL_OPEN, TITLE_OPEN]);
+          const hold = isFinal ? 0 : heldLen(buf, [THINK_OPEN, ASK_OPEN, FILE_OPEN, CONFIRM_OPEN, DC_OPEN, TOOL_OPEN, TITLE_OPEN, PLAN_OPEN]);
           const out = buf.slice(0, buf.length - hold);
           if (out) handlers.onDelta(out);
           buf = buf.slice(buf.length - hold);
@@ -659,6 +668,20 @@ async function postChatStream(
           if (closeAt === -1) { buf = buf.slice(first); break; }
           try { handlers.onTitle?.(JSON.parse(buf.slice(first + TITLE_OPEN.length, closeAt))); } catch {}
           buf = buf.slice(closeAt + TITLE_CLOSE.length);
+          continue;
+        }
+        if (first === pi) {
+          // PLAN frame: the turn's last word in Plan mode. Need the closing
+          // marker before we can parse the JSON — a plan is several hundred
+          // bytes, so it reliably straddles chunks; holding `buf` from the open
+          // marker until the close arrives is what keeps the raw JSON off
+          // onDelta. Parsed here for the LIVE turn only; the server also saves
+          // the frame onto the message, so a reload re-reads it from the stored
+          // content with parsePlanFrames (same split as [[MODK_FILE]]).
+          const closeAt = buf.indexOf(PLAN_CLOSE, first + PLAN_OPEN.length);
+          if (closeAt === -1) { buf = buf.slice(first); break; }
+          try { handlers.onPlan?.(JSON.parse(buf.slice(first + PLAN_OPEN.length, closeAt))); } catch {}
+          buf = buf.slice(closeAt + PLAN_CLOSE.length);
           continue;
         }
         // ASK frame: need the closing marker before we can parse the JSON.
@@ -765,6 +788,18 @@ export async function chatConfirmAction(actionId: string, handlers: ChatStreamHa
 
 export async function chatCancelAction(actionId: string, handlers: ChatStreamHandlers, signal?: AbortSignal): Promise<void> {
   return postChatStream("/api/chat/cancel-action", { actionId }, handlers, signal);
+}
+
+/** Run a plan the assistant proposed. Streams the work back through the same frame
+ *  protocol as chatConfirmAction. The server refuses an unknown planId — that is a
+ *  hard no, never something to retry with a different id. */
+export async function chatExecutePlan(
+  threadId: string,
+  planId: string,
+  handlers: ChatStreamHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
+  return postChatStream("/api/chat/execute-plan", { threadId, planId }, handlers, signal);
 }
 
 // ============================================================
