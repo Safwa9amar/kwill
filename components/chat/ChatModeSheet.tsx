@@ -51,7 +51,12 @@ function ChatModeSheetContent({ mode, rtl, onSelect, onClose }: Omit<Props, "ope
   return (
     <BottomSheetModal
       ref={ref}
-      snapPoints={["50%"]}
+      // 60%, the same height HistorySheet uses. The four rows carry a two-line
+      // hint in every language the app speaks (the French "Assist" hint wraps on
+      // any phone), which puts the content near 390dp — over 50% of a 720p-class
+      // screen. A BottomSheetView does not scroll, so a snap point that is too
+      // short does not scroll the last row into reach, it CUTS it.
+      snapPoints={["60%"]}
       enableDynamicSizing={false}
       onDismiss={onClose}
       backdropComponent={(props: BottomSheetBackdropProps) => (
@@ -60,43 +65,55 @@ function ChatModeSheetContent({ mode, rtl, onSelect, onClose }: Omit<Props, "ope
       backgroundStyle={{ backgroundColor: colors.bgModal }}
       handleIndicatorStyle={{ backgroundColor: colors.borderDefault }}
     >
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.textPrimary, textAlign: align }]}>{t("chatModes.title")}</Text>
-      </View>
-      <BottomSheetView style={styles.list}>
-        {CHAT_MODES.map((m) => {
-          const Icon = CHAT_MODE_ICONS[m];
-          const active = m === mode;
-          return (
-            <Pressable
-              key={m}
-              onPress={() => choose(m)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={t(chatModeLabelKey(m))}
-              style={[styles.row, { flexDirection: visualRow(rtl), borderColor: colors.borderSubtle }]}
-            >
-              <View style={[styles.iconWrap, { backgroundColor: colors.bgInput }]}>
-                <Icon size={18} color={active ? colors.brandPrimary : colors.textSecondary} strokeWidth={2.2} />
-              </View>
-              <View style={styles.rowBody}>
-                <Text style={[styles.rowLabel, { color: colors.textPrimary, textAlign: align }]}>
-                  {t(chatModeLabelKey(m))}
-                </Text>
-                <Text style={[styles.rowHint, { color: colors.textSecondary, textAlign: align }]}>
-                  {t(chatModeHintKey(m))}
-                </Text>
-              </View>
-              {active && <Check size={18} color={colors.brandPrimary} strokeWidth={2.4} />}
-            </Pressable>
-          );
-        })}
+      {/* Everything lives INSIDE the BottomSheetView. It is not a plain child of
+          the sheet: gorhom styles it `position: absolute; top: 0`, so a header
+          rendered as its SIBLING is not stacked above it — it is drawn UNDER it
+          at the same y, which is how the title came to sit on top of the first
+          row. (HistorySheet gets away with a sibling header only because a
+          BottomSheetFlatList is a scrollable, and scrollables do flow.) */}
+      <BottomSheetView style={styles.content}>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.textPrimary, textAlign: align }]}>{t("chatModes.title")}</Text>
+        </View>
+        <View style={styles.list}>
+          {CHAT_MODES.map((m) => {
+            const Icon = CHAT_MODE_ICONS[m];
+            const active = m === mode;
+            return (
+              <Pressable
+                key={m}
+                onPress={() => choose(m)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={t(chatModeLabelKey(m))}
+                style={[styles.row, { flexDirection: visualRow(rtl), borderColor: colors.borderSubtle }]}
+              >
+                <View style={[styles.iconWrap, { backgroundColor: colors.bgInput }]}>
+                  <Icon size={18} color={active ? colors.brandPrimary : colors.textSecondary} strokeWidth={2.2} />
+                </View>
+                <View style={styles.rowBody}>
+                  <Text style={[styles.rowLabel, { color: colors.textPrimary, textAlign: align }]}>
+                    {t(chatModeLabelKey(m))}
+                  </Text>
+                  <Text style={[styles.rowHint, { color: colors.textSecondary, textAlign: align }]}>
+                    {t(chatModeHintKey(m))}
+                  </Text>
+                </View>
+                {active && <Check size={18} color={colors.brandPrimary} strokeWidth={2.4} />}
+              </Pressable>
+            );
+          })}
+        </View>
       </BottomSheetView>
     </BottomSheetModal>
   );
 }
 
 const styles = StyleSheet.create({
+  // The handle's own box already ends 10dp below the indicator; 8 more is the
+  // rhythm the rest of this sheet is on, and the difference between a list that
+  // starts under the handle and one that starts against it.
+  content: { paddingTop: 8 },
   header: { paddingHorizontal: 20, paddingBottom: 8 },
   title: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
   list: { paddingHorizontal: 16, paddingBottom: 24, gap: 4 },
