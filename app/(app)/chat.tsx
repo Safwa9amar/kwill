@@ -35,6 +35,9 @@ import { Alert } from "react-native";
 import { ChatImageViewer } from "@/components/ChatImages";
 import { pickChatImages, captureChatImage, pasteChatImage, MAX_CHAT_IMAGES, type StagedImage } from "@/lib/chat-images";
 import { ChatHistoryPanel } from "@/components/chat/ChatHistoryPanel";
+import { ChatModeChip } from "@/components/chat/ChatModeChip";
+import { ChatModeSheet } from "@/components/chat/ChatModeSheet";
+import { DEFAULT_CHAT_MODE, type ChatMode } from "@/lib/chat-modes";
 import { ChatWelcome } from "@/components/chat/ChatWelcome";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { TimeDivider, shouldShowTime } from "@/components/chat/TimeDivider";
@@ -233,6 +236,26 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
   // It owns its own list/search/loading state and only needs to know whether
   // it's open, so its own `visible` effect fetches the list — nothing to load here.
   const [historyOpen, setHistoryOpen] = useState(false);
+  // The mode picker sheet (components/chat/ChatModeSheet).
+  const [modeSheetOpen, setModeSheetOpen] = useState(false);
+  // What the student picked BEFORE this conversation exists. The store keys modes
+  // by thread id, and a chat opened with ＋ (or by a first-time student) has no
+  // thread until the first send — so a mode chosen in that window would have
+  // nowhere to live and would be silently dropped from the turn that follows.
+  // Only consulted while `threadId` is null; handleSend commits it to the real
+  // thread the moment one exists.
+  const [draftMode, setDraftMode] = useState<ChatMode>(DEFAULT_CHAT_MODE);
+  // A PRIMITIVE out of the store — a selector returning a fresh object literal
+  // (`{ mode: s.modes[id] }`) makes every render a new snapshot and throws
+  // "Maximum update depth exceeded".
+  const storedMode = useChatThreadsStore((s) => (threadId ? s.modes[threadId] : undefined));
+  const chatMode: ChatMode = threadId ? storedMode ?? DEFAULT_CHAT_MODE : draftMode;
+  // Picked in the sheet. Written to BOTH so it survives whichever of the two the
+  // next send reads: the store when there is a thread, the draft until there is.
+  const pickMode = (m: ChatMode) => {
+    setDraftMode(m);
+    if (threadId) useChatThreadsStore.getState().setMode(threadId, m);
+  };
   // A ＋ that hasn't been typed into yet. The panel's ＋ creates nothing; it just
   // leaves this behind, and the first message turns it into a real thread. A ref
   // rather than state because nothing renders off it — and because
@@ -770,6 +793,12 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
     // createThreadForSend), and that setState isn't visible to this closure.
     // The upload below would otherwise be aimed at a thesis that isn't there.
     const { id: tid, thesisId: sendThesisId } = resolved;
+    // The thread may have only just come into existence (createThreadForSend), so
+    // whatever was picked while there was none to key it on gets written to it now
+    // — before the turn that carries it opens.
+    if (chatMode !== DEFAULT_CHAT_MODE || threadId !== tid) {
+      useChatThreadsStore.getState().setMode(tid, chatMode);
+    }
 
     // A staged document goes to the thesis's source materials before the turn
     // opens — that is the only route by which the AI can read it. The composer
@@ -820,7 +849,7 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
     // Sending your own message always jumps to the latest, even if scrolled up.
     isNearBottomRef.current = true;
     setShowScrollDown(false);
-    await sendMessageToAI(tid, sendThesisId, message, { images: outgoing.length ? outgoing : undefined });
+    await sendMessageToAI(tid, sendThesisId, message, { images: outgoing.length ? outgoing : undefined, mode: chatMode });
   }
 
   // A document can only be attached to a thesis — a source belongs to a
@@ -1333,6 +1362,17 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
               </Animated.View>
             </Pressable>
 
+            {/* What this conversation is FOR, where it can be seen while typing.
+                Disabled mid-turn: the mode is sent WITH the turn, so changing it
+                under one that is already running would say nothing and mean
+                nothing. */}
+            <ChatModeChip
+              mode={chatMode}
+              onPress={() => setModeSheetOpen(true)}
+              rtl={i18n.language === "ar"}
+              disabled={isGenerating}
+            />
+
             <RNTextInput
               ref={inputRef}
               style={[styles.input, { color: colors.textPrimary }, inputHeight != null && { height: inputHeight }]}
@@ -1477,6 +1517,16 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
         onClose={() => setHistoryOpen(false)}
         onPick={handlePickThread}
         onNew={handleNewThread}
+      />
+
+      {/* The mode picker. Unmounted while closed (see ChatModeSheet) — a gorhom
+          modal left mounted-but-hidden stops answering present(). */}
+      <ChatModeSheet
+        open={modeSheetOpen}
+        mode={chatMode}
+        rtl={i18n.language === "ar"}
+        onSelect={pickMode}
+        onClose={() => setModeSheetOpen(false)}
       />
 
       {/* Attach a thesis to an unattached conversation. Mounted only when there

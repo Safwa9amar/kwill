@@ -13,6 +13,7 @@ import { userFacingError } from "./safe-error";
 import { useBillingStore } from "@/stores/billing-store";
 import { isQuotaError } from "@/types/billing";
 import type { ChatMessage } from "@/types/chat";
+import type { ChatMode } from "./chat-modes";
 
 // The first view shows only the most recent few messages; scrolling to the top
 // pages in older history a larger batch at a time.
@@ -210,7 +211,7 @@ export async function sendMessageToAI(
   threadId: string,
   thesisId: string | null,
   userMessage: string,
-  opts?: { chapterId?: string; sectionId?: string; selection?: string; docBlockIndex?: number | null; docBlockIndices?: number[]; images?: StagedImage[] }
+  opts?: { chapterId?: string; sectionId?: string; selection?: string; docBlockIndex?: number | null; docBlockIndices?: number[]; images?: StagedImage[]; mode?: ChatMode }
 ): Promise<void> {
   // Add user message immediately (optimistic). Marked pending until reconciled.
   // addMessage returns the EXISTING id when this repeats a just-sent message, so
@@ -312,10 +313,21 @@ async function runAssistantTurn(
     /** The user row this turn answers. Marked failed if the turn never lands, so
      *  the student sees an undelivered message as undelivered. */
     userMessageId?: string;
+    /** The conversation mode this turn runs in. Omitted by retry/regenerate, which
+     *  fall back to whatever the thread is currently set to — the composer that
+     *  owns the picker is not in the loop for those. */
+    mode?: ChatMode;
   }
 ): Promise<void> {
   const store = useChatStore.getState();
   store.setPendingConfirm(null);
+
+  // Ask / Plan / Assist / Agent. The composer that started this turn passes what
+  // the student picked; a retry or a regenerate has no picker in hand, so it
+  // reads the thread's current mode instead of silently downgrading it to the
+  // default. Sent on EVERY turn — that is what keeps the server's copy in step
+  // (there is no PATCH for it).
+  const mode = opts?.mode ?? useChatThreadsStore.getState().modeFor(threadId);
 
   // flushOps / the outline sync / docChanges all need the real THESIS id, not
   // the thread id — the doc history checkpoint and the outline are per-document,
@@ -530,7 +542,7 @@ async function runAssistantTurn(
               useChatThreadsStore.getState().applyTitle(titledId, title);
             },
           },
-          { chapterId: opts?.chapterId, sectionId: opts?.sectionId, selection: opts?.selection, docBlockIndex: opts?.docBlockIndex ?? null, docBlockIndices: opts?.docBlockIndices, regenerate: opts?.regenerate, attachments: opts?.images?.map(toAttachment), signal: controller.signal }
+          { chapterId: opts?.chapterId, sectionId: opts?.sectionId, selection: opts?.selection, docBlockIndex: opts?.docBlockIndex ?? null, docBlockIndices: opts?.docBlockIndices, regenerate: opts?.regenerate, mode, attachments: opts?.images?.map(toAttachment), signal: controller.signal }
         );
 
         // Everything still queued belongs to this attempt — land it before the
