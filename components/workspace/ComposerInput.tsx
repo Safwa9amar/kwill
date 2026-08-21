@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { View, Pressable, StyleSheet, Alert } from "react-native";
+import { View, Pressable, StyleSheet, Alert, type TextInput as RNTextInput, type TextInputProps } from "react-native";
 import { useTranslation } from "react-i18next";
 // Deliberately NOT BottomSheetTextInput: registering the input activates gorhom's
 // own keyboard repositioning, which fights the sheet's manual keyboard docking
@@ -21,6 +21,14 @@ import { useVoiceDictation } from "@/lib/voice";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
+// gesture-handler types its TextInput's ref as `Ref<ComponentType<any>>`, which is
+// simply wrong: the wrapper forwards to the real React Native TextInput instance,
+// which is what `.focus()` lives on. Corrected once, here, so the ref is honest
+// everywhere else. The props are React Native's TextInput props unchanged.
+const GHTextInput = TextInput as unknown as React.ForwardRefExoticComponent<
+  TextInputProps & React.RefAttributes<RNTextInput>
+>;
+
 // Composer auto-grow bounds (one line … ~6 lines, then it scrolls internally).
 // Belt-and-suspenders so it grows whichever mechanism the New Architecture honors:
 // minHeight/maxHeight bound the intrinsic auto-sizing, and onContentSizeChange drives
@@ -28,6 +36,14 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 // the event never fires the intrinsic path still governs (never pinned to one line).
 const INPUT_MIN_HEIGHT = 28;
 const INPUT_MAX_HEIGHT = 120;
+
+/** The underlying TextInput, so a caller can focus the composer from elsewhere
+ *  in the sheet (the plan card's "Ask for changes" does exactly that).
+ *  Declared against React Native's instance type on purpose: gesture-handler's
+ *  TextInput is a thin native wrapper around it, but its exported TYPE is loose
+ *  (`ComponentClass<any> | FunctionComponent<any>`), so inferring the ref off
+ *  the component yields the component itself and `.focus()` is not on it. */
+export type ComposerInputHandle = RNTextInput;
 
 interface Props {
   value: string;
@@ -42,6 +58,8 @@ interface Props {
   sendLabel: string;
   stopLabel: string;
   micLabel: string;
+  /** Optional handle on the text field — lets the sheet focus it programmatically. */
+  inputRef?: React.Ref<ComposerInputHandle>;
 }
 
 /**
@@ -61,6 +79,7 @@ export function ComposerInput({
   sendLabel,
   stopLabel,
   micLabel,
+  inputRef,
 }: Props) {
   const colors = useThemeColors();
   const { t } = useTranslation();
@@ -114,7 +133,8 @@ export function ComposerInput({
 
   return (
     <View style={[styles.wrapper, { backgroundColor: colors.bgInput }]}>
-      <TextInput
+      <GHTextInput
+        ref={inputRef}
         style={[styles.input, { color: colors.textPrimary }, inputHeight != null && { height: inputHeight }]}
         placeholder={listening ? t("composer.listening", { defaultValue: "Listening…" }) : placeholder}
         placeholderTextColor={colors.textPlaceholder}

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, Alert, Keyboard, Platform, Text, Pressable } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
-import GorhomBottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
+import GorhomBottomSheet, { BottomSheetView, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -21,11 +21,11 @@ import { useWorkspaceStore } from "@/stores/workspace-store";
 import { useChatStore } from "@/stores/chat-store";
 import { useChatThreadsStore } from "@/stores/chat-threads-store";
 import { useThesisDocStore } from "@/stores/thesis-doc-store";
-import { sendMessageToAI, regenerateLastResponse, approvePendingAction, declinePendingAction } from "@/lib/ai-service";
+import { sendMessageToAI, regenerateLastResponse, approvePendingAction, declinePendingAction, executePlan } from "@/lib/ai-service";
 import { type DocBlockDTO, restoreThesisHistory } from "@/lib/api";
 import { ComposerThinking } from "./ComposerThinking";
 import { deriveThinkingMs } from "@/lib/thinking";
-import { ComposerInput } from "./ComposerInput";
+import { ComposerInput, type ComposerInputHandle } from "./ComposerInput";
 import { ComposerQuickActions } from "./ComposerQuickActions";
 import { useComposerSuggestions } from "@/hooks/useComposerSuggestions";
 import { ComposerToolsTray, type ToolItem } from "./ComposerToolsTray";
@@ -34,6 +34,7 @@ import { ComposerConfirm } from "./ComposerConfirm";
 import { ComposerModeToggle } from "./ComposerModeToggle";
 import { ComposerEditTools } from "./ComposerEditTools";
 import { ComposerRibbon } from "./ribbon/ComposerRibbon";
+import { PlanCard } from "@/components/chat/PlanCard";
 import { ChatModeChip } from "@/components/chat/ChatModeChip";
 import { ChatModeSheet } from "@/components/chat/ChatModeSheet";
 import { DEFAULT_CHAT_MODE, type ChatMode } from "@/lib/chat-modes";
@@ -215,7 +216,55 @@ export function WorkspaceComposerSheet({
     return msg ? deriveThinkingMs(msg) : undefined;
   });
 
+  // ——— Plan mode: the latest plan, shown right here ———
+  // The writer has no transcript, so the plan gets the same treatment a pending
+  // approval does: a transient slot in the sheet itself. Scope is THIS TURN — the
+  // scan walks back from the newest message and stops dead at the student's own
+  // last message, so sending anything supersedes the card exactly as it would a
+  // stale approval. It also skips the message still streaming, so the card waits
+  // until the turn that proposed it has actually finished (MessageBubble
+  // withholds it on the same rule).
+  //
+  // ⚠️ Returns the STORED PlanPayload — never a fresh object literal, which would
+  // hand zustand a new snapshot every render and loop the tree.
+  //
+  // Only plans this session's live stream produced are reachable: the server
+  // persists the frame in the message CONTENT, and only `addPlanToMessage` fills
+  // `plans` — so a plan from a previous run of the app is not re-offered here.
+  // That is deliberate; see the note on `donePlanIds` (session-scoped) in
+  // stores/chat-store.ts — re-showing a plan whose "already run" bit did not
+  // survive the restart is how a thesis gets edited twice.
+  const latestPlan = useChatStore((s) => {
+    const list = s.messages[threadId ?? ""];
+    if (!list) return undefined;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const m = list[i];
+      if (m.role === "user") return undefined; // the next send retires the card
+      if (m.id === s.streamingId) continue; // still being written
+      if (m.plans?.length) return m.plans[m.plans.length - 1];
+    }
+    return undefined;
+  });
+  // The double-run guard is the STORE's, shared with the chat screen's cards —
+  // both primitives (a string-or-null and the stored array), never literals.
+  const runningPlanId = useChatStore((s) => s.runningPlanId);
+  const donePlanIds = useChatStore((s) => s.donePlanIds);
+  // The slot is TRANSIENT, like the confirm's: it holds the plan until the run
+  // ends, then lets go. The chat screen keeps a finished card as the record of
+  // what was done — it has a transcript to keep it in. Here a spent card would
+  // only pin the sheet at its expanded detent (see the effects below) on top of
+  // the document the student just had rewritten. The run's own answer, the
+  // reasoning trace and the Undo chip are what report it here.
+  // Note this also covers Stop: stopGenerating retires the running plan into
+  // donePlanIds, so an aborted run clears the slot too.
+  const planFinished = latestPlan ? donePlanIds.includes(latestPlan.id) : false;
+  const plan = planFinished ? undefined : latestPlan;
+  const planId = plan?.id ?? null;
+
   const [inputText, setInputText] = useState("");
+  // Handle on the composer's own text field, so "Ask for changes" lands here
+  // rather than sending the student to the chat screen for a keyboard.
+  const inputRef = useRef<ComposerInputHandle>(null);
 
   // ——— Keyboard docking ———
   // Keyboard CLEARANCE is owned by the workspace screen's KeyboardAvoidingView:
@@ -297,10 +346,13 @@ export function WorkspaceComposerSheet({
   }, [docked, contentHeight]);
 
   // AI activity forces the composer visible so its progress/question is seen even
-  // if the user had closed the sheet via the header toggle.
+  // if the user had closed the sheet via the header toggle. A plan counts: a plan
+  // the student cannot see is a mode that does not work. It fires once, when the
+  // plan id changes — so they can still close the composer afterwards and read
+  // their document.
   useEffect(() => {
-    if (isGenerating || pendingAsk) useWorkspaceStore.getState().setComposerOpen(true);
-  }, [isGenerating, pendingAsk]);
+    if (isGenerating || pendingAsk || planId) useWorkspaceStore.getState().setComposerOpen(true);
+  }, [isGenerating, pendingAsk, planId]);
 
   // Single source of truth for the sheet's detent: closed when toggled off;
   // otherwise expanded while the AI works / asks, and collapsed to the peek when
@@ -316,12 +368,13 @@ export function WorkspaceComposerSheet({
       sheetRef.current?.close();
     } else if (docked) {
       return;
-    } else if (isGenerating || pendingAsk) {
+    } else if (isGenerating || pendingAsk || planId) {
+      // A plan card does not fit the 250px peek — expand, like an ask does.
       sheetRef.current?.snapToIndex(1);
     } else {
       sheetRef.current?.snapToIndex(0);
     }
-  }, [composerOpen, isGenerating, pendingAsk, docked, inlineEditing]);
+  }, [composerOpen, isGenerating, pendingAsk, planId, docked, inlineEditing]);
 
   // Keyboard docking: detent 0 above becomes the docked position; gorhom's
   // snap-point-change reaction animates onto it by itself when the sheet was at
@@ -394,6 +447,28 @@ export function WorkspaceComposerSheet({
     const tid = await resolveThreadId();
     void declinePendingAction(tid, thesisId, pendingConfirm.actionId);
   };
+  // Run the plan on the card. There is exactly ONE execute path in the app —
+  // ai-service's executePlan — and exactly one double-run guard, the store slot
+  // it claims before the request opens (beginPlanRun). The chat screen's card
+  // calls the same function, so two cards showing the same plan on two screens
+  // still run it once. Nothing is guarded here on purpose.
+  const handleExecutePlan = useCallback(() => {
+    if (!threadId || !planId) return;
+    void executePlan(threadId, thesisId, planId);
+  }, [threadId, thesisId, planId]);
+
+  // "Ask for changes" is not a mode — the student answering in their own words IS
+  // the revision (same call the chat screen makes). Here it also has to make sure
+  // there is an input to answer in: the Edit-mode ribbon replaces it, so switch
+  // back to the AI composer, expand, then focus on the next frame once it has
+  // mounted.
+  const handleAskPlanChanges = useCallback(() => {
+    useWorkspaceStore.getState().setComposerMode("ai");
+    useWorkspaceStore.getState().setComposerOpen(true);
+    sheetRef.current?.snapToIndex(1);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, []);
+
   const handleRegenerate = async () => {
     const tid = await resolveThreadId();
     void regenerateLastResponse(tid, thesisId);
@@ -635,6 +710,41 @@ export function WorkspaceComposerSheet({
           />
         ) : (
           <>
+            {/* Plan mode's card, in the same transient slot ComposerConfirm takes
+                — but ABOVE the surface rather than instead of it, because "Ask
+                for changes" needs the input still there to answer in. Outside
+                the AI/Edit branch below for the same reason the confirm is:
+                which composer you are looking at must not decide whether you
+                are shown the thing waiting on you.
+
+                Hidden while docked: docking deliberately shows nothing but the
+                input surface above the keyboard, and the card comes straight
+                back when the keyboard goes down.
+
+                Scrollable and capped: a long plan must never push its own
+                Execute button off the bottom of the sheet. gorhom's scroll view,
+                not RN's — the sheet's pan gesture eats a plain one.
+
+                `done` is always false: a finished plan has already left the slot
+                (see `planFinished`), so the card only ever shows here as
+                proposed or as running. The double-run guard is not this prop —
+                it is the store slot executePlan claims. */}
+            {!docked && plan && (
+              <BottomSheetScrollView
+                style={styles.planSlot}
+                contentContainerStyle={styles.planSlotContent}
+                nestedScrollEnabled
+              >
+                <PlanCard
+                  plan={plan}
+                  rtl={rtl}
+                  running={runningPlanId === plan.id}
+                  done={false}
+                  onExecute={handleExecutePlan}
+                  onAskChanges={handleAskPlanChanges}
+                />
+              </BottomSheetScrollView>
+            )}
             {composerMode === "edit" && isLiveDoc ? (
               <ComposerRibbon
                 thesisId={thesisId}
@@ -669,6 +779,7 @@ export function WorkspaceComposerSheet({
                   </>
                 )}
                 <ComposerInput
+                  inputRef={inputRef}
                   value={inputText}
                   onChangeText={setInputText}
                   onSend={handleSend}
@@ -742,6 +853,10 @@ const styles = StyleSheet.create({
   modeRow: { alignItems: "center", gap: 8, marginBottom: 8 },
   modeToggleWrap: { flex: 1, marginBottom: -8 },
   inputSpacer: { height: 8 },
+  // Capped so the card can never push the input (or its own buttons) out of the
+  // sheet; it scrolls inside this box instead.
+  planSlot: { maxHeight: 200, marginBottom: 10 },
+  planSlotContent: { paddingBottom: 2 },
   quickActionsSpacer: { height: 12 },
   bulkRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
   bulkBtn: {
