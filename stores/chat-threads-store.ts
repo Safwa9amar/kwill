@@ -9,6 +9,7 @@ import {
   type ChatThread,
   type ThreadSearchResult,
 } from "@/lib/api";
+import { chatModeOf, DEFAULT_CHAT_MODE, type ChatMode } from "@/lib/chat-modes";
 
 // Owns the conversation list for the history panel: every thread the student
 // can switch to, search results, and which one is currently open. The server
@@ -41,6 +42,13 @@ interface ChatThreadsState {
   query: string;
   results: ThreadSearchResult[];
   searching: boolean;
+
+  /** Mode per thread, seeded from the server's thread list and updated when the
+   *  student picks one. Kept here rather than in chat-store because it belongs to
+   *  the CONVERSATION, not to the messages on screen. */
+  modes: Record<string, ChatMode>;
+  modeFor: (threadId: string | null) => ChatMode;
+  setMode: (threadId: string, mode: ChatMode) => void;
 
   /** Fetch the thread list, optionally scoped to one thesis. Best-effort: on
    *  failure the last good list stays on screen (same convention as
@@ -84,12 +92,16 @@ export const useChatThreadsStore = create<ChatThreadsState>((set, get) => ({
   query: "",
   results: EMPTY_RESULTS,
   searching: false,
+  modes: {},
+  modeFor: (threadId) => (threadId ? get().modes[threadId] ?? DEFAULT_CHAT_MODE : DEFAULT_CHAT_MODE),
+  setMode: (threadId, mode) => set((s) => ({ modes: { ...s.modes, [threadId]: mode } })),
 
   load: async (thesisId) => {
     set({ loading: true });
     try {
       const threads = await listThreads(thesisId ? { thesisId } : undefined);
-      set({ threads });
+      const modes = Object.fromEntries(threads.map((th) => [th.id, chatModeOf(th.mode)]));
+      set({ threads, modes: { ...get().modes, ...modes } });
     } catch {
       // Keep whatever is already on screen — a failed refresh must never blank
       // the panel out from under the student.

@@ -720,7 +720,7 @@ export async function chatSendStream(
   threadId: string,
   message: string,
   handlers: ChatStreamHandlers,
-  options?: { chapterId?: string; sectionId?: string; selection?: string; docBlockIndex?: number | null; docBlockIndices?: number[]; regenerate?: boolean; attachments?: ChatAttachmentUpload[]; signal?: AbortSignal }
+  options?: { chapterId?: string; sectionId?: string; selection?: string; docBlockIndex?: number | null; docBlockIndices?: number[]; regenerate?: boolean; mode?: string; attachments?: ChatAttachmentUpload[]; signal?: AbortSignal }
 ): Promise<void> {
   // `docBlockIndex` (live-.docx, L2): the selected engine block index → the AI
   // edits that paragraph. `docBlockIndices` carries a multi-select set so the AI
@@ -737,6 +737,10 @@ export async function chatSendStream(
     docBlockIndex: options?.docBlockIndex ?? null,
     docBlockIndices: options?.docBlockIndices,
     regenerate: options?.regenerate ?? false,
+    // The conversation's mode (Ask / Plan / Assist / Agent). The server persists it
+    // on the thread, so sending it every turn is what keeps the two in step — and
+    // omitting it (an older build) leaves the thread on whatever it had.
+    mode: options?.mode,
     // Images the student attached, as base64 (binary/multipart bodies are
     // unreliable from RN — same convention as every other upload here). The
     // server stores them and writes a [[MODK_IMG]] frame onto the saved message,
@@ -776,6 +780,9 @@ export interface ChatThread {
   thesisId: string | null;
   title: string | null;
   pinned: boolean;
+  /** Ask / Plan / Assist / Agent. Absent on a server that predates modes — read it
+   *  through chatModeOf(), which falls back to "assist". */
+  mode?: string;
   archivedAt: string | null;
   lastMessageAt: string | null;
   createdAt: string;
