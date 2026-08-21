@@ -34,6 +34,9 @@ import { ComposerConfirm } from "./ComposerConfirm";
 import { ComposerModeToggle } from "./ComposerModeToggle";
 import { ComposerEditTools } from "./ComposerEditTools";
 import { ComposerRibbon } from "./ribbon/ComposerRibbon";
+import { ChatModeChip } from "@/components/chat/ChatModeChip";
+import { ChatModeSheet } from "@/components/chat/ChatModeSheet";
+import { DEFAULT_CHAT_MODE, type ChatMode } from "@/lib/chat-modes";
 import { visualRow } from "@/lib/rtl-layout";
 
 /** Height of the collapsed peek (the doc area pads its bottom by this). */
@@ -156,6 +159,21 @@ export function WorkspaceComposerSheet({
     setThreadId(id);
     return id;
   }, [threadId, thesisId]);
+
+  // ——— The conversation's mode (Ask / Plan / Assist / Agent) ———
+  // A different axis from `composerMode` (AI ⇄ Edit) above, which picks which
+  // composer you are looking at. This one picks how the assistant works, and it
+  // belongs to the THREAD — so it is read from the threads store, as a PRIMITIVE
+  // (a selector returning a fresh object literal loops the render).
+  const [modeSheetOpen, setModeSheetOpen] = useState(false);
+  // Held here only until `threadId` resolves — see chat.tsx for the same seam.
+  const [draftMode, setDraftMode] = useState<ChatMode>(DEFAULT_CHAT_MODE);
+  const storedMode = useChatThreadsStore((s) => (threadId ? s.modes[threadId] : undefined));
+  const chatMode: ChatMode = threadId ? storedMode ?? DEFAULT_CHAT_MODE : draftMode;
+  const pickMode = (m: ChatMode) => {
+    setDraftMode(m);
+    if (threadId) useChatThreadsStore.getState().setMode(threadId, m);
+  };
 
   const isGenerating = useChatStore((s) => s.isGenerating);
   const generatingPhase = useChatStore((s) => s.generatingPhase);
@@ -346,7 +364,10 @@ export function WorkspaceComposerSheet({
     setInputText("");
     Keyboard.dismiss();
     const tid = await resolveThreadId();
-    await sendMessageToAI(tid, thesisId, text, focusOpts);
+    // The thread may have only just resolved, so commit whatever was picked while
+    // there was none to key it on before the turn that carries it opens.
+    useChatThreadsStore.getState().setMode(tid, chatMode);
+    await sendMessageToAI(tid, thesisId, text, { ...focusOpts, mode: chatMode });
   };
 
   const handleAnswer = async (answer: string) => {
@@ -451,6 +472,7 @@ export function WorkspaceComposerSheet({
   ];
 
   return (
+    <>
     <GorhomBottomSheet
       ref={sheetRef}
       index={0}
@@ -518,15 +540,34 @@ export function WorkspaceComposerSheet({
         </View>
         )}
 
-        {/* AI ⇄ Edit mode toggle — only meaningful on a live .docx. */}
-        {!docked && isLiveDoc && (
-          <ComposerModeToggle
-            mode={composerMode}
-            onChange={(m) => useWorkspaceStore.getState().setComposerMode(m)}
-            aiLabel={t("composer.modeAi", { defaultValue: "AI" })}
-            editLabel={t("composer.modeEdit", { defaultValue: "Edit" })}
-            rtl={rtl}
-          />
+        {/* AI ⇄ Edit mode toggle — only meaningful on a live .docx — and BESIDE
+            it, never inside it, the conversation's mode. The two are different
+            questions: the toggle picks which composer this is, the chip picks
+            how the assistant works. The chip shows on a legacy doc too, where
+            the toggle has nothing to offer. */}
+        {!docked && (
+          <View style={[styles.modeRow, { flexDirection: visualRow(rtl) }]}>
+            {isLiveDoc && (
+              // The toggle carries its own marginBottom (it used to be the whole
+              // row); cancel it here so the chip centres on the toggle rather
+              // than on the toggle-plus-gap.
+              <View style={styles.modeToggleWrap}>
+                <ComposerModeToggle
+                  mode={composerMode}
+                  onChange={(m) => useWorkspaceStore.getState().setComposerMode(m)}
+                  aiLabel={t("composer.modeAi", { defaultValue: "AI" })}
+                  editLabel={t("composer.modeEdit", { defaultValue: "Edit" })}
+                  rtl={rtl}
+                />
+              </View>
+            )}
+            <ChatModeChip
+              mode={chatMode}
+              onPress={() => setModeSheetOpen(true)}
+              rtl={rtl}
+              disabled={isGenerating}
+            />
+          </View>
         )}
 
         {/* Bulk actions — only while building a multi-selection on a live .docx. */}
@@ -661,6 +702,20 @@ export function WorkspaceComposerSheet({
         </View>
       </BottomSheetView>
     </GorhomBottomSheet>
+
+      {/* The mode picker, a SIBLING of this sheet rather than a child of it: it
+          is a gorhom modal of its own, and nesting one inside a BottomSheet puts
+          it under that sheet's internal gesture context for no reason. Unmounted
+          while closed (see ChatModeSheet) — a gorhom modal left mounted-but-
+          hidden stops answering present(). */}
+      <ChatModeSheet
+        open={modeSheetOpen}
+        mode={chatMode}
+        rtl={rtl}
+        onSelect={pickMode}
+        onClose={() => setModeSheetOpen(false)}
+      />
+    </>
   );
 }
 
@@ -684,6 +739,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   chipText: { flexShrink: 1, fontSize: 12, fontFamily: "Inter_500Medium" },
+  modeRow: { alignItems: "center", gap: 8, marginBottom: 8 },
+  modeToggleWrap: { flex: 1, marginBottom: -8 },
   inputSpacer: { height: 8 },
   quickActionsSpacer: { height: 12 },
   bulkRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
