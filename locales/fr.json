@@ -863,6 +863,13 @@
       "unattachedHint": "Aucun mémoire associé — je peux quand même vous aider à structurer, rédiger et citer."
     }
   },
+  "chatModes": {
+    "title": "Comment l'assistant doit-il travailler ?",
+    "ask": { "label": "Question", "hint": "Répond à vos questions. Ne modifie jamais le document." },
+    "plan": { "label": "Plan", "hint": "Prépare ce qu'il ferait et vous le montre, avant toute modification." },
+    "assist": { "label": "Assistant", "hint": "Modifie votre mémoire et demande avant tout changement irréversible." },
+    "agent": { "label": "Agent", "hint": "Fait tout le travail sans s'arrêter. Tout annuler en une seule fois." }
+  },
   "editor": {
     "sectionEditor": "Editeur de section",
     "wordCount": "mots",
