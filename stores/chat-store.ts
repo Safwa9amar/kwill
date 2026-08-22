@@ -208,6 +208,20 @@ interface ChatState {
   // the DOCUMENT, and two threads editing the same thesis must share it. Do not
   // "fix" this to match the rest of the store.
   docChanges: Record<string, DocChangesPayload | null>;
+  // Which CONVERSATION's last turn moved the document — the in-memory half of
+  // "did this turn do work?", which is what decides whether the student is
+  // offered Continue or Regenerate (see lib/turn-work.ts).
+  //
+  // `docChanges` above cannot answer it: it is keyed by THESIS by design, and
+  // two threads share one document. Without this, a turn that edited the .docx
+  // in thread A would put a Continue chip on thread B's last answer — and
+  // tapping it would brief the model with edits that conversation never made.
+  //
+  // Set beside `docChanges` and cleared with it, so the two can never disagree.
+  // In memory only, like the payload it qualifies: [[MODK_DOCCHANGES]] is
+  // stripped before the message is persisted, so after a reload this is null and
+  // the server's 409 is the only thing left that knows (see lib/turn-work.ts).
+  docChangedThreadId: string | null;
 
   getMessages: (threadId: string) => ChatMessage[];
   setMessages: (threadId: string, messages: ChatMessage[]) => void;
@@ -262,8 +276,10 @@ interface ChatState {
   /** Record a tool frame: a "running" row is appended, its terminal frame updates
    *  that same row in place (matched on id). */
   pushToolTrace: (tool: ToolTracePayload) => void;
-  /** thesisId, not threadId — see the `docChanges` field comment. */
-  setDocChanges: (thesisId: string, changes: DocChangesPayload | null) => void;
+  /** thesisId, not threadId — see the `docChanges` field comment. `threadId` is
+   *  the conversation whose turn made them, recorded separately because the
+   *  payload itself is per-document (see `docChangedThreadId`). */
+  setDocChanges: (thesisId: string, changes: DocChangesPayload | null, threadId?: string) => void;
   stopGenerating: () => void;
   clearMessages: (threadId: string) => void;
 }
@@ -291,6 +307,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   planSteps: {},
   planStepsRev: 0,
   docChanges: {},
+  docChangedThreadId: null,
 
   getMessages: (threadId) => get().messages[threadId] ?? EMPTY_MESSAGES,
 
@@ -577,8 +594,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return { toolTrace: next, lastEventAt };
     }),
   // thesisId, not threadId — see the `docChanges` field comment above.
-  setDocChanges: (thesisId, changes) =>
-    set((s) => ({ docChanges: { ...s.docChanges, [thesisId]: changes } })),
+  setDocChanges: (thesisId, changes, threadId) =>
+    set((s) => ({
+      docChanges: { ...s.docChanges, [thesisId]: changes },
+      // Ownership follows the payload. Clearing owns nothing; a caller with no
+      // thread in hand (the workspace's undo chip) leaves what was there rather
+      // than inventing an owner for it.
+      docChangedThreadId: changes ? threadId ?? s.docChangedThreadId : null,
+    })),
   // Stamp when reasoning ended. Idempotent: only stamps if thinking actually
   // started and the end isn't already set. Called at the first answer token and
   // again in ai-service's finally (covers tool-only turns and aborts).

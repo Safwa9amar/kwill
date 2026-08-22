@@ -5,12 +5,13 @@ import { useThesisDocStore } from "@/stores/thesis-doc-store";
 import { useOutlineStore } from "@/stores/outline-store";
 import { useThesisStore } from "@/stores/thesis-store";
 import { useLexicalEditorStore } from "@/stores/lexical-editor-store";
-import { chatSend, chatSendStream, chatConfirmAction, chatCancelAction, chatExecutePlan, chatStopTurn, getChatHistory, getChatHistoryPage, listThreads, type ChatStreamHandlers } from "./api";
+import { chatSend, chatSendStream, chatConfirmAction, chatCancelAction, chatExecutePlan, chatContinueTurn, chatStopTurn, getChatHistory, getChatHistoryPage, listThreads, type ChatStreamHandlers } from "./api";
 import { getLatestMessages, getOlderMessages, upsertMessages, deletePending, deleteStalePending, getLastSyncedAt, setLastSyncedAt } from "./chat-cache";
 import { IMG_FRAME_OPEN, splitImageFrames, restageImage, toAttachment, toChatImage, type StagedImage } from "./chat-images";
 import i18n from "./i18n";
 import { backoffMs, backoffSleep, isTransientFailure, MAX_TURN_ATTEMPTS } from "./retry";
 import { userFacingError } from "./safe-error";
+import { isContinueInstead, lastTurnDidWork } from "./turn-work";
 import { useBillingStore } from "@/stores/billing-store";
 import { isQuotaError } from "@/types/billing";
 import type { ChatMessage } from "@/types/chat";
@@ -508,11 +509,61 @@ export async function retryFailedMessage(threadId: string, thesisId: string | nu
 }
 
 /**
+ * Does the app already know the last turn should be CONTINUED, not restarted?
+ *
+ * Reads the two signals that are visible on this side — a plan with ticks on it,
+ * and this session's own memory of the .docx moving — through lib/turn-work.ts.
+ * Exported so the chip can say the right word before any round trip; false here
+ * means "cannot tell", never "nothing happened", and the server's 409 is what
+ * catches everything this misses.
+ */
+export function lastTurnNeedsContinue(threadId: string | null, thesisId: string | null): boolean {
+  if (!threadId) return false;
+  const s = useChatStore.getState();
+  return lastTurnDidWork(s.getMessages(threadId), s.planSteps, {
+    // Both halves matter: the payload proves the document moved, and the thread
+    // id proves it moved because of THIS conversation (see chat-store).
+    docChanged: !!thesisId && s.docChangedThreadId === threadId && !!s.docChanges[thesisId],
+  });
+}
+
+/**
+ * Finish a turn that stopped part-way — the Continue affordance, and what a
+ * refused regenerate silently becomes.
+ *
+ * Shaped exactly like executePlan: ONE continuation, streamed into a fresh
+ * bubble through the ordinary handlers, and never auto-retried (see
+ * runStreamContinuation). Nothing local is dropped first — that is the entire
+ * difference from regenerate, and the reason the plan card and its ticks are
+ * still on screen when the work resumes.
+ */
+export async function continueInterruptedTurn(threadId: string, thesisId: string | null): Promise<void> {
+  // A second tap must not open a second continuation: beginTurn would hang up on
+  // the first and both would go on editing the same .docx server-side. Same
+  // bargain beginPlanRun makes for a plan card.
+  if (useChatStore.getState().isGenerating) return;
+  return runContinuation(threadId, thesisId);
+}
+
+/** The guardless half of continueInterruptedTurn, for the 409 path — which is
+ *  already inside a turn of its own and would fail that check. */
+function runContinuation(threadId: string, thesisId: string | null): Promise<void> {
+  return runStreamContinuation(threadId, thesisId, (handlers, signal) =>
+    chatContinueTurn(threadId, handlers, signal),
+  );
+}
+
+/**
  * Re-run the assistant's answer to the most recent user message — the
  * "regenerate" / "try again" affordance. Drops the previous assistant reply
  * (everything after the last user turn) and streams a fresh one for the same
  * prompt; the user's own message is left in place. No-op while a turn is already
  * generating, or when there's no user message to answer.
+ *
+ * …unless that reply is a job that stopped HALF-DONE, in which case it is
+ * continued instead. See lastTurnNeedsContinue: restarting a twelve-step plan
+ * that reached step eight throws the card away and re-applies eight edits over
+ * themselves, which the student then has to undo by hand.
  */
 export async function regenerateLastResponse(threadId: string, thesisId: string | null): Promise<void> {
   const store = useChatStore.getState();
@@ -523,6 +574,15 @@ export async function regenerateLastResponse(threadId: string, thesisId: string 
   while (i >= 0 && msgs[i].role !== "user") i--;
   if (i < 0) return; // nothing the user asked — nothing to regenerate
 
+  // The app can already see this turn did work. Take the fast road: the server
+  // would refuse the regenerate anyway (409 continue_instead), and deciding it
+  // here is what keeps the transcript from being torn down and put back — the
+  // plan card and its ticks never blink.
+  if (lastTurnNeedsContinue(threadId, thesisId)) {
+    await runContinuation(threadId, thesisId);
+    return;
+  }
+
   const userMsg = msgs[i];
   // Keep up to and including the user message; discard the stale reply so the
   // new one streams into a fresh bubble.
@@ -532,7 +592,17 @@ export async function regenerateLastResponse(threadId: string, thesisId: string 
   // the stored row already holds the image frames, so the re-run sees the same
   // pictures without re-uploading them, and the server's "is this the same
   // question?" check compares against frame-stripped content.
-  await runAssistantTurn(threadId, thesisId, displayText(userMsg), { chapterId: userMsg.chapterId, sectionId: userMsg.sectionId, regenerate: true });
+  await runAssistantTurn(threadId, thesisId, displayText(userMsg), {
+    chapterId: userMsg.chapterId,
+    sectionId: userMsg.sectionId,
+    regenerate: true,
+    // The backstop. The truncation above was optimistic and the server has just
+    // said no — put the window back EXACTLY as it was, ids and all, before the
+    // continuation streams in under it. Without this the reply carrying the plan
+    // frame stays gone from the loaded window until the thread is reopened, which
+    // is the very card this whole change exists to keep.
+    onContinueInstead: () => useChatStore.getState().setMessages(threadId, msgs),
+  });
 }
 
 // What the student actually typed. A synced user row carries its attached images
@@ -563,6 +633,10 @@ async function runAssistantTurn(
      *  fall back to whatever the thread is currently set to — the composer that
      *  owns the picker is not in the loop for those. */
     mode?: ChatMode;
+    /** The server refused this regenerate (409 continue_instead) because the turn
+     *  it would have replaced is half-finished. Fired before the continuation
+     *  starts, so the caller can undo whatever it dropped in anticipation. */
+    onContinueInstead?: () => void;
   }
 ): Promise<void> {
   const store = useChatStore.getState();
@@ -768,8 +842,10 @@ async function runAssistantTurn(
               docChanged = true;
               // thesisId, not threadId — see the field comment on chat-store's docChanges.
               // Can't actually fire with no thesis attached (no doc-editing tools are
-              // offered), but guarded rather than assumed.
-              if (thesisId) useChatStore.getState().setDocChanges(thesisId, changes);
+              // offered), but guarded rather than assumed. The thread rides along
+              // separately: it is what lets the Continue affordance tell a document
+              // THIS conversation moved from one another conversation moved.
+              if (thesisId) useChatStore.getState().setDocChanges(thesisId, changes, threadId);
             },
             onThinking: (chunk) => {
               if (!live()) return;
@@ -907,11 +983,39 @@ async function runAssistantTurn(
             // path's onDocChanges does — the outer finally reads this to decide
             // whether the outline needs re-syncing. thesisId, not threadId — see
             // the field comment on chat-store's docChanges.
-            if (result.docChanges) { docChanged = true; if (thesisId) store.setDocChanges(thesisId, result.docChanges); }
+            if (result.docChanges) { docChanged = true; if (thesisId) store.setDocChanges(thesisId, result.docChanges, threadId); }
             return;
           } catch (fallbackError: any) {
             error = fallbackError;
           }
+        }
+
+        // The server refused this regenerate: the reply it would have deleted is
+        // a job that stopped half-way, not a bad answer. It wrote versions of the
+        // .docx, or its plan had already ticked steps off — so nothing was
+        // deleted, no model call ran, and no message was charged. What the
+        // student asked for is still available; it is just the OTHER request.
+        //
+        // Made SILENTLY, and that is a decision rather than an omission.
+        // "Continue" and "Regenerate" express the same intent here — finish this
+        // — and the difference between them is a fact about how we store turns,
+        // which the student never asked about and cannot be expected to
+        // arbitrate mid-thesis. A dialog would hand them a question they did not
+        // pose, in a moment when the thing they wanted is a document that gets
+        // finished. Nothing is hidden either: the plan card stays put with every
+        // tick on it, and the work visibly resumes in a new bubble. The only
+        // thing they are spared is the word.
+        //
+        // The 409's own message is deliberately NOT shown. It is written to send
+        // someone to a Continue button, and there is no longer one to send them
+        // to.
+        if (isContinueInstead(error)) {
+          opts?.onContinueInstead?.();
+          // Awaited, not fired and forgotten: the continuation's beginTurn takes
+          // ownership of the chat, which makes this turn's `finally` a no-op
+          // instead of a flicker back to idle between the two.
+          await runContinuation(threadId, thesisId);
+          return;
         }
 
         // Out of messages. Handled before every other exit because none of them
@@ -1193,7 +1297,7 @@ async function runStreamContinuation(
       onConfirm: (confirm) => { if (!live()) return; producedOutput = true; pump.flush(); useChatStore.getState().setPendingConfirm(confirm); },
       // Not gated: the .docx was already edited, so the undo chip is owed either way.
       // (Can't fire with no thesis attached — no destructive tool exists to confirm — but guarded rather than assumed.)
-      onDocChanges: (changes) => { docChanged = true; if (thesisId) useChatStore.getState().setDocChanges(thesisId, changes); },
+      onDocChanges: (changes) => { docChanged = true; if (thesisId) useChatStore.getState().setDocChanges(thesisId, changes, threadId); },
       onFile: (file) => {
         if (!live()) return;
         const s = ensureBubble();

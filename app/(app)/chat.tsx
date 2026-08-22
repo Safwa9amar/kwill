@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { View, Text, StyleSheet, FlatList, Pressable, TextInput as RNTextInput, KeyboardAvoidingView, Platform, Keyboard, Image, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withSpring, withTiming } from "react-native-reanimated";
@@ -10,7 +10,8 @@ import { useChatStore } from "@/stores/chat-store";
 import { useChatThreadsStore } from "@/stores/chat-threads-store";
 import { useBottomSheet } from "@/stores/bottom-sheet-store";
 import { useChatHead } from "@/stores/chat-head-store";
-import { sendMessageToAI, loadInitialMessages, loadOlderMessages, regenerateLastResponse, retryFailedMessage, approvePendingAction, declinePendingAction, executePlan, stopTurn } from "@/lib/ai-service";
+import { sendMessageToAI, loadInitialMessages, loadOlderMessages, regenerateLastResponse, continueInterruptedTurn, retryFailedMessage, approvePendingAction, declinePendingAction, executePlan, stopTurn } from "@/lib/ai-service";
+import { lastTurnDidWork } from "@/lib/turn-work";
 import { ComposerConfirm } from "@/components/workspace/ComposerConfirm";
 import { ArrowUp, Plus, Mic, Paperclip, Image as ImageIcon, Camera, ClipboardPaste, ChevronDown, Square, X, FileText, SquarePen, History } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -297,6 +298,35 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
   // FlatList needs — see extraData below.
   const planSteps = useChatStore((s) => s.planSteps);
   const planStepsRev = useChatStore((s) => s.planStepsRev);
+  // This session watched the last turn edit THIS conversation's document. A
+  // primitive off two comparisons, never the payload — see chat-store's
+  // `docChangedThreadId` for why the thread half is load-bearing.
+  const docMovedHere = useChatStore(
+    (s) => !!threadId && !!thesisId && s.docChangedThreadId === threadId && !!s.docChanges[thesisId],
+  );
+  // Should the affordance under the last turn read CONTINUE rather than
+  // REGENERATE? A job that stopped half-way has to be FINISHED: restarting it
+  // deletes the plan card with every tick on it and re-applies edits that are
+  // already in the student's .docx.
+  //
+  // Decided here rather than in the bubble because the evidence is spread across
+  // the thread — the card is on the message that PROPOSED the plan and the ticks
+  // are on the one that RAN it — and one row can see neither the other nor the
+  // store's tick record.
+  //
+  // ⚠️ It answers "can the app tell?", not "did work land?". [[MODK_DOCCHANGES]]
+  // is stripped before a message is persisted, so after a reload a turn that
+  // rewrote four chapters is indistinguishable from one that said nothing. Those
+  // cases still show Regenerate — and the server answers that regenerate with a
+  // 409 the app turns into a continuation anyway (see ai-service). Memoized: this
+  // walks the loaded window, and the screen re-renders on every keystroke.
+  const canContinueLastTurn = useMemo(
+    // Never while a turn is running: the chip is not shown then, and offering to
+    // continue something still in flight is how two turns end up editing one
+    // document.
+    () => !isGenerating && lastTurnDidWork(messages, planSteps, { docChanged: docMovedHere }),
+    [isGenerating, messages, planSteps, planStepsRev, docMovedHere],
+  );
   const loadedRef = useRef(false);
   const rotation = useSharedValue(0);
   const micPulse = useSharedValue(1);
@@ -711,6 +741,19 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
     isNearBottomRef.current = true;
     setShowScrollDown(false);
     void regenerateLastResponse(threadId, thesisId);
+  }, [threadId, thesisId, stopSpeaking]);
+
+  // Finish a turn that stopped part-way, instead of running it again. Same
+  // plumbing as Regenerate above — stop the reader, snap to the bottom — and
+  // deliberately NOT the same request: /api/chat/continue-turn deletes nothing,
+  // so the plan card and its ticks stay on screen while the rest of the work
+  // streams in underneath them.
+  const handleContinue = useCallback(() => {
+    if (!threadId) return;
+    stopSpeaking();
+    isNearBottomRef.current = true;
+    setShowScrollDown(false);
+    void continueInterruptedTurn(threadId, thesisId);
   }, [threadId, thesisId, stopSpeaking]);
 
   // The AI referred to a place in the thesis and linked it (`modk://b/N`) — take
@@ -1165,6 +1208,8 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
                   onExpand={setViewerContent}
                   onPreviewFile={handleDownloadFile}
                   onRegenerate={handleRegenerate}
+                  canContinue={canContinueLastTurn}
+                  onContinue={handleContinue}
                   onRetryMessage={handleRetryMessage}
                   onViewImage={setViewerImage}
                   onBlockPress={openThesisBlock}
@@ -1182,7 +1227,7 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
             // working note after the turn ends, and a plan card keeps its
             // Execute button spinning after the run finishes. One STRING, not an
             // object: a fresh literal here re-renders every row on every render.
-            extraData={`${liveTurnId ?? ""}|${runningPlanId ?? ""}|${donePlanIds.length}|${planStepsRev}|${recovering ? 1 : 0}`}
+            extraData={`${liveTurnId ?? ""}|${runningPlanId ?? ""}|${donePlanIds.length}|${planStepsRev}|${recovering ? 1 : 0}|${canContinueLastTurn ? 1 : 0}`}
             contentContainerStyle={styles.messageList}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"

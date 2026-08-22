@@ -855,6 +855,34 @@ export async function chatExecutePlan(
   return postChatStream("/api/chat/execute-plan", { threadId, planId }, handlers, signal);
 }
 
+/**
+ * Finish a turn that stopped part-way — the Continue affordance.
+ *
+ * The other half of the regenerate guard. A long job (twelve plan steps over a
+ * live .docx) dies at step eight; regenerating it would delete the plan card
+ * with every tick on it and then re-apply the eight edits that are already in
+ * the student's file. So /send and /stream now answer such a regenerate with
+ * `409 { code: "continue_instead", action: "continue", reason }` and the app
+ * comes HERE instead.
+ *
+ * The route DELETES NOTHING. It reads what already landed, tells the model
+ * plainly what is done, and runs one turn whose only job is the remainder — and
+ * it streams back through exactly the frame protocol chatExecutePlan and
+ * chatConfirmAction use, so no new stream handling exists anywhere for it.
+ *
+ * ⚠️ Not charged: this is the second half of a request that was already paid for
+ * and did not arrive. Like a plan run, it must never be auto-retried — the
+ * server starts working the moment the request lands, and a stream that dies on
+ * the way back cannot tell "it never ran" from "it ran".
+ */
+export async function chatContinueTurn(
+  threadId: string,
+  handlers: ChatStreamHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
+  return postChatStream("/api/chat/continue-turn", { threadId }, handlers, signal);
+}
+
 // ============================================================
 // Chat Threads API (mounted at /api/threads)
 // Conversations are first-class: a thesis can hold several, and a thread can be

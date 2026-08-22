@@ -1,7 +1,7 @@
 import { memo, useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, RotateCcw } from "lucide-react-native";
+import { AlertCircle, PlayCircle, RotateCcw } from "lucide-react-native";
 import { Markdown } from "@/components/Markdown";
 import { FileCard } from "@/components/FileCard";
 import { ThinkingTrace } from "@/components/ThinkingTrace";
@@ -78,6 +78,10 @@ interface Props {
   onExpand?: (content: string) => void;
   onPreviewFile?: (file: FilePayload) => void;
   onRegenerate?: () => void;
+  /** The last turn stopped part-way and must be FINISHED, not re-run — so the
+   *  affordance below reads Continue and goes to /api/chat/continue-turn. */
+  canContinue?: boolean;
+  onContinue?: () => void;
   onRetryMessage?: (id: string) => void;
   onViewImage?: (image: ChatImage) => void;
   onBlockPress?: (link: BlockLink, label: string) => void;
@@ -105,6 +109,8 @@ export const MessageBubble = memo(function MessageBubble({
   onExpand,
   onPreviewFile,
   onRegenerate,
+  canContinue,
+  onContinue,
   onRetryMessage,
   onViewImage,
   onBlockPress,
@@ -168,6 +174,16 @@ export const MessageBubble = memo(function MessageBubble({
   // answer), so both routes to a dead end offer the same way out.
   const sendFailed = isUser && !!item.failed;
   const canRetryOwn = isUser && (sendFailed || !!isUnanswered);
+  // …and when the turn behind it stopped HALF-WAY, that affordance is a different
+  // one. Re-running a job that already edited the .docx applies those edits a
+  // second time; continuing it picks up the remainder and touches nothing twice.
+  // `canContinue` is decided by the screen, which can see the whole thread and
+  // the tick record (lib/turn-work.ts) — one bubble cannot.
+  //
+  // It also outranks "Not sent": a turn whose edits landed WAS delivered, and
+  // telling the student otherwise is what makes them send the question again.
+  const continueInstead = !!canContinue;
+  const showNotSent = sendFailed && !continueInstead;
   // The reasoning is still streaming (no answer text yet) → the "Thinking" toggle
   // shows live bouncing dots so it reads as active, replacing the separate typing
   // indicator. Once the answer starts (or the turn ends) the dots stop and it
@@ -203,7 +219,7 @@ export const MessageBubble = memo(function MessageBubble({
             {/* Say it plainly. A failed send that looks delivered is what makes a
                 student send the same request again — the retry beside it exists
                 so they never have to retype it. */}
-            {sendFailed && (
+            {showNotSent && (
               <View style={[styles.retryItem, { flexDirection: visualRow(rtl) }]}>
                 <AlertCircle size={13} color={colors.semanticError} strokeWidth={2} />
                 <Text style={[styles.retryLabel, { color: colors.semanticError }]}>
@@ -212,18 +228,37 @@ export const MessageBubble = memo(function MessageBubble({
               </View>
             )}
             <Pressable
-              // A FAILED send re-runs this exact row (no new message, and no
-              // server-side regenerate — that path deletes the reply it replaces).
-              // The unanswered case keeps the old regenerate behaviour.
-              onPress={() => (sendFailed ? onRetryMessage?.(item.id) : onRegenerate?.())}
+              // Three routes, and the order matters. A turn that already changed
+              // the thesis is CONTINUED whatever else it looks like — re-running
+              // it is what applies its edits twice. Otherwise a FAILED send
+              // re-runs this exact row (no new message, and no server-side
+              // regenerate — that path deletes the reply it replaces), and the
+              // unanswered case keeps the old regenerate behaviour.
+              onPress={() =>
+                continueInstead
+                  ? onContinue?.()
+                  : sendFailed
+                    ? onRetryMessage?.(item.id)
+                    : onRegenerate?.()
+              }
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel={t("chat.tryAgain", { defaultValue: "Try again" })}
+              accessibilityLabel={
+                continueInstead
+                  ? t("chat.continueTurn", { defaultValue: "Continue" })
+                  : t("chat.tryAgain", { defaultValue: "Try again" })
+              }
               style={[styles.retryItem, { flexDirection: visualRow(rtl) }]}
             >
-              <RotateCcw size={13} color={colors.textSecondary} strokeWidth={2} />
+              {continueInstead ? (
+                <PlayCircle size={13} color={colors.textSecondary} strokeWidth={2} />
+              ) : (
+                <RotateCcw size={13} color={colors.textSecondary} strokeWidth={2} />
+              )}
               <Text style={[styles.retryLabel, { color: colors.textSecondary }]}>
-                {t("chat.tryAgain", { defaultValue: "Try again" })}
+                {continueInstead
+                  ? t("chat.continueTurn", { defaultValue: "Continue" })
+                  : t("chat.tryAgain", { defaultValue: "Try again" })}
               </Text>
             </Pressable>
           </View>
@@ -305,6 +340,10 @@ export const MessageBubble = memo(function MessageBubble({
           onViewFull={() => onExpand?.(item.content)}
           canRegenerate={canRegenerate}
           onRegenerate={onRegenerate}
+          // Same button, different job: an unfinished turn is finished, never
+          // restarted. See `continueInstead` above.
+          continueInstead={canRegenerate && continueInstead}
+          onContinue={onContinue}
         />
       )}
     </View>

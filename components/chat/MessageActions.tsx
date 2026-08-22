@@ -22,6 +22,7 @@ import {
   ListChecks,
   Maximize2,
   MoreHorizontal,
+  PlayCircle,
   RotateCcw,
   Share2,
   type LucideIcon,
@@ -135,6 +136,11 @@ interface Props {
   onViewFull?: () => void;
   canRegenerate?: boolean;
   onRegenerate?: () => void;
+  /** The turn behind this answer stopped part-way, so the same slot in the row
+   *  offers to FINISH it rather than to run it again — re-running a turn that
+   *  already edited the .docx applies those edits a second time. */
+  continueInstead?: boolean;
+  onContinue?: () => void;
 }
 
 export function MessageActions({
@@ -146,6 +152,8 @@ export function MessageActions({
   onViewFull,
   canRegenerate,
   onRegenerate,
+  continueInstead,
+  onContinue,
 }: Props) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -288,11 +296,21 @@ export function MessageActions({
         </>
       )}
 
-      {canRegenerate && (
-        <ActionIcon label={t("chat.regenerate", { defaultValue: "Regenerate" })} onPress={() => onRegenerate?.()}>
-          <RotateCcw size={ICON} color={ink} strokeWidth={1.9} />
-        </ActionIcon>
-      )}
+      {canRegenerate &&
+        (continueInstead ? (
+          // ONE slot, never two. Offering Continue beside Regenerate would put
+          // the destructive choice back on the row and ask the student to tell
+          // them apart — and the distinction is about how we store a turn, not
+          // about anything they did. The glyph changes with the job so the two
+          // are not silently the same button.
+          <ActionIcon label={t("chat.continueTurn", { defaultValue: "Continue" })} onPress={() => onContinue?.()}>
+            <PlayCircle size={ICON} color={ink} strokeWidth={1.9} />
+          </ActionIcon>
+        ) : (
+          <ActionIcon label={t("chat.regenerate", { defaultValue: "Regenerate" })} onPress={() => onRegenerate?.()}>
+            <RotateCcw size={ICON} color={ink} strokeWidth={1.9} />
+          </ActionIcon>
+        ))}
 
       {/* Everything a student wants OCCASIONALLY. Sharing an answer, blowing it up
           to full screen and opening the task list are all real, and all rare next

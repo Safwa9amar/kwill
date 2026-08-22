@@ -818,6 +818,7 @@
     "pages": "{{n}} pages",
     "previewFile": "Aperçu du fichier",
     "regenerate": "Régénérer",
+    "continueTurn": "Continuer",
     "tryAgain": "Réessayer",
     "notSent": "Non envoyé",
     "noResponse": "Je n'ai pas réussi à produire de réponse cette fois. Appuyez sur « Régénérer » pour réessayer.",
