@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import type { ChatMessage, AskPayload, ChatImage, FilePayload, ConfirmPayload, DocChangesPayload, ToolTracePayload } from "@/types/chat";
-import type { PlanPayload } from "@/lib/plan-frames";
+import {
+  PLAN_STEP_FRAME_OPEN,
+  parsePlanStepFrames,
+  type PlanPayload,
+  type PlanStepProgress,
+} from "@/lib/plan-frames";
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
@@ -28,6 +33,69 @@ const EMPTY_TOOL_TRACE: ToolTracePayload[] = [];
 // Same reason: the "already run" list starts as ONE array, shared by every
 // selector until a plan actually finishes.
 const NO_PLANS_DONE: string[] = [];
+
+/**
+ * Shared empty tick list. Every plan card indexes `planSteps` by its own id and
+ * most of them will never find a row — `planSteps[id] ?? []` would hand the card
+ * a fresh array on every render, which is the "Maximum update depth exceeded"
+ * this store has already been bitten by. Fall back to THIS.
+ */
+export const NO_PLAN_TICKS: PlanStepProgress[] = [];
+
+/**
+ * Fold one tick into the planId-keyed record, returning the SAME reference when
+ * it changes nothing — a re-delivered frame (the pump firing on a replay, a
+ * reload re-scanning a message already absorbed) must not churn identities and
+ * re-render every card.
+ *
+ * Ticks are kept sorted by step index rather than by arrival, so the card can
+ * read them positionally. A second tick for a step already done only counts if
+ * it carries a note the first one did not: the model can call complete_plan_step
+ * twice for the same step, and the later, fuller line is the better one to show.
+ */
+function foldPlanStep(
+  map: Record<string, PlanStepProgress[]>,
+  tick: PlanStepProgress,
+): Record<string, PlanStepProgress[]> {
+  const current = map[tick.planId];
+  if (!current) return { ...map, [tick.planId]: [tick] };
+  const at = current.findIndex((t) => t.index === tick.index);
+  if (at === -1) {
+    return { ...map, [tick.planId]: [...current, tick].sort((a, b) => a.index - b.index) };
+  }
+  if (!tick.note || current[at].note === tick.note) return map;
+  const next = current.slice();
+  next[at] = tick;
+  return { ...map, [tick.planId]: next };
+}
+
+/**
+ * Rebuild the ticks a window of messages carries.
+ *
+ * ⚠️ This is the RELOAD half of the feature, and it exists here rather than in a
+ * component because of an asymmetry nothing else can bridge: the step frames are
+ * persisted in the message that EXECUTED the plan, while the card is drawn from
+ * the message that PROPOSED it. A component holding one message can never see
+ * the other. Every route that fills the window (the SQLite cache, the first
+ * server fetch, an older page, the interrupted-turn recovery) funnels through
+ * setMessages / prependMessages, so folding it in there covers all of them at
+ * once — and the chat screen and the workspace composer read the same record.
+ *
+ * Returns `map` unchanged when there is nothing new, for the reason foldPlanStep
+ * does. The `includes` gate keeps this an O(n) substring scan on the overwhelming
+ * majority of threads, which hold no plan frames at all.
+ */
+function absorbPlanSteps(
+  map: Record<string, PlanStepProgress[]>,
+  messages: ChatMessage[],
+): Record<string, PlanStepProgress[]> {
+  let next = map;
+  for (const m of messages) {
+    if (m.role !== "assistant" || !m.content || !m.content.includes(PLAN_STEP_FRAME_OPEN)) continue;
+    for (const tick of parsePlanStepFrames(m.content)) next = foldPlanStep(next, tick);
+  }
+  return next;
+}
 
 // Stamp the end of reasoning on `id` wherever it lives. Stop is a global control
 // with no thread in hand, so the bubble is found by id across the loaded
@@ -123,6 +191,18 @@ interface ChatState {
   // frame the card is rebuilt from on a reload carries no "already run" bit, so
   // this lasts the session, which is as long as the temptation does.
   donePlanIds: string[];
+  // Which steps of which plan are done, keyed by planId, sorted by step index.
+  // Kept HERE, beside the plan itself, so the chat screen's cards and the
+  // workspace composer's card tick together off one record — and so the reload
+  // rebuild (absorbPlanSteps) has somewhere to put what it finds.
+  //
+  // Read it as `planSteps[id] ?? NO_PLAN_TICKS`, never `?? []`.
+  planSteps: Record<string, PlanStepProgress[]>;
+  // Bumped whenever `planSteps` actually changes. The chat transcript is a
+  // FlatList and the ticks live outside its `data`, so a plain object identity
+  // is not enough to get the rows re-rendered — the list needs a primitive it
+  // can put in `extraData` (see app/(app)/chat.tsx).
+  planStepsRev: number;
   // Last AI turn's doc changes per thesis → drives the "Undo AI changes" chip.
   // Deliberately keyed by thesisId, not threadId: the checkpoint belongs to
   // the DOCUMENT, and two threads editing the same thesis must share it. Do not
@@ -158,6 +238,9 @@ interface ChatState {
   beginPlanRun: (planId: string) => boolean;
   /** Release the slot. `done: true` also retires the card's Execute button. */
   endPlanRun: (planId: string, done: boolean) => void;
+  /** Tick one step of a running plan off, from the LIVE stream. Idempotent —
+   *  a step already ticked is a no-op unless the frame adds a note. */
+  recordPlanStep: (step: PlanStepProgress) => void;
   setGenerating: (generating: boolean) => void;
   // Turn ownership. `beginTurn` claims the generating state and returns the
   // token the caller must carry; `isTurnActive` gates every write the turn makes;
@@ -205,12 +288,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
   toolTrace: EMPTY_TOOL_TRACE,
   runningPlanId: null,
   donePlanIds: NO_PLANS_DONE,
+  planSteps: {},
+  planStepsRev: 0,
   docChanges: {},
 
   getMessages: (threadId) => get().messages[threadId] ?? EMPTY_MESSAGES,
 
   setMessages: (threadId, messages) =>
-    set((s) => ({ messages: { ...s.messages, [threadId]: messages } })),
+    set((s) => {
+      // Rebuild the plan ticks this window carries — see absorbPlanSteps. This
+      // is the only reason loading a thread touches anything but `messages`.
+      const planSteps = absorbPlanSteps(s.planSteps, messages);
+      return {
+        messages: { ...s.messages, [threadId]: messages },
+        ...(planSteps === s.planSteps ? null : { planSteps, planStepsRev: s.planStepsRev + 1 }),
+      };
+    }),
 
   // Prepend an older page, skipping any ids already loaded. `older` is
   // chronological and strictly older than the current window, so front-concat
@@ -221,7 +314,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const have = new Set(existing.map((m) => m.id));
       const fresh = older.filter((m) => !have.has(m.id));
       if (fresh.length === 0) return s;
-      return { messages: { ...s.messages, [threadId]: [...fresh, ...existing] } };
+      // An older page can carry the execution of a plan whose card is already on
+      // screen — scrolling up must tick it, not leave it blank.
+      const planSteps = absorbPlanSteps(s.planSteps, fresh);
+      return {
+        messages: { ...s.messages, [threadId]: [...fresh, ...existing] },
+        ...(planSteps === s.planSteps ? null : { planSteps, planStepsRev: s.planStepsRev + 1 }),
+      };
     }),
 
   getHasMoreOlder: (threadId) => get().hasMoreOlder[threadId] ?? false,
@@ -392,6 +491,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
       runningPlanId: s.runningPlanId === planId ? null : s.runningPlanId,
       donePlanIds: done && !s.donePlanIds.includes(planId) ? [...s.donePlanIds, planId] : s.donePlanIds,
     })),
+
+  // The ticks are NOT cleared when a run ends: they are the record of what the
+  // run did, and the card keeps showing them. A rerun of the same plan is
+  // impossible anyway (endPlanRun retires it).
+  recordPlanStep: (step) =>
+    set((s) => {
+      const planSteps = foldPlanStep(s.planSteps, step);
+      if (planSteps === s.planSteps) return s;
+      // A tick is a sign of life as much as a token is — it keeps the "still
+      // working" note honest through a long step that writes no prose.
+      return { planSteps, planStepsRev: s.planStepsRev + 1, lastEventAt: Date.now() };
+    }),
 
   // Starting a turn arms the wall clock the "still working" note counts from,
   // and seeds `lastEventAt` so the quiet gap is measured from the send, not from

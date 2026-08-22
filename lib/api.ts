@@ -16,7 +16,7 @@ import type {
 import type { Thesis, Template, NormProfile, University, StartingPoint } from "@/types/thesis";
 import type { QuotaResponse, PlanCatalogue, SubscriptionState, PlanCode } from "@/types/billing";
 import type { ThesisSource } from "@/types/source";
-import type { PlanPayload } from "@/lib/plan-frames";
+import type { PlanPayload, PlanStepProgress } from "@/lib/plan-frames";
 import { byokHeaders, whenByokHydrated, useByokStore, isByokErrorCode } from "@/stores/byok-store";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL
@@ -458,6 +458,12 @@ export interface ChatStreamHandlers {
    *  message, so a reopened conversation re-reads it with parsePlanFrames instead
    *  — this handler only covers the live turn. */
   onPlan?: (plan: PlanPayload) => void;
+  /** One step of a RUNNING plan finished. Unlike onPlan this fires MID-TURN and
+   *  several times over one execution, interleaved with the answer's prose. Also
+   *  persisted onto the saved message, so a reopened conversation rebuilds the
+   *  same ticks with parsePlanStepFrames — this handler only covers the live
+   *  turn. */
+  onPlanStep?: (step: PlanStepProgress) => void;
   onDocChanges?: (changes: DocChangesPayload) => void;
   /** Developer tool trace — only ever arrives from a server with AI_SHOW_TOOLS on. */
   onTool?: (tool: ToolTracePayload) => void;
@@ -580,6 +586,12 @@ async function postChatStream(
   const TITLE_CLOSE = "[[/MODK_TITLE]]";
   const PLAN_OPEN = "[[MODK_PLAN]]";
   const PLAN_CLOSE = "[[/MODK_PLAN]]";
+  // ⚠️ NOT a suffix problem: "[[MODK_PLAN]]" is not a prefix of
+  // "[[MODK_PLAN_STEP]]" (the `]]` differs), so indexOf can never confuse the
+  // two. They DO share the prefix "[[MODK_PLAN", which is exactly what heldLen
+  // below has to hold back when a chunk boundary lands inside it.
+  const PLAN_STEP_OPEN = "[[MODK_PLAN_STEP]]";
+  const PLAN_STEP_CLOSE = "[[/MODK_PLAN_STEP]]";
 
   let mode: "answer" | "think" = "answer";
   let buf = ""; // unescaped text awaiting routing
@@ -608,9 +620,10 @@ async function postChatStream(
         const oi = buf.indexOf(TOOL_OPEN);
         const li = buf.indexOf(TITLE_OPEN);
         const pi = buf.indexOf(PLAN_OPEN);
-        const first = [ti, ai, fi, ci, di, oi, li, pi].filter((i) => i !== -1).sort((a, b) => a - b)[0];
+        const si = buf.indexOf(PLAN_STEP_OPEN);
+        const first = [ti, ai, fi, ci, di, oi, li, pi, si].filter((i) => i !== -1).sort((a, b) => a - b)[0];
         if (first === undefined) {
-          const hold = isFinal ? 0 : heldLen(buf, [THINK_OPEN, ASK_OPEN, FILE_OPEN, CONFIRM_OPEN, DC_OPEN, TOOL_OPEN, TITLE_OPEN, PLAN_OPEN]);
+          const hold = isFinal ? 0 : heldLen(buf, [THINK_OPEN, ASK_OPEN, FILE_OPEN, CONFIRM_OPEN, DC_OPEN, TOOL_OPEN, TITLE_OPEN, PLAN_OPEN, PLAN_STEP_OPEN]);
           const out = buf.slice(0, buf.length - hold);
           if (out) handlers.onDelta(out);
           buf = buf.slice(buf.length - hold);
@@ -682,6 +695,20 @@ async function postChatStream(
           if (closeAt === -1) { buf = buf.slice(first); break; }
           try { handlers.onPlan?.(JSON.parse(buf.slice(first + PLAN_OPEN.length, closeAt))); } catch {}
           buf = buf.slice(closeAt + PLAN_CLOSE.length);
+          continue;
+        }
+        if (first === si) {
+          // PLAN_STEP frame: a tick on a plan the student is already watching.
+          // Mid-turn, so several arrive per execution and the assistant keeps
+          // writing straight after each one — the `continue` below is what puts
+          // the following prose back on onDelta. Held from the open marker until
+          // the close arrives, like every other frame, so the raw JSON is never
+          // shown as text. The server persists it too, so a reload re-reads it
+          // from the stored content with parsePlanStepFrames.
+          const closeAt = buf.indexOf(PLAN_STEP_CLOSE, first + PLAN_STEP_OPEN.length);
+          if (closeAt === -1) { buf = buf.slice(first); break; }
+          try { handlers.onPlanStep?.(JSON.parse(buf.slice(first + PLAN_STEP_OPEN.length, closeAt))); } catch {}
+          buf = buf.slice(closeAt + PLAN_STEP_CLOSE.length);
           continue;
         }
         // ASK frame: need the closing marker before we can parse the JSON.

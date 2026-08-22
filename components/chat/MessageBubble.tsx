@@ -10,7 +10,7 @@ import { ChatImageGrid } from "@/components/ChatImages";
 import { MessageActions } from "@/components/chat/MessageActions";
 import { PlanCard } from "@/components/chat/PlanCard";
 import { splitFileFrames } from "@/lib/file-frames";
-import { parsePlanFrames, stripPlanFrames, type PlanPayload } from "@/lib/plan-frames";
+import { parsePlanFrames, stripPlanFrames, stripPlanStepFrames, type PlanPayload, type PlanStepProgress } from "@/lib/plan-frames";
 import { splitImageFrames } from "@/lib/chat-images";
 import { deriveThinkingMs } from "@/lib/thinking";
 import { getTextDirection } from "@/lib/text-direction";
@@ -48,6 +48,8 @@ const COLLAPSED_HEIGHT = 420;
 // every render rather than a fresh array each time.
 const NO_PLANS: PlanPayload[] = [];
 const NO_DONE: string[] = [];
+const NO_TICKS: PlanStepProgress[] = [];
+const NO_STEPS: Record<string, PlanStepProgress[]> = {};
 
 /**
  * Gradient-style fade from transparent to the page color, masking the hard clip
@@ -87,6 +89,10 @@ interface Props {
   runningPlanId?: string | null;
   /** Plans already run this session — their cards keep the steps, lose the button. */
   donePlanIds?: string[];
+  /** Which steps of which plan are ticked off (chat-store's `planSteps`). Keyed
+   *  by planId because the ticks and the card do NOT live on the same message —
+   *  see the comment on `plans` below. */
+  planSteps?: Record<string, PlanStepProgress[]>;
 }
 
 export const MessageBubble = memo(function MessageBubble({
@@ -106,6 +112,7 @@ export const MessageBubble = memo(function MessageBubble({
   onAskPlanChanges,
   runningPlanId,
   donePlanIds = NO_DONE,
+  planSteps = NO_STEPS,
 }: Props) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
@@ -128,10 +135,17 @@ export const MessageBubble = memo(function MessageBubble({
   // `content` and nothing has ever called onPlan for it. Handle one and the card
   // works in one of the two situations only.
   const plans = isUser ? NO_PLANS : item.plans?.length ? item.plans : parsePlanFrames(item.content);
-  // …and whichever route it came by, the frame itself must never be readable as
-  // text. stripPlanFrames also drops a DANGLING open frame, which an aborted turn
-  // can leave persisted.
-  const bodyText = isUser ? framedText : stripPlanFrames(framedText);
+  // [[MODK_PLAN_STEP]] takes BOTH routes too, but it never lands on the message
+  // that shows the card: the ticks are persisted in the message that EXECUTED
+  // the plan, several messages further down. So they are not derived here at all
+  // — chat-store folds every tick in the thread into one planId-keyed record
+  // (live from the pump, rebuilt from stored content on load) and the card looks
+  // itself up in it.
+  //
+  // …and whichever route either frame came by, it must never be readable as
+  // text. Both strippers also drop a DANGLING open frame, which an aborted turn
+  // can leave persisted — likelier for a step frame, which is written mid-turn.
+  const bodyText = isUser ? framedText : stripPlanStepFrames(stripPlanFrames(framedText));
   // Whether there's answer text below the thinking block. While the model is
   // still reasoning, content is empty — so the thinking wrapper must not draw
   // its separator/spacing or it renders as an empty framed box.
@@ -272,6 +286,7 @@ export const MessageBubble = memo(function MessageBubble({
               rtl={rtl}
               running={runningPlanId === p.id}
               done={donePlanIds.includes(p.id)}
+              ticks={planSteps[p.id] ?? NO_TICKS}
               onExecute={() => onExecutePlan?.(p.id)}
               onAskChanges={() => onAskPlanChanges?.()}
             />

@@ -817,6 +817,23 @@ async function runAssistantTurn(
               pump.flush(); // the card belongs under the text that proposed it
               s.addPlanToMessage(threadId, assistantId, plan);
             },
+            // One step of a RUNNING plan is done. Mid-turn, several per run, and
+            // the tick lands on a card that may belong to an EARLIER message —
+            // which is why it goes to the store's planId-keyed record rather
+            // than onto this bubble. No pump.flush() for that same reason:
+            // nothing is being inserted into this message's text, so there is no
+            // ordering to preserve.
+            //
+            // producedOutput, and it matters twice: a run that ticked steps and
+            // then died has done real work server-side, so it must neither be
+            // retried (mayRetry reads this) nor end with a note saying nothing
+            // happened.
+            onPlanStep: (step) => {
+              if (!live()) return;
+              markAlive();
+              producedOutput = true;
+              useChatStore.getState().recordPlanStep(step);
+            },
             // Developer trace only (server-side AI_SHOW_TOOLS): NOT producedOutput —
             // running tools is not an answer to the student.
             onTool: (tool) => {
@@ -1192,6 +1209,16 @@ async function runStreamContinuation(
         producedOutput = true;
         pump.flush();
         s.addPlanToMessage(threadId, assistantId!, plan);
+      },
+      // THE path that matters for plan progress: tapping Execute runs
+      // executePlan → runStreamContinuation, so every tick of a plan the student
+      // actually launched arrives here. See runAssistantTurn's copy for why the
+      // tick goes to the store rather than onto this bubble, and why it counts
+      // as output.
+      onPlanStep: (step) => {
+        if (!live()) return;
+        producedOutput = true;
+        useChatStore.getState().recordPlanStep(step);
       },
       // Developer trace only — see runAssistantTurn.
       onTool: (tool) => { if (!live()) return; useChatStore.getState().pushToolTrace(tool); },

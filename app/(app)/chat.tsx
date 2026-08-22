@@ -292,6 +292,11 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
   // was rendered with.
   const runningPlanId = useChatStore((s) => s.runningPlanId);
   const donePlanIds = useChatStore((s) => s.donePlanIds);
+  // The checklist state. `planSteps` is the STORED record (a new identity only
+  // when a tick actually lands), and `planStepsRev` is the primitive the
+  // FlatList needs — see extraData below.
+  const planSteps = useChatStore((s) => s.planSteps);
+  const planStepsRev = useChatStore((s) => s.planStepsRev);
   const loadedRef = useRef(false);
   const rotation = useSharedValue(0);
   const micPulse = useSharedValue(1);
@@ -1167,6 +1172,7 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
                   onAskPlanChanges={handleAskPlanChanges}
                   runningPlanId={runningPlanId}
                   donePlanIds={donePlanIds}
+                  planSteps={planSteps}
                 />
               </>
             )}
@@ -1176,7 +1182,7 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
             // working note after the turn ends, and a plan card keeps its
             // Execute button spinning after the run finishes. One STRING, not an
             // object: a fresh literal here re-renders every row on every render.
-            extraData={`${liveTurnId ?? ""}|${runningPlanId ?? ""}|${donePlanIds.length}|${recovering ? 1 : 0}`}
+            extraData={`${liveTurnId ?? ""}|${runningPlanId ?? ""}|${donePlanIds.length}|${planStepsRev}|${recovering ? 1 : 0}`}
             contentContainerStyle={styles.messageList}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"

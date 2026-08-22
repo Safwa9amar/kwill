@@ -18,7 +18,7 @@ import {
 } from "lucide-react-native";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { useWorkspaceStore } from "@/stores/workspace-store";
-import { useChatStore } from "@/stores/chat-store";
+import { useChatStore, NO_PLAN_TICKS } from "@/stores/chat-store";
 import { useChatThreadsStore } from "@/stores/chat-threads-store";
 import { useThesisDocStore } from "@/stores/thesis-doc-store";
 import { sendMessageToAI, regenerateLastResponse, approvePendingAction, declinePendingAction, executePlan, stopTurn } from "@/lib/ai-service";
@@ -249,6 +249,10 @@ export function WorkspaceComposerSheet({
   // both primitives (a string-or-null and the stored array), never literals.
   const runningPlanId = useChatStore((s) => s.runningPlanId);
   const donePlanIds = useChatStore((s) => s.donePlanIds);
+  // The card's checklist, off the same store the chat screen's cards read, so a
+  // plan launched from either place ticks in both. The STORED record — indexing
+  // it below falls back to NO_PLAN_TICKS rather than a fresh literal.
+  const planSteps = useChatStore((s) => s.planSteps);
   // The slot is TRANSIENT, like the confirm's: it holds the plan until the run
   // ends, then lets go. The chat screen keeps a finished card as the record of
   // what was done — it has a transcript to keep it in. Here a spent card would
@@ -740,6 +744,7 @@ export function WorkspaceComposerSheet({
                   rtl={rtl}
                   running={runningPlanId === plan.id}
                   done={false}
+                  ticks={planSteps[plan.id] ?? NO_PLAN_TICKS}
                   onExecute={handleExecutePlan}
                   onAskChanges={handleAskPlanChanges}
                 />

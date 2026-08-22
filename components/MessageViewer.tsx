@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { Markdown } from "@/components/Markdown";
 import { splitFileFrames } from "@/lib/file-frames";
-import { stripPlanFrames } from "@/lib/plan-frames";
+import { stripPlanFrames, stripPlanStepFrames } from "@/lib/plan-frames";
 import type { BlockLink } from "@/lib/block-links";
 
 const LOGO = require("../assets/icon.png");
@@ -62,10 +62,11 @@ function ViewerBody({
       >
         {content ? (
           <Markdown
-            // Same two strips as the bubble: this is the SAME text, full screen,
+            // Same strips as the bubble: this is the SAME text, full screen,
             // and a frame is payload wherever it is rendered. The full view is
-            // read-only prose — the plan's card belongs to the bubble, not here.
-            content={stripPlanFrames(splitFileFrames(content).text)}
+            // read-only prose — the plan's card, and the ticks on it, belong to
+            // the bubble, not here.
+            content={stripPlanStepFrames(stripPlanFrames(splitFileFrames(content).text))}
             color={colors.textPrimary}
             onBlockPress={onBlockPress}
           />

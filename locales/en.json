@@ -872,7 +872,9 @@
       "execute": "Execute",
       "running": "Working…",
       "done": "Done",
-      "askChanges": "Ask for changes"
+      "askChanges": "Ask for changes",
+      "stepDone": "Done",
+      "stepRunning": "In progress"
     },
     "assist": { "label": "Assist", "hint": "Edits your thesis, and asks before anything it cannot take back." },
     "agent": { "label": "Agent", "hint": "Does the whole job without stopping to ask. Undo it all in one tap." }
