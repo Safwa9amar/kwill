@@ -10,7 +10,7 @@ import { useChatStore } from "@/stores/chat-store";
 import { useChatThreadsStore } from "@/stores/chat-threads-store";
 import { useBottomSheet } from "@/stores/bottom-sheet-store";
 import { useChatHead } from "@/stores/chat-head-store";
-import { sendMessageToAI, loadInitialMessages, loadOlderMessages, regenerateLastResponse, retryFailedMessage, approvePendingAction, declinePendingAction, executePlan } from "@/lib/ai-service";
+import { sendMessageToAI, loadInitialMessages, loadOlderMessages, regenerateLastResponse, retryFailedMessage, approvePendingAction, declinePendingAction, executePlan, stopTurn } from "@/lib/ai-service";
 import { ComposerConfirm } from "@/components/workspace/ComposerConfirm";
 import { ArrowUp, Plus, Mic, Paperclip, Image as ImageIcon, Camera, ClipboardPaste, ChevronDown, Square, X, FileText, SquarePen, History } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -279,6 +279,12 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
   const hasMoreOlder = useChatStore((s) => s.getHasMoreOlder(threadId ?? ""));
   const loadingOlder = useChatStore((s) => s.getLoadingOlder(threadId ?? ""));
   const isGenerating = useChatStore((s) => s.isGenerating);
+  // True while this thread is being caught up with a turn that finished while the
+  // app was in the background (see ai-service's foreground resume). Not a turn —
+  // the composer stays usable — but the chat is not idle either: the answer is on
+  // its way, so the question must not be dressed up as one that went unanswered.
+  // A primitive (a boolean off an id comparison), never the id itself.
+  const recovering = useChatStore((s) => !!threadId && s.recoveringThreadId === threadId);
   const streamingId = useChatStore((s) => s.streamingId);
   // Plan mode. A primitive and a STORED array — never a fresh literal out of a
   // selector. Both feed every plan card in the list, so the FlatList has to be
@@ -1150,7 +1156,7 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
                   isStreaming={item.id === streamingId}
                   isLiveTurn={item.id === liveTurnId}
                   isLastAssistant={index === messages.length - 1 && item.role === "assistant" && messages.length > 1}
-                  isUnanswered={index === messages.length - 1 && item.role === "user" && !isGenerating}
+                  isUnanswered={index === messages.length - 1 && item.role === "user" && !isGenerating && !recovering}
                   onExpand={setViewerContent}
                   onPreviewFile={handleDownloadFile}
                   onRegenerate={handleRegenerate}
@@ -1170,7 +1176,7 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
             // working note after the turn ends, and a plan card keeps its
             // Execute button spinning after the run finishes. One STRING, not an
             // object: a fresh literal here re-renders every row on every render.
-            extraData={`${liveTurnId ?? ""}|${runningPlanId ?? ""}|${donePlanIds.length}`}
+            extraData={`${liveTurnId ?? ""}|${runningPlanId ?? ""}|${donePlanIds.length}|${recovering ? 1 : 0}`}
             contentContainerStyle={styles.messageList}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
@@ -1222,6 +1228,12 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
                   <TypingIndicator label={t("chat.thinking")} />
                   <AiWorkingNote rtl={i18n.language === "ar"} style={styles.footerNote} />
                 </View>
+              ) : recovering ? (
+                // Back from the background, fetching the answer the turn finished
+                // without us. No working note: that one counts from a turn start
+                // this device no longer has, and the wait here is seconds, not
+                // minutes.
+                <TypingIndicator label={t("chat.thinking")} />
               ) : null
             }
             onTouchStart={() => {
@@ -1462,7 +1474,7 @@ export function ThesisChat({ thesisId: initialThesisId, thesisTitle, variant = "
               <AnimatedPressable
                 entering={FadeIn.duration(150)}
                 exiting={FadeOut.duration(100)}
-                onPress={() => useChatStore.getState().stopGenerating()}
+                onPress={stopTurn}
                 hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel={t("chat.stop")}

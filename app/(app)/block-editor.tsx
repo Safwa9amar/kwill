@@ -20,7 +20,7 @@ import { useBottomInset, useKeyboardLift } from "@/hooks/useBottomInset";
 import { useChatStore } from "@/stores/chat-store";
 import { useChatThreadsStore } from "@/stores/chat-threads-store";
 import { useThesisDocStore } from "@/stores/thesis-doc-store";
-import { sendMessageToAI } from "@/lib/ai-service";
+import { sendMessageToAI, stopTurn } from "@/lib/ai-service";
 import { getThesisDocument } from "@/lib/api";
 import { BackButton } from "@/components/BackButton";
 import { visualTextAlign } from "@/lib/rtl-layout";
@@ -224,7 +224,7 @@ export default function BlockEditorScreen() {
                 />
                 {isGenerating ? (
                   <Pressable
-                    onPress={() => useChatStore.getState().stopGenerating()}
+                    onPress={stopTurn}
                     accessibilityRole="button"
                     accessibilityLabel={t("chat.stop", { defaultValue: "Stop" })}
                     style={[styles.aiBtn, { backgroundColor: colors.semanticError }]}

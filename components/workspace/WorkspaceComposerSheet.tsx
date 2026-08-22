@@ -21,7 +21,7 @@ import { useWorkspaceStore } from "@/stores/workspace-store";
 import { useChatStore } from "@/stores/chat-store";
 import { useChatThreadsStore } from "@/stores/chat-threads-store";
 import { useThesisDocStore } from "@/stores/thesis-doc-store";
-import { sendMessageToAI, regenerateLastResponse, approvePendingAction, declinePendingAction, executePlan } from "@/lib/ai-service";
+import { sendMessageToAI, regenerateLastResponse, approvePendingAction, declinePendingAction, executePlan, stopTurn } from "@/lib/ai-service";
 import { type DocBlockDTO, restoreThesisHistory } from "@/lib/api";
 import { ComposerThinking } from "./ComposerThinking";
 import { deriveThinkingMs } from "@/lib/thinking";
@@ -783,7 +783,7 @@ export function WorkspaceComposerSheet({
                   value={inputText}
                   onChangeText={setInputText}
                   onSend={handleSend}
-                  onStop={() => useChatStore.getState().stopGenerating()}
+                  onStop={stopTurn}
                   onMicPress={() => Alert.alert(t("composer.voiceComingSoon"))}
                   onFocus={markInputFocused}
                   onBlur={markInputBlurred}

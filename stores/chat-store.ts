@@ -16,6 +16,7 @@ const IDLE_TURN = {
   streamingId: null,
   abortController: null,
   activeTurnId: null,
+  activeThreadId: null,
   turnStartedAt: null,
   lastEventAt: null,
   toolTrace: [] as ToolTracePayload[],
@@ -94,6 +95,18 @@ interface ChatState {
   // the UI could only leave "generating" when the network call itself unwound —
   // and a transport that ignores the abort left the composer locked forever.
   activeTurnId: string | null;
+  // WHICH conversation the turn above belongs to. Stop is a global control with no
+  // thread in hand (three different screens press it, and one of them — the block
+  // editor — resolves its thread inside the send), and the server's stop endpoint
+  // is scoped to a thread. So the turn records its own. Cleared with the rest of
+  // the turn state.
+  activeThreadId: string | null;
+  // The thread whose interrupted turn is being recovered from the server right
+  // now — see ai-service's foreground resume. Deliberately OUTSIDE the turn state
+  // above: there is no turn running, the app is only catching up with one that
+  // finished while it was in the background. The chat screen reads it to keep the
+  // "this went unanswered" retry chip off a question that is about to be answered.
+  recoveringThreadId: string | null;
   pendingAsk: AskPayload | null; // active model question → drives the AskBottomSheet
   pendingConfirm: ConfirmPayload | null; // parked destructive action → Approve/Cancel chips
   // Tools the CURRENT turn has run, oldest→newest. Populated only when the server
@@ -149,13 +162,16 @@ interface ChatState {
   // Turn ownership. `beginTurn` claims the generating state and returns the
   // token the caller must carry; `isTurnActive` gates every write the turn makes;
   // `endTurn` releases it — and does nothing if the turn no longer owns it.
-  beginTurn: () => string;
+  // The threadId is recorded so Stop can name the conversation to the server.
+  beginTurn: (threadId: string) => string;
   isTurnActive: (turnId: string) => boolean;
   endTurn: (turnId: string) => void;
   setGeneratingStep: (step: number) => void;
   setGeneratingPhase: (phase: GeneratingPhase) => void;
   /** Which try of the current turn is now running (0 = the first). */
   setRetryAttempt: (attempt: number) => void;
+  /** Mark (or clear) the thread being caught up with after a backgrounded turn. */
+  setRecoveringThread: (threadId: string | null) => void;
   setStreamingId: (id: string | null) => void;
   setAbortController: (controller: AbortController | null) => void;
   setPendingAsk: (ask: AskPayload | null) => void;
@@ -182,6 +198,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   streamingId: null,
   abortController: null,
   activeTurnId: null,
+  activeThreadId: null,
+  recoveringThreadId: null,
   pendingAsk: null,
   pendingConfirm: null,
   toolTrace: EMPTY_TOOL_TRACE,
@@ -390,7 +408,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Claim the chat for a new turn and hand back the token that proves ownership.
   // Any turn already running is disowned on the spot: it keeps unwinding in the
   // background but can no longer write to the chat or end this one.
-  beginTurn: () => {
+  beginTurn: (threadId) => {
     // A turn still in flight (the user sent again before the last one unwound)
     // is hung up on here, so two streams can never write to the same chat.
     try {
@@ -399,8 +417,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Best effort — the ownership swap below is what actually disowns it.
     }
     const turnId = generateId();
+    // A thread that starts a real turn is no longer waiting to be caught up with
+    // after a backgrounded one — this turn's own ending is what refreshes it now.
+    const recoveringThreadId = get().recoveringThreadId;
     set({
       activeTurnId: turnId,
+      activeThreadId: threadId,
+      recoveringThreadId: recoveringThreadId === threadId ? null : recoveringThreadId,
       abortController: null,
       isGenerating: true,
       generatingPhase: "thinking",
@@ -425,6 +448,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setGeneratingPhase: (phase) => set({ generatingPhase: phase }),
   setRetryAttempt: (attempt) =>
     set((s) => (s.retryAttempt === attempt ? s : { retryAttempt: attempt })),
+  setRecoveringThread: (threadId) =>
+    set((s) => (s.recoveringThreadId === threadId ? s : { recoveringThreadId: threadId })),
   setStreamingId: (id) => set({ streamingId: id }),
   setAbortController: (controller) => set({ abortController: controller }),
   setPendingAsk: (ask) => set({ pendingAsk: ask }),
@@ -458,7 +483,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
       return changed ? { messages: { ...s.messages, [threadId]: next } } : s;
     }),
-  // Cancel the in-flight AI turn. Stop is the user's escape hatch, so it must be
+  // Cancel the in-flight AI turn — the LOCAL half of Stop. Nothing here reaches the
+  // server: hanging up the socket is no longer read as a cancellation there (that
+  // is what made a backgrounded turn a lost turn), so the server has to be TOLD.
+  // ⚠️ The UI calls ai-service's `stopTurn()`, not this — it fires both halves.
+  // On its own this leaves the turn running server-side.
+  //
+  // Stop is the user's escape hatch, so it must be
   // unconditional: the chat goes idle HERE, in the same tick as the tap, and the
   // abort below is only a best-effort request to the transport to hang up. The
   // old shape — abort and wait for the reader to reject — meant that any stream

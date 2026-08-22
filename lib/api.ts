@@ -779,6 +779,32 @@ export async function chatSendStream(
   return postChatStream("/api/chat/stream", body, handlers, options?.signal);
 }
 
+/** What the server did with an explicit Stop. `stopped` is how many live turns it
+ *  aborted — 0 is a normal answer, not an error: the turn may have finished a
+ *  moment before the tap, or run on a thread this device no longer owns. */
+export interface ChatStopResponse {
+  ok: boolean;
+  stopped: number;
+}
+
+/**
+ * Stop the turn(s) running on `threadId` — the Stop button's server half.
+ *
+ * Hanging up the socket used to BE the stop signal: the server read a dropped
+ * connection as "the student cancelled" and abandoned the turn. That made every
+ * lost socket a cancelled turn, which is why switching apps mid-answer threw the
+ * answer away. The server no longer infers anything from a disconnect — it runs
+ * the turn to completion and persists it — so cancelling is now something the app
+ * has to SAY, on its own request, scoped to one thread and one user.
+ *
+ * The local abort in chat-store.stopGenerating stays exactly where it is: that is
+ * what frees the UI in the tick the button is pressed. This is the other half, and
+ * it is best-effort by design — see ai-service.stopTurn, the only caller.
+ */
+export async function chatStopTurn(threadId: string): Promise<ChatStopResponse> {
+  return apiPost<ChatStopResponse>("/api/chat/stop", { threadId });
+}
+
 // Approve / decline a parked destructive AI action. The server executes (or
 // discards) the STORED args and streams a follow-up assistant reply through
 // the same frame protocol as /api/chat/stream.

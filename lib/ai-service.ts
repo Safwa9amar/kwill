@@ -1,10 +1,11 @@
+import { AppState } from "react-native";
 import { useChatStore } from "@/stores/chat-store";
 import { useChatThreadsStore } from "@/stores/chat-threads-store";
 import { useThesisDocStore } from "@/stores/thesis-doc-store";
 import { useOutlineStore } from "@/stores/outline-store";
 import { useThesisStore } from "@/stores/thesis-store";
 import { useLexicalEditorStore } from "@/stores/lexical-editor-store";
-import { chatSend, chatSendStream, chatConfirmAction, chatCancelAction, chatExecutePlan, getChatHistory, getChatHistoryPage, listThreads, type ChatStreamHandlers } from "./api";
+import { chatSend, chatSendStream, chatConfirmAction, chatCancelAction, chatExecutePlan, chatStopTurn, getChatHistory, getChatHistoryPage, listThreads, type ChatStreamHandlers } from "./api";
 import { getLatestMessages, getOlderMessages, upsertMessages, deletePending, deleteStalePending, getLastSyncedAt, setLastSyncedAt } from "./chat-cache";
 import { IMG_FRAME_OPEN, splitImageFrames, restageImage, toAttachment, toChatImage, type StagedImage } from "./chat-images";
 import i18n from "./i18n";
@@ -19,6 +20,251 @@ import type { ChatMode } from "./chat-modes";
 // pages in older history a larger batch at a time.
 const INITIAL_PAGE_SIZE = 5;
 const OLDER_PAGE_SIZE = 20;
+
+// ============================================================
+// Leaving the app must not lose the turn
+// ============================================================
+//
+// A student sends a message and switches away — to look something up, to answer
+// a call, because the screen locked. The OS tears the socket down, the stream
+// read fails, and every symptom the student ever saw came from what the app did
+// NEXT: it read a dead socket as a transient failure, spent all four attempts on
+// it (each one dying the same way, because the app was still in the background),
+// and left them looking at "that didn't get through" with a Retry button.
+//
+// Nothing about that was ever true. The server no longer treats a disconnect as a
+// cancellation: it runs the turn to completion, saves the assistant message,
+// applies the .docx edits and writes the history. So by the time the student is
+// back, the answer EXISTS — it just isn't on this device yet.
+//
+// That flips the right behaviour completely. Re-sending is no longer the harmless
+// repeat of work that never happened; it is a SECOND turn, with a second answer
+// and a second set of edits to the thesis. So the app stops attempting, and the
+// return to the foreground fetches the finished answer instead (see
+// `resumeInterruptedTurns`). No attempt is spent, no error note is written, and
+// the question is never marked undelivered — because it was delivered.
+
+// Anything but a foreground app. iOS "inactive" is counted as away on purpose: it
+// is the state the app passes THROUGH on its way out (and back in), so an error
+// that surfaces during the handover belongs to the trip, not to the turn.
+function isForeground(): boolean {
+  const state = AppState.currentState;
+  return state !== "background" && state !== "inactive";
+}
+
+// When the app last stopped being in the foreground. An attempt is judged against
+// this rather than against `isForeground()` alone, because the socket's death and
+// the app's return race each other: a student who flicks away and straight back is
+// foreground again by the time the failed read finally rejects, and the plain
+// check would call that a real failure and re-send the turn.
+let leftForegroundAt = 0;
+
+// Turns abandoned mid-flight, threadId → the thesis they were editing (null when
+// the conversation has none). Read once on the way back to the foreground and
+// cleared, so a refresh only ever happens for a thread that actually had a turn
+// running — never on every foreground.
+const interruptedTurns = new Map<string, string | null>();
+
+function markTurnInterrupted(threadId: string, thesisId: string | null): void {
+  interruptedTurns.set(threadId, thesisId);
+  // The chat is about to go idle with an unanswered question in it. Say that it
+  // is still catching up, or the student comes back to their own message wearing
+  // a "this went unanswered" retry chip a second before the answer lands on it.
+  useChatStore.getState().setRecoveringThread(threadId);
+  // The app may be back ALREADY: a socket cut by the OS often does not reject
+  // until the app is running again, so the "active" event that normally starts the
+  // catch-up has been and gone before this turn even learned it had failed.
+  // Nothing else would ever fire for it, and the thread would sit registered
+  // forever behind a spinner. Scheduled rather than called, so the turn's own
+  // teardown (which releases the chat) runs first — the poll below refuses to
+  // touch a thread that still has a turn on it.
+  if (isForeground()) setTimeout(resumeInterruptedTurns, 0);
+}
+
+// How long to keep asking the server for the interrupted turn's answer. The first
+// look is immediate — an app backgrounded for ten minutes usually has the reply
+// waiting — and the rest cover the case the student came straight back and the
+// turn is still running there. The budget is deliberately the same order as the
+// retry backoff it replaces (~13s), after which the unanswered-message retry chip
+// is the honest thing to show.
+const RESUME_POLL_MS = [0, 1_500, 4_000, 8_000];
+
+// Did the interrupted turn's answer land? The refreshed window ends in an
+// assistant row that came from the server (a pending one is this device's own
+// optimistic copy, which proves nothing).
+function turnAnswerLanded(threadId: string): boolean {
+  const list = useChatStore.getState().getMessages(threadId);
+  const last = list[list.length - 1];
+  return !!last && last.role === "assistant" && !last.pending;
+}
+
+async function wait(ms: number): Promise<void> {
+  if (ms <= 0) return;
+  await new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Catch one thread up with the turn that finished while the app was away.
+ *
+ * Deliberately the SAME path the chat screen uses to reconcile a thread with the
+ * server (`syncLatestFromServer`) — the optimistic user row and the half-streamed
+ * assistant bubble are both `pending`, and that path already replaces pending rows
+ * with the server's copies. There is no second notion of "refresh" here.
+ *
+ * The document is re-read too, unconditionally: the app never saw the turn's
+ * `docChanges` frame, so it cannot know whether the .docx was edited — and the
+ * cost of assuming it wasn't is a student shown the pre-turn document by an
+ * assistant that just rewrote it (see syncDocumentAfterTurn).
+ */
+async function resumeInterruptedTurn(threadId: string, thesisId: string | null): Promise<void> {
+  try {
+    // Re-asserted rather than assumed: a thread registered, dropped and picked up
+    // on a LATER return to the foreground has had the flag cleared in between.
+    useChatStore.getState().setRecoveringThread(threadId);
+    // The question, as this device last held it. syncLatestFromServer REAPS
+    // optimistic rows — correctly, the server is the authority — but a server that
+    // has not written this turn yet answers "nothing new", and the reap would take
+    // the student's own message off the screen with it. Kept so the ending below
+    // can put it back if the server turns out to have nothing at all.
+    const optimistic = useChatStore.getState().getMessages(threadId).filter((m) => m.pending);
+    for (let i = 0; i < RESUME_POLL_MS.length; i++) {
+      await wait(RESUME_POLL_MS[i]);
+      // The student started a new turn on this thread while we were polling — it
+      // owns the conversation now, and its own teardown refreshes everything.
+      if (useChatStore.getState().activeThreadId === threadId) return;
+      // Away again already: stop rather than poll from the background, and leave
+      // the thread registered so the NEXT return picks it up.
+      if (!isForeground()) {
+        interruptedTurns.set(threadId, thesisId);
+        return;
+      }
+      try {
+        await syncLatestFromServer(threadId);
+      } catch {
+        return; // offline — whatever is cached stays on screen
+      }
+      if (turnAnswerLanded(threadId)) break;
+    }
+    // Out of the loop either way: with the answer, or with a question the server
+    // never answered. The document may have been edited in both cases.
+    syncDocumentAfterTurn(thesisId, true);
+    // Nothing came back over the whole budget, so the turn really did die before
+    // the server could record it — and the reap above may have taken the question
+    // with it. Put it back, marked undelivered, which is the ending this used to
+    // have and the only one that leaves a way forward: the Retry on that bubble
+    // re-runs THIS row rather than making them type it again. Matched on TEXT, not
+    // id: a server copy of the same question carries a different id, and restoring
+    // next to it would show the student their message twice.
+    if (!turnAnswerLanded(threadId)) restoreUnrecordedQuestion(threadId, optimistic);
+  } finally {
+    // Only if it is still ours: a new turn (or a later interruption) may have
+    // claimed the flag while this one was polling.
+    const s = useChatStore.getState();
+    if (s.recoveringThreadId === threadId) s.setRecoveringThread(null);
+  }
+}
+
+// Put back a question the server never recorded — see the call site.
+function restoreUnrecordedQuestion(threadId: string, optimistic: ChatMessage[]): void {
+  const store = useChatStore.getState();
+  const current = store.getMessages(threadId);
+  const lost = optimistic.filter(
+    (m) =>
+      m.role === "user" &&
+      !!m.content &&
+      !current.some((c) => c.role === "user" && c.content === m.content),
+  );
+  if (lost.length === 0) return;
+  store.setMessages(threadId, [...current, ...lost.map((m) => ({ ...m, failed: true }))]);
+}
+
+// One in-flight resume per thread, so two foreground events in quick succession
+// (iOS fires inactive→active around a dismissed notification) can never start the
+// same poll twice.
+const resuming = new Set<string>();
+
+function resumeInterruptedTurns(): void {
+  if (interruptedTurns.size === 0) return;
+  const pending = [...interruptedTurns.entries()];
+  interruptedTurns.clear();
+  for (const [threadId, thesisId] of pending) {
+    // Already being caught up with. Dropping the entry is right: the poll in
+    // flight reads the same thread from the same server, so it collects this
+    // registration's answer too.
+    if (resuming.has(threadId)) continue;
+    resuming.add(threadId);
+    void resumeInterruptedTurn(threadId, thesisId).finally(() => resuming.delete(threadId));
+  }
+}
+
+// One listener for the whole app, registered at module scope like the doc store's
+// background flush. Every AI turn — the chat screen's, the workspace composer's,
+// the block editor's — runs through THIS file, so there is exactly one place that
+// knows a turn was interrupted and exactly one that needs to hear about the
+// return. A per-screen listener would have to be repeated three times and would
+// miss any turn whose screen unmounted while the app was away.
+AppState.addEventListener("change", (state) => {
+  if (state === "background" || state === "inactive") {
+    leftForegroundAt = Date.now();
+    return;
+  }
+  resumeInterruptedTurns();
+});
+
+// ============================================================
+// Stop
+// ============================================================
+
+// Stops the app has asked the server for and not yet had an answer to, by thread.
+// A send that follows a Stop closely waits on these (see settlePendingStop): the
+// endpoint cancels "whatever is live on this thread", so a stop still in flight
+// when the next turn opens would cancel THAT one instead.
+const pendingStops = new Map<string, Promise<void>>();
+
+// The longest a new turn will wait for a preceding Stop to land. Ordering is all
+// this buys, and it is not worth more than a moment of the student's time: past
+// the cap the send goes ahead regardless.
+const STOP_SETTLE_MS = 1_500;
+
+async function settlePendingStop(threadId: string): Promise<void> {
+  const inFlight = pendingStops.get(threadId);
+  if (!inFlight) return;
+  await Promise.race([inFlight, wait(STOP_SETTLE_MS)]);
+}
+
+/**
+ * Stop the running turn — both halves, in the right order.
+ *
+ * The LOCAL abort goes first and is what the student feels: the chat is idle in
+ * the same tick as the tap, whatever the transport does afterwards (see
+ * chat-store.stopGenerating — expo/fetch can hang `reader.read()` forever, and a
+ * UI that waited for it stayed stuck on a Stop button with nothing left to press).
+ *
+ * The SERVER half is what actually ends the work, now that a dropped socket means
+ * nothing there. It is fire-and-forget on purpose: this function returns void, so
+ * there is no path by which a failed request can leave the chat generating. The
+ * worst a lost Stop costs is a turn that finishes in the background and shows up
+ * in the thread on the next refresh — which is the same thing that happens when
+ * the student stops a turn a moment after it has already finished.
+ */
+export function stopTurn(): void {
+  const { isGenerating, activeThreadId } = useChatStore.getState();
+  // Unconditional and first — the UI is freed here.
+  useChatStore.getState().stopGenerating();
+  if (!isGenerating || !activeThreadId) return;
+  const threadId = activeThreadId;
+  const request = chatStopTurn(threadId).then(
+    () => {},
+    () => {
+      // Offline, or the server is an older build with no /stop route. Nothing to
+      // do: the student's chat is already stopped.
+    },
+  );
+  pendingStops.set(threadId, request);
+  void request.finally(() => {
+    if (pendingStops.get(threadId) === request) pendingStops.delete(threadId);
+  });
+}
 
 // Map a raw server chat row into the app's ChatMessage shape.
 function mapServerMessages(rows: any[], threadId: string): ChatMessage[] {
@@ -342,7 +588,7 @@ async function runAssistantTurn(
   // round-trip, and until the turn is marked generating the chat still looks
   // idle: the composer would take a second send, and the "unanswered question"
   // retry chip would flash under the message already on its way.
-  const turnId = store.beginTurn();
+  const turnId = store.beginTurn(threadId);
   store.setAbortController(controller);
 
   // Move the counter now rather than when the turn returns: a message that
@@ -367,6 +613,12 @@ async function runAssistantTurn(
   await (useLexicalEditorStore.getState().flushEdits?.() ?? Promise.resolve()).catch(() => {});
   // No thesis attached → no live .docx to flush.
   if (thesisId) await useThesisDocStore.getState().flushOps(thesisId).catch(() => {});
+
+  // A Stop the student pressed a moment ago may still be on its way to the server.
+  // /api/chat/stop cancels whatever is live on the THREAD, so one that overtakes
+  // this request would cancel this turn instead of the one it was meant for. The
+  // wait is capped and usually already over — the flushes above are round trips too.
+  await settlePendingStop(threadId);
 
   // That flush is a network round-trip the user can hit Stop inside. Bail before
   // opening the stream rather than starting one only to abort it; the store is
@@ -393,6 +645,10 @@ async function runAssistantTurn(
     // button, and what people do with that button is tap it until one lands.
     // The app does the tapping now; the button stays for when even that fails.
     for (let attempt = 1; ; attempt++) {
+      // When this attempt opened. Compared against the last time the app left the
+      // foreground, so a failure can be attributed to the trip out of the app
+      // rather than to the turn — see abandonedToBackground below.
+      const attemptStartedAt = Date.now();
       // Per-ATTEMPT state. It is safe to start these over precisely because an
       // attempt is only ever replaced when it produced nothing at all.
       let sawContent = false;
@@ -403,6 +659,18 @@ async function runAssistantTurn(
       // to tell whether it failed. That case is retried, and finally turned into a
       // visible, retryable note.
       let producedOutput = false;
+
+      // The app was not in the foreground for the whole of this attempt, so the
+      // socket that just died was cut by the OS. The turn itself is fine: the
+      // server runs it to completion whatever happens to the connection. Trying
+      // again would not repeat a failure, it would start a SECOND turn — a second
+      // answer, and a second pass of edits over the thesis — and it would do it
+      // from a background app that cannot receive either. So the attempt is
+      // abandoned rather than repeated, and the return to the foreground collects
+      // what the server produced (resumeInterruptedTurn). Checked BEFORE mayRetry
+      // at every exit: it outranks the whole budget, not just this attempt's turn
+      // in it.
+      const abandonedToBackground = () => !isForeground() || leftForegroundAt >= attemptStartedAt;
 
       // May this attempt be replaced by another one? Four gates, in the order of
       // how badly ignoring them would hurt:
@@ -573,6 +841,11 @@ async function runAssistantTurn(
         // as worth repeating as one that threw. So repeat it, silently, while
         // there are attempts left.
         if (!producedOutput) {
+          // Silent because the app was away, not because the turn failed.
+          if (abandonedToBackground()) {
+            markTurnInterrupted(threadId, thesisId);
+            return;
+          }
           if (mayRetry()) {
             if (await pauseThenRetry()) continue;
             return; // stopped during the backoff
@@ -633,6 +906,15 @@ async function runAssistantTurn(
         if (isQuotaError(error)) {
           if (opts?.userMessageId) store.setMessageFailed(threadId, opts.userMessageId, true);
           useBillingStore.getState().setBlocked(error.reason ?? "period-exhausted", error.quota);
+          return;
+        }
+
+        // Not this turn's failure to report: the app was in the background, so the
+        // socket died with it while the turn carried on server-side. Say nothing,
+        // spend no attempt, and leave the question looking delivered — because it
+        // was. The foreground resume brings back the answer it produced.
+        if (abandonedToBackground()) {
+          markTurnInterrupted(threadId, thesisId);
           return;
         }
 
@@ -847,8 +1129,16 @@ async function runStreamContinuation(
   // syncDocumentAfterTurn and docChanges both need the real thesis id.
   const store = useChatStore.getState();
   store.setPendingConfirm(null);
+  // Same ordering guard as runAssistantTurn: a Stop still in flight would cancel
+  // THIS continuation instead of the turn it was pressed on.
+  await settlePendingStop(threadId);
   const controller = new AbortController();
-  const turnId = store.beginTurn();
+  const startedAt = Date.now();
+  // See runAssistantTurn's abandonedToBackground: a continuation the app walked
+  // away from is recovered, never reported as a failure and never re-run — the
+  // work it started is already landing server-side.
+  const abandoned = () => !isForeground() || leftForegroundAt >= startedAt;
+  const turnId = store.beginTurn(threadId);
   store.setAbortController(controller);
   // See runAssistantTurn: gates every write so a stopped continuation goes quiet.
   const live = () => useChatStore.getState().isTurnActive(turnId);
@@ -911,15 +1201,29 @@ async function runStreamContinuation(
     }, controller.signal);
     pump.flush();
     if (!producedOutput && live()) {
-      const s = ensureBubble();
-      s.appendToMessage(threadId, assistantId!, emptyTurnNote(docChanged));
+      // Silent because the app was away: the reply exists, it just had nowhere to
+      // arrive. Recovered on the way back rather than papered over with a note.
+      if (abandoned()) markTurnInterrupted(threadId, thesisId);
+      else {
+        const s = ensureBubble();
+        s.appendToMessage(threadId, assistantId!, emptyTurnNote(docChanged));
+      }
     }
   } catch (error: any) {
     if (live()) {
       pump.flush();
-      const note = userFacingError(error);
-      const s = ensureBubble();
-      s.appendToMessage(threadId, assistantId!, `\n\n_${note}_`);
+      // The app left the foreground while this ran, so the dead socket says
+      // nothing about the work: an approved action, or a plan, keeps executing
+      // server-side and its reply is persisted there. An error note here would be
+      // a lie sitting under edits that actually landed — see the header comment on
+      // interrupted turns. Recovered on the way back like any other turn.
+      if (abandoned()) {
+        markTurnInterrupted(threadId, thesisId);
+      } else {
+        const note = userFacingError(error);
+        const s = ensureBubble();
+        s.appendToMessage(threadId, assistantId!, `\n\n_${note}_`);
+      }
     }
   } finally {
     pump.cancel();
