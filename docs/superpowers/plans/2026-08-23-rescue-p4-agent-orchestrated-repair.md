@@ -132,15 +132,15 @@ and the real heading are two blocks with the same text.
 
 ## Task 6 — The rebuild-fresh ask (app)
 
-Every import asks, after the file is picked and before the diagnosis, and it
-offers THREE choices:
+Every import asks, after the norms and BEFORE the picker, and it offers THREE
+choices:
 1. **Repair** — today's lane (diagnose → verdict → paywall → fix in place).
 2. **Rebuild fresh** — the AI re-lays the content into a clean base.
 3. **Import only** — no diagnosis, no repair, no AI spend; the student works on
    it in Kwill's chat and editor. Wires to the EXISTING `POST /api/thesis/import`
    and its existing allowance guard. **Dismissing the card means this one**, as
    the least destructive and the only free choice.
-- New screen between `rescue-norms` and the verdict; forward nav is `replace`,
+- New screen between `rescue-norms` and the picker; forward nav is `replace`,
   as the rest of the lane is.
 - Trilingual `rescue.rebuild.*` keys — ⚠️ the locale JSONs hold ~155 duplicate
   keys each; edit them SURGICALLY, never by round-tripping.

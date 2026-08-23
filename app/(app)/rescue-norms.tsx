@@ -1,10 +1,10 @@
 // app/(app)/rescue-norms.tsx
-// One question before the file: which faculty's norms? Same chip list the
-// combine flow uses (combine-arrange.tsx) — the profiles live in
-// thesis-store and are lazy-loaded the same way. Picking one launches the
-// document picker immediately; diagnose runs the instant a file is chosen.
+// One question before the door: which faculty's norms? Same chip list the
+// combine flow uses (combine-arrange.tsx) — the profiles live in thesis-store
+// and are lazy-loaded the same way. Picking one leads to rescue-choice, which
+// asks what the student actually wants done and opens the picker itself.
 import { useEffect } from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet, Alert } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -23,32 +23,12 @@ export default function RescueNormsScreen() {
     useThesisStore.getState().loadNormProfiles();
   }, []);
 
-  const pick = async (id: string) => {
-    const store = useRescueStore.getState();
-    store.setNormProfileId(id);
-    // onPicked fires the moment a valid .docx is chosen — the working screen
-    // takes over from there, so only a failure BEFORE it fires (a dead
-    // picker, a non-.docx) is this screen's to show; a failure after is the
-    // working screen's own status effect (same navigated-guard pattern as
-    // the drawer's old handleImport/handleCombine).
-    let navigated = false;
-    const result = await store.pickAndDiagnose({
-      onPicked: () => {
-        navigated = true;
-        router.replace("/(app)/rescue-working" as any);
-      },
-    });
-    if (result === "ok") {
-      router.replace("/(app)/rescue-verdict" as any);
-    } else if (result === "error" && !navigated) {
-      Alert.alert(
-        t("rescue.title"),
-        t(`rescue.error.${useRescueStore.getState().errorMessage ?? "generic"}`, {
-          defaultValue: t("thesis.genericError"),
-        }),
-      );
-    }
-    // canceled: stay here — the student can re-pick or back out.
+  // The norms are the only thing asked before the door. Picking one no longer
+  // opens the picker: the student chooses repair / rebuild / import-only first,
+  // and that screen opens the picker once, for whichever door they took.
+  const pick = (id: string) => {
+    useRescueStore.getState().setNormProfileId(id);
+    router.replace("/(app)/rescue-choice" as any);
   };
 
   return (

@@ -37,8 +37,13 @@ interface RescueState {
   errorMessage: string | null;
 
   setNormProfileId: (id: string | null) => void;
-  /** onPicked fires the moment a valid .docx is chosen — navigate THEN. */
-  pickAndDiagnose: (opts?: { onPicked?: (fileName: string) => void }) => Promise<"ok" | "canceled" | "error">;
+  /** onPicked fires the moment a valid .docx is chosen — navigate THEN.
+   *  `mode` is the door the student chose before the picker opened: "repair"
+   *  fixes their own file, "rebuild" pours its content onto a clean base. */
+  pickAndDiagnose: (opts?: {
+    onPicked?: (fileName: string) => void;
+    mode?: "repair" | "rebuild";
+  }) => Promise<"ok" | "canceled" | "error">;
   answerQuestion: (id: string, choice: { role: RescueRole; level?: 1 | 2 | 3 | 4 }) => void;
   dismissQuestion: (id: string) => void;
   /** Sends answers (if any), then starts the paid repair. */
@@ -120,7 +125,10 @@ export const useRescueStore = create<RescueState>((set, get) => ({
     try {
       const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 });
       const run = await rescueDiagnose(
-        { base64, filename: asset.name ?? "document.docx", normProfileId: get().normProfileId! },
+        {
+          base64, filename: asset.name ?? "document.docx", normProfileId: get().normProfileId!,
+          mode: opts?.mode ?? "repair",
+        },
         { onUploadProgress: (f) => set(f >= 1 ? { status: "diagnosing", uploadProgress: 1 } : { uploadProgress: f }) },
       );
       absorb(run, set);

@@ -1156,6 +1156,25 @@
   "rescue": {
     "title": "Rescue my thesis",
     "pickNorms": "Which faculty's norms?",
+    "choice": {
+      "title": "What should we do with your file?",
+      "subtitle": "Choose once, then choose the file.",
+      "repair": {
+        "title": "Repair my thesis",
+        "body": "We keep your file and fix what breaks your faculty's norms: headings, contents, headers, pagination and captions.",
+        "cost": "Paid — keeps your own formatting where it is already right."
+      },
+      "rebuild": {
+        "title": "Rebuild it fresh",
+        "body": "We carry your content — paragraphs, tables, figures — into a clean document, formatted to your faculty's norms from the start.",
+        "cost": "Paid — a cleaner result, but your own formatting is not kept."
+      },
+      "import": {
+        "title": "Just import it",
+        "body": "We bring it in exactly as it is and change nothing. You work on it yourself in Kwill's chat and editor.",
+        "cost": "Free — no diagnosis, no repair."
+      }
+    },
     "verdictTitle": "Your thesis has {{count}} issues against your faculty's norms",
     "verdictClean": "Your thesis already matches your faculty's norms",
     "degraded": "Some checks ran in reduced mode — the AI reader was unavailable.",

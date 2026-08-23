@@ -1156,6 +1156,25 @@
   "rescue": {
     "title": "Sauver mon mémoire",
     "pickNorms": "Selon les normes de quelle faculté ?",
+    "choice": {
+      "title": "Que voulez-vous que l'on fasse de votre fichier ?",
+      "subtitle": "Choisissez une fois, puis choisissez le fichier.",
+      "repair": {
+        "title": "Réparer mon mémoire",
+        "body": "On garde votre fichier et on corrige ce qui s'écarte des normes : titres, sommaire, en-têtes, pagination et légendes.",
+        "cost": "Payant — votre mise en forme est conservée là où elle est déjà correcte."
+      },
+      "rebuild": {
+        "title": "Le reconstruire à neuf",
+        "body": "On reprend votre contenu — paragraphes, tableaux, figures — dans un document propre, aux normes de votre faculté dès le départ.",
+        "cost": "Payant — résultat plus net, mais votre mise en forme n'est pas conservée."
+      },
+      "import": {
+        "title": "Seulement l'importer",
+        "body": "On l'importe tel quel, sans rien changer, et vous travaillez dessus vous-même dans le chat et l'éditeur Kwill.",
+        "cost": "Gratuit — aucun diagnostic, aucune réparation."
+      }
+    },
     "verdictTitle": "Votre mémoire présente {{count}} non-conformités aux normes de votre faculté",
     "verdictClean": "Votre mémoire respecte déjà les normes de votre faculté",
     "degraded": "Certaines vérifications ont tourné en mode réduit — l'assistant IA était indisponible.",

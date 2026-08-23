@@ -124,10 +124,16 @@ rewrite of a document they are about to defend.
 Per the product rule the card is dismissible, and dismissing means **import
 only** — the least destructive of the three, and the only free one.
 
-The ask sits **after the file is picked and before the diagnosis**, so it is one
-more tap in the lane the student is already walking. It must state plainly what
-each choice costs, because at that point the student has not been shown a
-verdict yet and is deciding blind.
+The ask sits **after the norms and BEFORE the picker** (revised while building:
+the first draft put it after the file was chosen). Asking first means each door
+opens the picker exactly once and both existing lanes stay whole — repair and
+rebuild through the rescue store, import-only through the import store that
+already owns that flow. It is also the honest order: which door you want is a
+policy choice about your own document, not something you decide by looking at
+it.
+
+Each card must state plainly what its choice COSTS, because the student is
+deciding before they have been shown a verdict.
 
 ⚠️ Rebuild-fresh is a **fifth creation door**. It must go through
 `thesisAllowance`, the same as the other four, and must never read the plan via

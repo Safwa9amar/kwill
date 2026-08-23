@@ -1270,7 +1270,13 @@ export interface RescueRun {
 }
 
 export async function rescueDiagnose(
-  input: { base64: string; filename: string; normProfileId: string },
+  input: {
+    base64: string; filename: string; normProfileId: string;
+    /** "repair" fixes the student's own file; "rebuild" pours its content onto a
+     *  clean base. Omitted means repair — the server defaults the same way, so an
+     *  older build can never opt a student into losing their formatting. */
+    mode?: "repair" | "rebuild";
+  },
   opts?: LongPostOptions,
 ): Promise<RescueRun> {
   // Minutes on a real thesis: upload + parse + one windowed AI pass.
