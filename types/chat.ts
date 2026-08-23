@@ -132,4 +132,9 @@ export interface ToolTracePayload {
   detail?: string;
   /** Wall time of the call, on the terminal frame only. */
   ms?: number;
+  /** Page renders the tool produced — dev builds only. Signed URLs, never
+   *  payloads: the frame has to stay ASCII so the stream escaper leaves it
+   *  alone. The server sends only the pictures the per-turn budget actually let
+   *  through, so these are what the model SAW, not what it asked for. */
+  images?: string[];
 }

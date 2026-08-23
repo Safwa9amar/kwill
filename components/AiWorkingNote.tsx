@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import { View, Text, Image, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { useThemeColors } from "@/hooks/useThemeColors";
@@ -7,7 +7,7 @@ import { useWorkingClock } from "@/hooks/useWorkingClock";
 import { MAX_TURN_ATTEMPTS } from "@/lib/retry";
 import { SpinningAsterisk } from "@/components/ThinkingTrace";
 import { formatElapsed } from "@/lib/thinking";
-import { visualRow, visualTextAlign } from "@/lib/rtl-layout";
+import { LTR_ROW, visualRow, visualTextAlign } from "@/lib/rtl-layout";
 
 interface Props {
   /** Drive the note from an explicit request instead of the chat turn — for
@@ -108,11 +108,31 @@ export function AiWorkingNote({ active, stream, rtl = false, stoppable = true, i
         <Text style={[styles.clock, { color: mutedInk }]}>{formatElapsed(elapsed)}</Text>
       </View>
       {trace.map((t) => (
-        <Text key={t.id} numberOfLines={1} style={[styles.tool, { color: t.state === "error" ? colors.semanticError : mutedInk }]}>
-          {t.state === "running" ? "▸" : t.state === "error" ? "✕" : "✓"} {t.name}
-          {t.detail ? `  ${t.detail}` : ""}
-          {t.ms !== undefined ? `  ${(t.ms / 1000).toFixed(1)}s` : ""}
-        </Text>
+        <View key={t.id}>
+          <Text numberOfLines={1} style={[styles.tool, { color: t.state === "error" ? colors.semanticError : mutedInk }]}>
+            {t.state === "running" ? "▸" : t.state === "error" ? "✕" : "✓"} {t.name}
+            {t.detail ? `  ${t.detail}` : ""}
+            {t.ms !== undefined ? `  ${(t.ms / 1000).toFixed(1)}s` : ""}
+          </Text>
+          {/* What the model was SHOWN, not what it says it saw. The server puts
+              these on the terminal frame only for a render tool, and only for
+              the pages the per-turn budget let through — so a row with no
+              thumbnails is a tool that produced no picture, not a load failure.
+              Dev-only like the rest of the trace: `trace` is empty unless the
+              server runs with AI_SHOW_TOOLS. */}
+          {!!t.images?.length && (
+            <View style={styles.shots}>
+              {t.images.map((uri) => (
+                <Image
+                  key={uri}
+                  source={{ uri }}
+                  style={[styles.shot, { backgroundColor: colors.bgSurface }]}
+                  resizeMode="cover"
+                />
+              ))}
+            </View>
+          )}
+        </View>
       ))}
     </Animated.View>
   );
@@ -134,6 +154,12 @@ const styles = StyleSheet.create({
     textAlign: "left",
     opacity: 0.85,
   },
+  // Page renders under a trace row. Deliberately tiny — enough to tell a blank
+  // page from a full one and to see which page it is, not to read the text.
+  // LTR_ROW, like the monospaced row above: the sequence is page order, so it
+  // must not mirror itself in an Arabic build (see lib/rtl-layout.ts).
+  shots: { flexDirection: LTR_ROW, gap: 6, marginTop: 6 },
+  shot: { width: 48, height: 68, borderRadius: 4 },
   label: { flexShrink: 1, fontSize: 12, fontFamily: "Inter_500Medium" },
   spacer: { flexGrow: 1 },
   // Digits stay LTR in every locale so the clock never reorders in Arabic.
