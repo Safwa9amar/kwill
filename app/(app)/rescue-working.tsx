@@ -81,7 +81,14 @@ export default function RescueWorkingScreen() {
     .filter((s) => s.status !== "skipped")
     .map((s) => ({
       key: s.id,
-      label: t(`rescue.step.${s.id}`),
+      // defaultValue matters: the ids come from the SERVER's STEP_ORDER, so a step
+      // added there before its three locale keys exist would otherwise render the
+      // raw "rescue.step.chrome" to a student mid-run — which is exactly what
+      // happened to chrome and lists. Falling back to the humanised id keeps a
+      // gap looking like an unnamed step rather than a broken screen.
+      label: t(`rescue.step.${s.id}`, {
+        defaultValue: s.id.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase()),
+      }),
       status:
         s.status === "done" || s.status === "failed"
           ? "done"

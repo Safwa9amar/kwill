@@ -1197,8 +1197,10 @@
       "structure": "Rebuilding the structure",
       "norms": "Applying your faculty's norms",
       "sections-numbering": "Numbering the pages",
+      "chrome": "Redesigning the page headers",
       "pagination": "Fixing page breaks",
       "captions": "Converting captions",
+      "lists": "Converting typed lists",
       "apparatus": "Building the table of contents",
       "finish": "Final checks"
     },

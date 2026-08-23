@@ -1197,8 +1197,10 @@
       "structure": "Reconstruction de la structure",
       "norms": "Application des normes de votre faculté",
       "sections-numbering": "Numérotation des pages",
+      "chrome": "Uniformisation des en-têtes de page",
       "pagination": "Correction des sauts de page",
       "captions": "Conversion des légendes",
+      "lists": "Conversion des listes tapées à la main",
       "apparatus": "Génération de la table des matières",
       "finish": "Vérifications finales"
     },
