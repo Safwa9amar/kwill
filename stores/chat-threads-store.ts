@@ -100,7 +100,16 @@ export const useChatThreadsStore = create<ChatThreadsState>((set, get) => ({
     set({ loading: true });
     try {
       const threads = await listThreads(thesisId ? { thesisId } : undefined);
-      const modes = Object.fromEntries(threads.map((th) => [th.id, chatModeOf(th.mode)]));
+      // Never overwrite the OPEN thread's mode from this: the server only learns
+      // a thread's mode from a completed turn (there is no PATCH for it — see
+      // ai-service.ts), so a student who just tapped the mode chip is briefly
+      // ahead of the server. A refresh mid-turn (e.g. opening the drawer) would
+      // otherwise silently revert that pick back to whatever the server last
+      // recorded, and the very next message would go out in the wrong mode.
+      const current = get().currentThreadId;
+      const modes = Object.fromEntries(
+        threads.filter((th) => th.id !== current).map((th) => [th.id, chatModeOf(th.mode)])
+      );
       set({ threads, modes: { ...get().modes, ...modes } });
     } catch {
       // Keep whatever is already on screen — a failed refresh must never blank
