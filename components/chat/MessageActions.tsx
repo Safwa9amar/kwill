@@ -32,7 +32,7 @@ import { useThemeColors } from "@/hooks/useThemeColors";
 import { useChatThreadsStore } from "@/stores/chat-threads-store";
 import { useThesisStore } from "@/stores/thesis-store";
 import { useZoomOriginStore } from "@/stores/zoom-origin-store";
-import { exportThesis } from "@/lib/api";
+import { exportThesis, getPdfConverterStatus } from "@/lib/api";
 import { downloadExport } from "@/lib/download-export";
 import { visualRow } from "@/lib/rtl-layout";
 import { TASKS_ENABLED } from "@/lib/tasks-enabled";
@@ -198,6 +198,11 @@ export function MessageActions({
   // open state — one value rather than a boolean plus a rect that could disagree.
   const moreRef = useRef<View>(null);
   const [anchor, setAnchor] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  // Null = not checked yet (assume available, matching the prior behavior) —
+  // the Mac driving PDF conversion can be asleep or offline even though the
+  // server has it configured, so this is asked fresh every time the menu
+  // opens rather than trusted from a stale check.
+  const [pdfAvailable, setPdfAvailable] = useState<boolean | null>(null);
 
   /**
    * Export the thesis as it stands and hand the file to the OS.
@@ -329,6 +334,7 @@ export function MessageActions({
         ref={moreRef}
         onPress={() => {
           moreRef.current?.measureInWindow((x, y, w, h) => setAnchor({ x, y, w, h }));
+          if (thesisId) void getPdfConverterStatus().then((s) => setPdfAvailable(s.available)).catch(() => setPdfAvailable(false));
         }}
         hitSlop={10}
         accessibilityRole="button"
@@ -377,18 +383,23 @@ export function MessageActions({
                   key: "view-pdf",
                   label: t("chat.viewPdf", { defaultValue: "View PDF" }),
                   icon: Eye,
+                  // Only disabled once CONFIRMED unreachable — `null` (not
+                  // checked yet, the instant the popup opens) stays tappable
+                  // rather than flashing disabled-then-enabled.
+                  disabled: pdfAvailable === false,
                   onPress: () => setViewingPdf(true),
                 },
                 // One row per format rather than a single "Download" that asks a
                 // second question. Two of the three are not built yet and say so:
                 // the export engine renders .docx, and PDF and LaTeX are named
                 // here so the student can see they are coming instead of hunting
-                // for a setting that does not exist.
+                // for a setting that does not exist. PDF is additionally gated on
+                // the Mac driving Word conversion actually being reachable right now.
                 ...DOWNLOAD_FORMATS.map((f) => ({
                   key: `download-${f.format}`,
                   label: t("chat.downloadFormat", { format: f.label, defaultValue: `Download ${f.label}` }),
                   icon: Download,
-                  disabled: !f.ready,
+                  disabled: !f.ready || (f.format === "pdf" && pdfAvailable === false),
                   onPress: () => void handleDownload(f.format),
                 })),
                 // Tasks — HIDDEN, not deleted (see lib/tasks-enabled.ts).

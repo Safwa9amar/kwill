@@ -1772,6 +1772,14 @@ export async function exportThesis(thesisId: string, format: "docx" | "pdf" | "l
   return apiPost<{ success: boolean; url: string; filename: string; format: string; bytes: number; pageCount?: number }>(`/api/export/${thesisId}`, { format });
 }
 
+// Whether PDF conversion is reachable RIGHT NOW — the Mac driving it can be
+// asleep, offline, or shut down even while the server's own config says it's
+// enabled. The share sheet checks this before offering View/Download PDF as
+// tappable, rather than letting the student hit a failure after the fact.
+export async function getPdfConverterStatus() {
+  return apiGet<{ available: boolean }>(`/api/export/pdf-status`);
+}
+
 // ============================================================
 // Source materials API (helper files mounted at /api/thesis/:id/sources)
 // ============================================================
