@@ -43,6 +43,7 @@ import { useProfileStore } from "@/stores/profile-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useChatHead } from "@/stores/chat-head-store";
 import { useCombineStore } from "@/stores/combine-store";
+import { useImportStore } from "@/stores/import-store";
 import { AvatarPicker } from "@/components/AvatarPicker";
 import { ThesisOutlinePanel } from "@/components/workspace/ThesisOutlinePanel";
 import { listTheses } from "@/lib/api";
@@ -231,6 +232,30 @@ function AppIndex() {
     }
   }, [closeDrawer, router, t]);
 
+  // The PLAIN import: pick a .docx, upload it, land on the analysis screen.
+  // This is what the drawer did before the rescue lane took the door over, and
+  // it is what production still uses — see the note on the row below.
+  const handleImport = useCallback(async () => {
+    closeDrawer();
+    // An import ends in a new thesis, so the plan's ceiling applies.
+    if (!(await guardThesisLimit())) return;
+    const store = useImportStore.getState();
+    store.reset();
+    // Same reason as handleCombine: reading and analysing a real thesis takes
+    // tens of seconds, so the processing screen goes up the moment the picker
+    // closes rather than leaving the drawer sitting there looking dead.
+    let navigated = false;
+    const result = await store.pickAndImport({
+      onPicked: () => {
+        navigated = true;
+        router.push("/(app)/import-analysis" as any);
+      },
+    });
+    if (result === "error" && !navigated) {
+      Alert.alert(t("documents.import"), useImportStore.getState().errorMessage || t("thesis.genericError"));
+    }
+  }, [closeDrawer, router, t]);
+
   const currentThesis = useMemo(
     () => theses.find((th) => th.id === currentThesisId) ?? null,
     [theses, currentThesisId],
@@ -277,11 +302,22 @@ function AppIndex() {
     {
       key: "import",
       icon: FolderUp,
-      label: t("rescue.title"),
-      // The rescue lane replaces the old direct-import destination: a norm
-      // profile must be chosen (the server refuses a diagnose without one)
-      // before the document picker can even open.
-      onPress: () => go(() => router.push("/(app)/rescue-norms" as any)),
+      // DEV ONLY, deliberately. The rescue lane still needs deep work, and the
+      // document it rewrites is the one the student is about to defend — a
+      // half-finished repair is worse than no repair, because they may not
+      // notice until the viva. Production keeps the plain import, which is the
+      // lane that has always worked; gating this row hides the whole lane,
+      // since rescue-norms is its only door.
+      //
+      // `__DEV__` is false in a release build AND in an OTA-published bundle,
+      // which is exactly the line we want: the lane stays on a dev client and
+      // never reaches a student.
+      label: __DEV__ ? t("rescue.title") : t("documents.import"),
+      onPress: __DEV__
+        // A norm profile must be chosen (the server refuses a diagnose without
+        // one) before the document picker can even open.
+        ? () => go(() => router.push("/(app)/rescue-norms" as any))
+        : handleImport,
     },
     { key: "combine", icon: Combine, label: t("combine.short"), onPress: handleCombine },
     // Export is COMMENTED OUT, not deleted — it is expected back.
