@@ -1,0 +1,24 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1080,
+      "h": 1350
+    }
+  ],
+  "annotations": [
+    {
+      "id": "series",
+      "x": 0,
+      "y": -210,
+      "w": 900,
+      "text": "نصيحة تنسيق · 01 — صورة وحدة، 1080x1350.\nSeries card: keep the badge and bump the number for each new tip. Next ones queued: real captions so the figure list generates, front-matter numbering as its own section, page break instead of pressing Enter, table headers that repeat across pages."
+    }
+  ],
+  "launch": {
+    "view": "focused",
+    "file": "Main.dc.html"
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 5040,
+      "y": 0,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Tarwisa.dc.html",
+      "x": 3780,
+      "y": 0,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Ghalta.dc.html",
+      "x": 2520,
+      "y": 0,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Charit.dc.html",
+      "x": 1260,
+      "y": 0,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Otlob.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Arqam.dc.html",
+      "x": 5040,
+      "y": 2180,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Qaleb.dc.html",
+      "x": 3780,
+      "y": 2180,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Fusul.dc.html",
+      "x": 2520,
+      "y": 2180,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Docx.dc.html",
+      "x": 1260,
+      "y": 2180,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Nihaya.dc.html",
+      "x": 0,
+      "y": 2180,
+      "w": 1080,
+      "h": 1920
+    }
+  ],
+  "annotations": [
+    {
+      "id": "reel-order",
+      "x": 5040,
+      "y": -190,
+      "w": 900,
+      "text": "الريل الثالث — الرأس والتذييل. الترتيب من اليمين للشمال، 10 لقطات.\nExport each artboard as PNG (1080x1920). Hold frame 1 ~3s, ~2.5s per frame after."
+    },
+    {
+      "id": "grounding",
+      "x": 3780,
+      "y": -190,
+      "w": 900,
+      "text": "Every claim here maps to something the product does today: three tab-stopped areas + a bottom rule (HfParagraphBlock), page-number format/startAt per section, staff templates with {token} fields, link/unlink a section from the previous one, real .docx chrome. Nothing invented."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

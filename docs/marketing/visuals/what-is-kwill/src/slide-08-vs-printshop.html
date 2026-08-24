@@ -1,0 +1,49 @@
+<!doctype html>
+<html dir="rtl" lang="ar"><head><meta charset="utf-8"><link rel="stylesheet" href="style.css">
+<style>
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: stretch; }
+  .col { padding: 30px 30px 26px; display: flex; flex-direction: column; gap: 20px; }
+  .col.k { border-color: rgba(245,148,51,.55); background: linear-gradient(180deg, rgba(245,148,51,.10), rgba(28,28,46,1) 60%); }
+  .col .h { font-size: 36px; font-weight: 800; display: flex; align-items: center; gap: 12px; }
+  .col .h img { height: 44px; }
+  .col .li { display: flex; gap: 14px; align-items: flex-start; font-size: 27px; line-height: 1.4; font-weight: 500; }
+  .col .li::before { font-weight: 800; flex: none; }
+  .col.p .li::before { content: "✕"; color: var(--error); }
+  .col.k .li::before { content: "✓"; color: var(--accent); }
+  .col.p .li { color: var(--muted); }
+  .free { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+  .free .t { font-size: 34px; font-weight: 800; }
+  .free .t small { display: block; font-size: 25px; color: var(--muted); font-weight: 400; margin-top: 4px; }
+</style></head>
+<body><div class="glow"></div>
+<div class="slide">
+  <div class="top"><div class="logo"><img src="assets/k.png" alt=""><span>Kwill</span></div><div class="counter">8 / 9</div></div>
+  <div class="mid">
+    <div>
+      <div class="kicker">قبل ما تخلّص المطبعة</div>
+      <h2>تنسيق مرة وحدة… <span class="hl">ولا معك طول الموسم؟</span></h2>
+    </div>
+    <div class="cols">
+      <div class="card col p">
+        <div class="h">المطبعة</div>
+        <div class="li">تنسّقلك مرة وحدة</div>
+        <div class="li">المشرف طلب تعديل؟ ترجع تخلّص</div>
+        <div class="li">تستنى دورك — وفي ماي الكل يستنى</div>
+        <div class="li">ملفك عند غيرك</div>
+      </div>
+      <div class="card col k">
+        <div class="h"><img src="assets/k.png" alt="">Kwill</div>
+        <div class="li">معك طول الموسم، تعدّل وقت ما تحب</div>
+        <div class="li">كل تعديل يتنسّق لوحده — الفهرس يتحدّث</div>
+        <div class="li">من تليفونك، في أي وقت</div>
+        <div class="li">ملفك عندك — Word حقيقي</div>
+      </div>
+    </div>
+    <div class="card free">
+      <div class="t">ابدأ مجاناً<small>مذكرة واحدة مجانية — جرّب على مذكرتك أنت، ماشي على مثال.</small></div>
+      <span class="pill accent">0 دج للبداية</span>
+    </div>
+  </div>
+  <div class="foot"><span>أقل من تنسيق المطبعة — وما يخلصش بعد أول تعديل</span><span class="swipe">← اسحب</span></div>
+</div>
+</body></html>

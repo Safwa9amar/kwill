@@ -1,0 +1,50 @@
+<!doctype html>
+<html dir="rtl" lang="ar"><head><meta charset="utf-8"><link rel="stylesheet" href="style.css">
+<style>
+  .ba { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+  .ba .page { width: 400px; height: 330px; }
+  .ba .arrow { font-size: 84px; color: var(--brand); font-weight: 800; direction: ltr; flex: none; text-shadow: 0 0 30px rgba(245,148,51,.6); }
+  .ba .lbl { position: absolute; top: 14px; right: 16px; font-size: 20px; font-weight: 800; padding: 4px 12px; border-radius: 999px; }
+  .ba .lbl.b { background: #FFE5E5; color: #C62828; }
+  .ba .lbl.a { background: #D9F7EC; color: #0B6B4F; }
+  .tblmini { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 12px 0 0 -70px; width: 130%; }
+  .tblmini div { height: 22px; background: #EDEDF3; border: 1px dashed #FF5959; }
+</style></head>
+<body><div class="glow"></div>
+<div class="slide">
+  <div class="top"><div class="logo"><img src="assets/k.png" alt=""><span>Kwill</span></div><div class="counter">3 / 9</div></div>
+  <div class="mid">
+    <div>
+      <div class="kicker">واش هو Kwill؟</div>
+      <h2>تطبيق يمسك مذكرتك كملف <span class="hl">Word حقيقي</span> — ويتكفّل بالتنسيق</h2>
+    </div>
+    <p class="lead">الفهرس، الترقيم، العناوين، الجداول، المراجع، الرأس والتذييل — كلها تتظبط <b>على معايير جامعتك</b>، وأنت تركّز على المحتوى.</p>
+    <div class="ba">
+      <div class="page messy">
+        <span class="lbl b">قبل</span>
+        <div class="ln h"></div><div class="ln" style="width:92%"></div><div class="ln" style="width:70%"></div><div class="ln" style="width:88%"></div>
+        <div class="tblmini"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+        <div class="ln" style="width:60%;margin-top:16px"></div><div class="ln" style="width:84%"></div>
+        <span class="stamp">التنسيق غير مقبول</span>
+      </div>
+      <div class="arrow">←</div>
+      <div class="page">
+        <span class="lbl a">بعد</span>
+        <div class="toc">
+          <div class="title">الفهرس</div>
+          <div class="row"><span>المقدمة</span><span class="dots"></span><span class="pg">1</span></div>
+          <div class="row"><span>الفصل الأول: الإطار النظري</span><span class="dots"></span><span class="pg">4</span></div>
+          <div class="row sub"><span>المبحث الأول</span><span class="dots"></span><span class="pg">5</span></div>
+          <div class="row sub"><span>المبحث الثاني</span><span class="dots"></span><span class="pg">12</span></div>
+          <div class="row"><span>الفصل الثاني: الدراسة الميدانية</span><span class="dots"></span><span class="pg">21</span></div>
+          <div class="row"><span>الخاتمة</span><span class="dots"></span><span class="pg">48</span></div>
+          <div class="row"><span>قائمة المراجع</span><span class="dots"></span><span class="pg">51</span></div>
+        </div>
+        <span class="ok">✓ جاهزة</span>
+      </div>
+    </div>
+    <div><span class="pill brand">Kwill ينسّق ويُنظّم — أنت من يكتب.</span></div>
+  </div>
+  <div class="foot"><span>ماشي «ذكاء اصطناعي يكتب عليك» — مُنسِّق</span><span class="swipe">← اسحب</span></div>
+</div>
+</body></html>

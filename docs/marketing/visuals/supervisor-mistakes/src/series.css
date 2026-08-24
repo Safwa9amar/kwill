@@ -1,0 +1,44 @@
+/* Shared layout for the «7 أخطاء تنسيق يرجّعك بيها المشرف» carousel.
+   Loaded after style.css (brand tokens, chrome, mocks). */
+
+.mid { gap: 30px; }
+h2 { font-size: 64px; }
+
+/* headline row: text block (right, RTL-first) + visual (left) */
+.row { display: flex; align-items: stretch; gap: 32px; }
+.txt { flex: 1; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.visual { width: 380px; flex: none; display: flex; align-items: center; justify-content: center; }
+
+.box { padding: 24px 28px; border-radius: 24px; }
+.box .lbl { display: inline-flex; align-items: center; gap: 10px; font-size: 23px; font-weight: 800; padding: 6px 16px; border-radius: 999px; margin-bottom: 12px; }
+.box p { font-size: 27px; line-height: 1.5; color: var(--text2); }
+.box p b { color: var(--text); font-weight: 700; }
+.box.why { background: rgba(255,89,89,.08); border: 1px solid rgba(255,89,89,.35); }
+.box.why .lbl { background: rgba(255,89,89,.16); color: #FF8A8A; }
+.box.fix { background: rgba(51,214,166,.08); border: 1px solid rgba(51,214,166,.35); }
+.box.fix .lbl { background: rgba(51,214,166,.16); color: var(--accent); }
+.box.fix p b.k { color: var(--brand-light); }
+
+/* big episode number */
+.ep { display: inline-flex; align-items: center; gap: 14px; }
+.ep .n { width: 84px; height: 84px; border-radius: 26px; background: var(--error); color: #fff; font-weight: 800; font-size: 48px; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 34px rgba(255,89,89,.35); direction: ltr; }
+.ep .of { font-size: 26px; color: var(--muted); font-weight: 700; }
+
+/* page mock tweaks for this series */
+.visual .page { width: 380px; }
+.page .mark { position: absolute; top: 14px; left: 16px; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 26px; }
+.page .mark.bad { background: #FFE5E5; color: #C62828; }
+.page .mark.good { background: #D9F7EC; color: #0B6B4F; }
+.page .t { font-size: 18px; color: #1A1A26; line-height: 1.5; }
+.page .t.bold { font-weight: 800; }
+.page .t.h1 { font-weight: 800; font-size: 22px; color: var(--brand-deep); }
+.page .t.h2 { font-weight: 700; font-size: 19px; color: #1A1A26; }
+.page .red { color: #C62828; text-decoration: line-through; }
+.page .hl { background: #FFE5E5; border-radius: 4px; padding: 0 4px; }
+.page .cairo { font-family: "Cairo"; }
+
+/* 9:16: more breathing room */
+@media (min-height: 1800px) {
+  .mid { gap: 44px; }
+  .row { gap: 40px; }
+}

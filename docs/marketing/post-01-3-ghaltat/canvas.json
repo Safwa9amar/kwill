@@ -1,0 +1,51 @@
+{
+  "artboards": [
+    {
+      "file": "Ghilaf.dc.html",
+      "x": 3780,
+      "y": 0,
+      "w": 1080,
+      "h": 1350
+    },
+    {
+      "file": "Anawin.dc.html",
+      "x": 2520,
+      "y": 0,
+      "w": 1080,
+      "h": 1350
+    },
+    {
+      "file": "Fehres.dc.html",
+      "x": 1260,
+      "y": 0,
+      "w": 1080,
+      "h": 1350
+    },
+    {
+      "file": "Jadwal.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1080,
+      "h": 1350
+    }
+  ],
+  "annotations": [
+    {
+      "id": "post-order",
+      "x": 3780,
+      "y": -190,
+      "w": 900,
+      "text": "بوست كاروسيل — 3 غلطات ترجّعلك المذكرة. 4 صور، 1080x1350 (فيد).\nOrder right to left: cover, headings, index, table. Post as ONE carousel, not four posts."
+    },
+    {
+      "id": "claims",
+      "x": 2520,
+      "y": -190,
+      "w": 900,
+      "text": "Each green line is a real capability: heading levels unified, the index built from headings with hyperlinked entries, RTL tables corrected. No page-number claim on the index slide — a freshly built index reads 1 until Word repaginates."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

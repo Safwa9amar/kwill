@@ -159,3 +159,48 @@ direction-mismatched paragraph.
 - TOC page numbers reading `1` until Word repaginates is a KNOWN constraint, not
   a failure: the result screen says so plainly rather than promising numbers we
   did not compute.
+
+---
+
+# P5 — the second real run (2026-08-23)
+
+Run two, against thesis `68266f60-ac1e-4e1d-972c-c231ccf015a7`. The lane now has
+EYES: the page-vision tools landed in parallel (`get_page_map`, `render_pages`,
+`render_block`, `render_overview`). Several of these requirements are only
+answerable with them, and `get_page_map` already reports the orphan warnings
+item 8 asks for — it costs nothing and covers the whole document, so it is the
+first call of any layout objective.
+
+| # | Requirement | Where |
+|---|---|---|
+| 1 | The AI does not know where the COVER ends, so it puts the table of contents at block 0. Let it LOOK: render the front matter and find the cover and the dedication before placing anything. | `apparatus`, `structure` |
+| 2 | Delete images that are not figures and carry no relation to the thesis. | `clean` |
+| 3 | Captions are being DUPLICATED. | `captions` |
+| 4 | Remove hand-written captions and replace them, never stack a real one on top. | `captions` |
+| 5 | Delete whitespace and empty lines wherever there is no text — the AI judges. | `clean` |
+| 6 | OVERWRITE the heading outline numbering and levels, and review them: FIGURES AND TABLES were appearing in the table of contents. | `structure` |
+| 7 | Where headings do not exist, understand the thesis and CREATE them. | `structure` |
+| 8 | No title orphaned at the foot of a page with its content on the next. | `pagination` |
+| 9 | Delete duplicated headings that have no content after them. | `structure` |
+| 10 | "List of tables" and "list of figures" each get their OWN page — never share one. | `apparatus` |
+| 11 | Tables must breathe: space between a table and its caption, and the table itself formatted. | `captions` |
+| 12 | On REBUILD, build the style from the student's chosen norm profile — do not carry the old document's styles across. | `rebuildOntoBase` |
+| 13 | Chapter dividers. ⚠️ AMBIGUOUS in the report ("there is now chapter divider created") — could be "dividers are now created" or "there is NO divider created". Confirm before building. | `chrome` / divider |
+
+## What this changes in the design
+
+**`pagination` gains an objective.** P4 called it mechanical and gave it none —
+one right answer, nothing to judge. That was true when nothing could see a page.
+`get_page_map` returns real orphan and blank-page warnings, and `render_block`
+shows what a fix actually did, so there is now judgement to exercise and
+evidence to check it against.
+
+**Every objective that places something gets the page tools.** Placing the
+apparatus, deciding what a page holds, and spacing a table are all questions the
+XML cannot answer. They are cheap to ask now: `get_page_map` first, an image
+only for the page it points at.
+
+**Item 6 is the one to be most careful about.** A figure or table appearing in
+the table of contents means something that is not a heading is carrying a
+heading level. Overwriting the outline must therefore also DEMOTE — a pass that
+only promotes leaves the bad entries exactly where they were.

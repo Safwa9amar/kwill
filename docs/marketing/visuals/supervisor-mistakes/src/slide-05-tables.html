@@ -1,0 +1,51 @@
+<!doctype html>
+<html dir="rtl" lang="ar"><head><meta charset="utf-8"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="series.css">
+<style>
+  /* The page clips its own overflow: the table is wider than the page, runs
+     RTL so it overflows to the LEFT (away from the text column), and the part
+     past the dashed "page edge" is faded = lost in print. */
+  .visual .page { height: 470px; padding: 66px 20px 24px 0; overflow: hidden; }
+  .page .cap { font-size: 16px; color: #55556A; font-weight: 700; margin-bottom: 10px; padding-left: 20px; }
+  .wide { display: grid; grid-template-columns: repeat(5, 104px); width: 520px; border: 2px solid #C9C9D6; border-radius: 6px; font-size: 16px; color: #1A1A26; direction: rtl; }
+  .wide > div { padding: 8px 8px; border-left: 1px solid #E0E0E6; border-bottom: 1px solid #E0E0E6; white-space: nowrap; }
+  .wide > div:nth-child(-n+5) { background: #F2F2F7; font-weight: 800; }
+  .dim { position: absolute; top: 96px; left: 0; width: 78px; height: 232px; background: rgba(255,255,255,.78); }
+  .edge { position: absolute; top: 92px; left: 78px; height: 240px; border-left: 4px dashed #FF5959; }
+  .edgelbl { position: absolute; top: 62px; left: 22px; background: #FF5959; color: #fff; font-size: 13px; font-weight: 800; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .note { color: #C62828; font-weight: 800; font-size: 17px; margin-top: 18px; padding-left: 20px; }
+</style></head>
+<body><div class="glow"></div>
+<div class="slide">
+  <div class="top"><div class="logo"><img src="assets/k.png" alt=""><span>Kwill</span></div><div class="counter">5 / 9</div></div>
+  <div class="mid">
+    <div>
+      <div class="ep"><div class="n">4</div><span class="of">من 7</span></div>
+      <h2>جداول <span class="hl">خارجة على الصفحة</span> — أو مقلوبة</h2>
+    </div>
+    <div class="row">
+      <div class="txt">
+        <div class="box why"><span class="lbl">علاش يرجّعها؟</span><p>جدول أوسع من الصفحة <b>يتقص عند الطباعة</b> — وتكتشفها غير بعد ما طبعت. والجدول العربي يتقلب من اليسار لليمين، بأرقام مخلّطة.</p></div>
+        <div class="box fix"><span class="lbl">الحل</span><p><b>احتواء تلقائي</b> داخل الهوامش + اتجاه الجدول من اليمين لليسار + تكرار صف العناوين إذا امتدّ على صفحتين. <b class="k">في Kwill:</b> الجداول تتظبط في المذكرة كاملة، بالعربية الصحيحة.</p></div>
+      </div>
+      <div class="visual">
+        <div class="page">
+          <span class="mark bad">✕</span>
+          <div class="cap">الجدول 4: نتائج الاستبيان</div>
+          <div class="wide">
+            <div>المتغير</div><div>التكرار</div><div>النسبة</div><div>المتوسط</div><div>الانحراف</div>
+            <div>الجنس</div><div>120</div><div>58%</div><div>3.42</div><div>0.81</div>
+            <div>السن</div><div>98</div><div>42%</div><div>2.97</div><div>1.02</div>
+            <div>التخصص</div><div>74</div><div>31%</div><div>3.10</div><div>0.77</div>
+            <div>المستوى</div><div>61</div><div>26%</div><div>3.55</div><div>0.64</div>
+          </div>
+          <div class="dim"></div>
+          <div class="edge"></div>
+          <span class="edgelbl">حدّ الصفحة</span>
+          <div class="note">عمودين راحوا في الطباعة</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>كل جدول داخل الهوامش — وباتجاه لغته</span><span class="swipe">← اسحب</span></div>
+</div>
+</body></html>

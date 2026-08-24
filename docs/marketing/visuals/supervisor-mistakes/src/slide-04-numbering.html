@@ -1,0 +1,36 @@
+<!doctype html>
+<html dir="rtl" lang="ar"><head><meta charset="utf-8"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="series.css">
+<style>
+  .visual { flex-direction: column; gap: 16px; }
+  .visual .page { height: 226px; padding: 22px 20px 18px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .page .u { font-size: 15px; color: #55556A; font-weight: 700; line-height: 1.5; }
+  .page .ti { font-size: 18px; font-weight: 800; color: #1A1A26; margin-top: 10px; }
+  .page .pn { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px; direction: ltr; }
+  .page .pn.bad { background: #FFE5E5; color: #C62828; }
+  .page .pn.good { background: #D9F7EC; color: #0B6B4F; }
+  .page .cap { position: absolute; top: 12px; right: 14px; font-size: 15px; font-weight: 800; padding: 3px 10px; border-radius: 999px; }
+  .page .cap.b { background: #FFE5E5; color: #C62828; }
+  .page .cap.a { background: #D9F7EC; color: #0B6B4F; }
+</style></head>
+<body><div class="glow"></div>
+<div class="slide">
+  <div class="top"><div class="logo"><img src="assets/k.png" alt=""><span>Kwill</span></div><div class="counter">4 / 9</div></div>
+  <div class="mid">
+    <div>
+      <div class="ep"><div class="n">3</div><span class="of">من 7</span></div>
+      <h2>الترقيم <span class="hl">يبدأ من الغلاف</span></h2>
+    </div>
+    <div class="row">
+      <div class="txt">
+        <div class="box why"><span class="lbl">علاش يرجّعها؟</span><p>رقم «1» على الغلاف، والإهداء «2»، والفهرس «3»… <b>الغلاف ما يتعدّش أصلاً</b>. الصفحات التمهيدية تترقّم بالروماني (i, ii, iii) والفصول تبدأ من 1.</p></div>
+        <div class="box fix"><span class="lbl">الحل</span><p>في Word: فاصل مقاطع بعد التمهيدية + إلغاء «ربط بالسابق» + تنسيق الأرقام — 9 خطوات. <b class="k">في Kwill:</b> ترقيم مزدوج بضغطة وحدة.</p></div>
+      </div>
+      <div class="visual">
+        <div class="page"><span class="cap b">قبل</span><div class="u">الجمهورية الجزائرية الديمقراطية الشعبية<br>جامعة ………… — كلية …………</div><div class="ti">مذكرة لنيل شهادة الماستر</div><span class="pn bad">1</span></div>
+        <div class="page"><span class="cap a">بعد</span><div class="u">الجمهورية الجزائرية الديمقراطية الشعبية<br>جامعة ………… — كلية …………</div><div class="ti">مذكرة لنيل شهادة الماستر</div><span class="pn good" style="font-size:13px;color:#8A8AA0;background:#F2F2F7">—</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>الغلاف بلا رقم · التمهيدية روماني · الفصول من 1</span><span class="swipe">← اسحب</span></div>
+</div>
+</body></html>

@@ -1,0 +1,93 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 5040,
+      "y": 0,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Fikra.dc.html",
+      "x": 3780,
+      "y": 0,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Anawin.dc.html",
+      "x": 2520,
+      "y": 0,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Yaarafhom.dc.html",
+      "x": 1260,
+      "y": 0,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Safha.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Rabet.dc.html",
+      "x": 5040,
+      "y": 2180,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Qadim.dc.html",
+      "x": 3780,
+      "y": 2180,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Logha.dc.html",
+      "x": 2520,
+      "y": 2180,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Aawed.dc.html",
+      "x": 1260,
+      "y": 2180,
+      "w": 1080,
+      "h": 1920
+    },
+    {
+      "file": "Nihaya.dc.html",
+      "x": 0,
+      "y": 2180,
+      "w": 1080,
+      "h": 1920
+    }
+  ],
+  "annotations": [
+    {
+      "id": "reel-order",
+      "x": 5040,
+      "y": -190,
+      "w": 900,
+      "text": "الريل الرابع — الفهرس. الترتيب من اليمين للشمال، 10 لقطات.\nExport each artboard as PNG (1080x1920). Hold frame 1 ~3s, ~2.5s per frame after."
+    },
+    {
+      "id": "page-numbers",
+      "x": 3780,
+      "y": -190,
+      "w": 900,
+      "text": "The frames show an index with page numbers, but a freshly built one reads 1 everywhere until Word repaginates (nothing server-side paginates; w:dirty was tested and rejected). No frame CLAIMS the numbers — keep it that way until the docx to PDF numbering fix lands."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

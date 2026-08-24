@@ -1,0 +1,55 @@
+<!doctype html>
+<html dir="rtl" lang="ar"><head><meta charset="utf-8"><link rel="stylesheet" href="style.css">
+<style>
+  .cmp { display: flex; gap: 22px; align-items: stretch; }
+  .cmp .page { flex: 1; padding: 22px 20px 64px; }
+  .cmp .lbl { position: absolute; top: 14px; right: 16px; font-size: 20px; font-weight: 800; padding: 4px 12px; border-radius: 999px; }
+  .cmp .lbl.b { background: #FFE5E5; color: #C62828; }
+  .cmp .lbl.a { background: #D9F7EC; color: #0B6B4F; }
+  .cmp .cap { font-size: 19px; color: #55556A; margin: 44px 0 10px; font-weight: 700; }
+  .bul { display: flex; flex-direction: column; gap: 14px; }
+  .bul div { display: flex; align-items: center; gap: 16px; font-size: 30px; font-weight: 700; }
+  .bul div::before { content: "✓"; color: var(--accent); font-weight: 800; font-size: 30px; }
+</style></head>
+<body><div class="glow"></div>
+<div class="slide">
+  <div class="top"><div class="logo"><img src="assets/k.png" alt=""><span>Kwill</span></div><div class="counter">6 / 9</div></div>
+  <div class="mid">
+    <div>
+      <div class="kicker">الميزة اللي ما عند حد</div>
+      <h2>عربيتك <span class="hl">تحترم نفسها</span> في Word</h2>
+    </div>
+    <div class="cmp">
+      <div class="page">
+        <span class="lbl b">قبل</span>
+        <div class="cap">الجدول 3: توزيع العينة حسب الجنس</div>
+        <div class="tbl flip">
+          <div>Catégorie</div><div>النسبة</div><div>التكرار</div>
+          <div>ذكور</div><div class="n">%٥٨</div><div class="n">58</div>
+          <div>إناث</div><div class="n">42%</div><div class="n">٤٢</div>
+          <div>المجموع</div><div class="n">100%</div><div class="n">100</div>
+        </div>
+        <span class="stamp">مقلوب</span>
+      </div>
+      <div class="page">
+        <span class="lbl a">بعد</span>
+        <div class="cap">الجدول 3: توزيع العينة حسب الجنس</div>
+        <div class="tbl">
+          <div>الفئة</div><div>التكرار</div><div>النسبة</div>
+          <div>ذكور</div><div>58</div><div>58%</div>
+          <div>إناث</div><div>42</div><div>42%</div>
+          <div>المجموع</div><div>100</div><div>100%</div>
+        </div>
+        <span class="ok">✓ من اليمين لليسار</span>
+      </div>
+    </div>
+    <div class="bul">
+      <div>جداول باتجاه صحيح — أعمدة وأرقام ما تتقلبش</div>
+      <div>أرقام موحّدة في المذكرة كاملة</div>
+      <div>مذكرة ثنائية اللغة في ملف واحد — كل فقرة باتجاهها</div>
+      <div>معادلات بالعربية تنعرض صح</div>
+    </div>
+  </div>
+  <div class="foot"><span>صعبة التقليد — وعمّقناها</span><span class="swipe">← اسحب</span></div>
+</div>
+</body></html>
