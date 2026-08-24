@@ -1408,6 +1408,8 @@
     "cropApply": "تطبيق",
     "pdfFailed": "تعذّر إنشاء ملف PDF. يرجى المحاولة مرة أخرى.",
     "pdfUnavailable": "معاينة PDF غير متاحة لهذا المستند.",
+    "pdfConverting": "جاري تحويل مذكرتك إلى PDF…",
+    "pdfConvertingLong": "لا يزال التحويل جاريًا — قد تستغرق المذكرات الطويلة وقتًا أطول.",
     "restoringPosition": "جارٍ استعادة موضعك…",
     "milestoneWords": "🎉 {{count}} كلمة!",
     "searchTitle": "بحث",

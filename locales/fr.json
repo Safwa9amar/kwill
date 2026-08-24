@@ -1408,6 +1408,8 @@
     "cropApply": "Appliquer",
     "pdfFailed": "Impossible de générer le PDF. Veuillez réessayer.",
     "pdfUnavailable": "L'aperçu PDF n'est pas disponible pour ce document.",
+    "pdfConverting": "Conversion de votre mémoire en PDF…",
+    "pdfConvertingLong": "Conversion toujours en cours — un long mémoire peut prendre un peu plus de temps.",
     "restoringPosition": "Retour à votre position…",
     "milestoneWords": "🎉 {{count}} mots !",
     "searchTitle": "Recherche",

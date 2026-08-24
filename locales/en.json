@@ -1408,6 +1408,8 @@
     "cropApply": "Apply",
     "pdfFailed": "Couldn't generate the PDF. Please try again.",
     "pdfUnavailable": "PDF preview isn't available for this document.",
+    "pdfConverting": "Converting your thesis to PDF…",
+    "pdfConvertingLong": "Still converting — a long thesis can take a bit longer.",
     "restoringPosition": "Restoring your place…",
     "milestoneWords": "🎉 {{count}} words!",
     "searchTitle": "Search",

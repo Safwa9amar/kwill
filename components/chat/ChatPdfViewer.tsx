@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { View, Text, Modal, Pressable, ActivityIndicator, StyleSheet, Alert } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from "react-native-safe-area-context";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from "react-native-reanimated";
 import { X, Download } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { PdfView } from "@/components/workspace/PdfView";
 import { getThesisPdf, deleteThesisPdf, type ThesisPdfDTO } from "@/lib/api";
 import { downloadExport } from "@/lib/download-export";
+import { formatElapsed } from "@/lib/thinking";
 
 /**
  * Full-screen PDF preview reachable from the chat's ⋯ menu, without leaving
@@ -43,6 +45,48 @@ export function ChatPdfViewer({
         <ViewerBody key={thesisId ?? "none"} thesisId={thesisId} title={title} onClose={onClose} />
       </SafeAreaProvider>
     </Modal>
+  );
+}
+
+// Converting a real thesis through Word takes 15-40+ seconds (a synchronous,
+// single round trip — the server has no incremental progress to report), so a
+// bare spinner reads as a hang well before it's actually done. This estimates
+// instead of lying about real progress: the fill EASES toward 92% over
+// ESTIMATED_MS and holds there — never claims 100% while still waiting — then
+// the caller animates the rest of the way in on success. The status line
+// escalates in step, so a document that genuinely runs long still reads as
+// "still working" rather than "broken".
+const ESTIMATED_MS = 22_000;
+const HOLD_AT = 0.92;
+
+function ConversionProgress({ ink, accent }: { ink: string; accent: string }) {
+  const { t } = useTranslation();
+  const [elapsed, setElapsed] = useState(0);
+  const fill = useSharedValue(0);
+
+  useEffect(() => {
+    fill.value = withTiming(HOLD_AT, { duration: ESTIMATED_MS, easing: Easing.out(Easing.cubic) });
+    const start = Date.now();
+    const id = setInterval(() => setElapsed(Date.now() - start), 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const barStyle = useAnimatedStyle(() => ({ width: `${fill.value * 100}%` }));
+
+  const label =
+    elapsed >= 35_000
+      ? t("workspace.pdfConvertingLong", { defaultValue: "Still converting — a long thesis can take a bit longer." })
+      : t("workspace.pdfConverting", { defaultValue: "Converting your thesis to PDF…" });
+
+  return (
+    <View style={styles.progressWrap}>
+      <Text style={[styles.progressLabel, { color: ink }]}>{label}</Text>
+      <View style={[styles.progressTrack, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
+        <Animated.View style={[styles.progressFill, { backgroundColor: accent }, barStyle]} />
+      </View>
+      <Text style={[styles.progressClock, { color: ink }]}>{formatElapsed(elapsed)}</Text>
+    </View>
   );
 }
 
@@ -85,7 +129,7 @@ function ViewerBody({ thesisId, title, onClose }: { thesisId: string | null; tit
       <View style={styles.body}>
         {doc === undefined ? (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color="#FFFFFF" />
+            <ConversionProgress ink="#FFFFFF" accent={colors.brandPrimaryLight} />
           </View>
         ) : doc.available ? (
           <PdfView url={doc.url} />
@@ -133,6 +177,20 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
   errText: { color: "#FFFFFF", fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  progressWrap: { width: "100%", maxWidth: 280, alignItems: "center" },
+  progressLabel: { fontSize: 14, fontFamily: "Inter_500Medium", textAlign: "center", marginBottom: 16 },
+  progressTrack: { width: "100%", height: 4, borderRadius: 2, overflow: "hidden" },
+  progressFill: { height: "100%", borderRadius: 2 },
+  // Digits stay LTR in every locale, same rule as AiWorkingNote's clock — a
+  // running m:ss must never reorder in an Arabic build.
+  progressClock: {
+    marginTop: 10,
+    fontSize: 11.5,
+    fontFamily: "Inter_400Regular",
+    fontVariant: ["tabular-nums"],
+    writingDirection: "ltr",
+    opacity: 0.7,
+  },
   bar: {
     position: "absolute",
     left: 0,
