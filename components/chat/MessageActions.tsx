@@ -198,7 +198,7 @@ export function MessageActions({
   /**
    * Export the thesis as it stands and hand the file to the OS.
    *
-   * A fresh export on every tap, deliberately. The .docx is rendered from the
+   * A fresh export on every tap, deliberately. The file is rendered from the
    * document's current state, and the reason this lives under an answer is that
    * the answer has very likely just changed it — reusing an earlier URL would
    * save a few seconds and hand back the thesis from before the edit. (The
@@ -208,11 +208,11 @@ export function MessageActions({
    * that came back. That works, but it makes downloading your own thesis a thing
    * you have to know the phrasing for.
    */
-  async function handleDownload() {
+  async function handleDownload(format: "docx" | "pdf" | "latex" = "docx") {
     if (!thesisId || exporting) return;
     setExporting(true);
     try {
-      const built = await exportThesis(thesisId);
+      const built = await exportThesis(thesisId, format);
       await downloadExport({ url: built.url, filename: built.filename, format: built.format, title });
     } catch {
       // Either the render failed or the share sheet is unavailable. Both leave
@@ -379,7 +379,7 @@ export function MessageActions({
                   label: t("chat.downloadFormat", { format: f.label, defaultValue: `Download ${f.label}` }),
                   icon: Download,
                   disabled: !f.ready,
-                  onPress: () => void handleDownload(),
+                  onPress: () => void handleDownload(f.format),
                 })),
                 // Tasks — HIDDEN, not deleted (see lib/tasks-enabled.ts).
                 ...(TASKS_ENABLED
@@ -420,14 +420,14 @@ interface PopupItem {
 
 // What the student can take the thesis away as.
 //
-// `ready` is the honest state of the EXPORT ENGINE, not a feature flag: only the
-// .docx renderer exists (POST /api/export). A PDF is produced elsewhere for the
-// page view (OnlyOffice) but is not wired to a download, and LaTeX has a format
-// argument on the endpoint and nothing behind it — so both are named and
-// disabled rather than offered and then failing in the student's hands.
+// `ready` is the honest state of the EXPORT ENGINE, not a feature flag: .docx
+// and PDF both render via POST /api/export (PDF reuses the same OnlyOffice
+// converter as the in-app PDF view). LaTeX has a format argument on the
+// endpoint and nothing behind it — so it's named and disabled rather than
+// offered and then failing in the student's hands.
 const DOWNLOAD_FORMATS: { format: "docx" | "pdf" | "latex"; label: string; ready: boolean }[] = [
   { format: "docx", label: "Word (.docx)", ready: true },
-  { format: "pdf", label: "PDF", ready: false },
+  { format: "pdf", label: "PDF", ready: true },
   { format: "latex", label: "LaTeX", ready: false },
 ];
 

@@ -1768,7 +1768,7 @@ export async function deleteThesisPdf(id: string): Promise<void> {
 }
 
 // Export the thesis to a downloadable file (default .docx) → signed URL.
-export async function exportThesis(thesisId: string, format: "docx" | "latex" = "docx") {
+export async function exportThesis(thesisId: string, format: "docx" | "pdf" | "latex" = "docx") {
   return apiPost<{ success: boolean; url: string; filename: string; format: string; bytes: number; pageCount?: number }>(`/api/export/${thesisId}`, { format });
 }
 
