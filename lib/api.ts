@@ -1754,7 +1754,7 @@ export async function getThesisEditorConfig(id: string): Promise<EditorConfigDTO
 // matching message. Re-fetched after each AI turn so the preview reflects edits;
 // the preview object is removed via deleteThesisPdf when the view closes.
 export type ThesisPdfDTO =
-  | { available: true; url: string }
+  | { available: true; url: string; filename: string; title: string; bytes: number }
   | { available: false; reason: "disabled" | "not-seeded" | "failed" };
 
 export async function getThesisPdf(id: string): Promise<ThesisPdfDTO> {

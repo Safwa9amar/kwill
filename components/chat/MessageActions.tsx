@@ -17,6 +17,7 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Eye,
   FileText,
   Library,
   ListChecks,
@@ -35,6 +36,7 @@ import { exportThesis } from "@/lib/api";
 import { downloadExport } from "@/lib/download-export";
 import { visualRow } from "@/lib/rtl-layout";
 import { TASKS_ENABLED } from "@/lib/tasks-enabled";
+import { ChatPdfViewer } from "@/components/chat/ChatPdfViewer";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The row under a finished assistant answer.
@@ -186,6 +188,8 @@ export function MessageActions({
   // already closed by then — so the spinner replaces the glyph that was tapped,
   // which is where the student is still looking.
   const [exporting, setExporting] = useState(false);
+  // Non-null IS the PDF viewer's open state, same one-value rule as `anchor`.
+  const [viewingPdf, setViewingPdf] = useState(false);
   // This row is also rendered by the floating chat overlay, which can sit ON TOP
   // of the Writer. Offering "Writer" there would push a second copy of the screen
   // the student is already looking at.
@@ -369,6 +373,12 @@ export function MessageActions({
           // leave with it — the same rule the Kwiller and Library chips follow.
           ...(thesisId
             ? [
+                {
+                  key: "view-pdf",
+                  label: t("chat.viewPdf", { defaultValue: "View PDF" }),
+                  icon: Eye,
+                  onPress: () => setViewingPdf(true),
+                },
                 // One row per format rather than a single "Download" that asks a
                 // second question. Two of the three are not built yet and say so:
                 // the export engine renders .docx, and PDF and LaTeX are named
@@ -403,6 +413,8 @@ export function MessageActions({
             : []),
         ]}
       />
+
+      <ChatPdfViewer visible={viewingPdf} thesisId={thesisId} title={title} onClose={() => setViewingPdf(false)} />
     </View>
   );
 }
