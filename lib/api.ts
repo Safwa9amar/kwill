@@ -2575,6 +2575,49 @@ export async function cancelSubscription(): Promise<{ canceled: boolean; activeU
 }
 
 // ============================================================
+// Manual payment API (BaridiMob/CCP — server router at /api/payment/manual)
+// ============================================================
+
+export interface ManualPaymentDetails {
+  rip: string;
+  baridimobPhone: string;
+  holderName: string;
+  contactPhone: string | null;
+}
+
+/** null when the server has no account details configured — hide the option entirely. */
+export async function fetchManualPaymentDetails(): Promise<ManualPaymentDetails | null> {
+  return apiGet<ManualPaymentDetails | null>("/api/payment/manual/details");
+}
+
+export interface ManualPaymentStatus {
+  id: string;
+  status: "pending" | "rejected";
+  kind: "subscription" | "topup";
+  plan: PlanCode | null;
+  amountDzd: number;
+  rejectReason: string | null;
+  createdAt: string;
+}
+
+/** null once nothing is pending or rejected (paid, or never submitted). */
+export async function fetchManualPaymentStatus(): Promise<ManualPaymentStatus | null> {
+  return apiGet<ManualPaymentStatus | null>("/api/payment/manual/status");
+}
+
+// The screenshot is sent as base64 (binary/multipart bodies are unreliable
+// from RN) — same pattern as uploadAvatar.
+export async function submitManualPayment(input: {
+  base64: string;
+  mimeType: string;
+  referenceNumber: string;
+  plan?: PlanCode;
+  kind?: "topup";
+}): Promise<{ id: string; status: string }> {
+  return apiPost("/api/payment/manual", input);
+}
+
+// ============================================================
 // Support API (server router mounted at /api/support)
 // ============================================================
 
