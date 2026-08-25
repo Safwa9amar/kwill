@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Check, Sparkles } from "lucide-react-native";
 import { useBillingStore } from "@/stores/billing-store";
-import { startCheckout } from "@/lib/api";
+import { startCheckout, fetchManualPaymentDetails, fetchManualPaymentStatus } from "@/lib/api";
+import type { ManualPaymentDetails, ManualPaymentStatus } from "@/lib/api";
 import type { PlanCode, PlanOffer } from "@/types/billing";
 
 // The paywall.
@@ -50,10 +51,14 @@ export default function SubscriptionScreen() {
 
   const [selected, setSelected] = useState<PlanCode>("monthly");
   const [busy, setBusy] = useState<string | null>(null);
+  const [manualDetails, setManualDetails] = useState<ManualPaymentDetails | null>(null);
+  const [manualStatus, setManualStatus] = useState<ManualPaymentStatus | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       void refreshAll();
+      void fetchManualPaymentDetails().then(setManualDetails).catch(() => setManualDetails(null));
+      void fetchManualPaymentStatus().then(setManualStatus).catch(() => setManualStatus(null));
     }, [refreshAll]),
   );
 
@@ -103,6 +108,14 @@ export default function SubscriptionScreen() {
     } finally {
       setBusy(null);
     }
+  };
+
+  const goManual = (input: { plan: PlanCode } | { kind: "topup" }, amountDzd: number) => {
+    const params =
+      "plan" in input
+        ? { plan: input.plan, amountDzd: String(amountDzd) }
+        : { kind: "topup", amountDzd: String(amountDzd) };
+    router.push({ pathname: "/(app)/payment-manual", params } as any);
   };
 
   // ── loading / failed ───────────────────────────────────────────────────────
@@ -176,6 +189,21 @@ export default function SubscriptionScreen() {
           </Card>
         )}
 
+        {manualStatus?.status === "pending" && (
+          <Card style={styles.manualBanner} borderColor={colors.borderSubtle}>
+            <Text style={[styles.manualBannerText, { color: colors.textSecondary }]}>
+              {t("payment.manualUnderReview")}
+            </Text>
+          </Card>
+        )}
+        {manualStatus?.status === "rejected" && (
+          <Card style={styles.manualBanner} borderColor={colors.semanticError}>
+            <Text style={[styles.manualBannerText, { color: colors.textPrimary }]}>
+              {t("payment.manualRejectedNote", { reason: manualStatus.rejectReason ?? "" })}
+            </Text>
+          </Card>
+        )}
+
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t("payment.plansSubtitle")}</Text>
 
         {catalogue.plans.map((p) => {
@@ -218,14 +246,29 @@ export default function SubscriptionScreen() {
           );
         })}
 
-        {catalogue.paymentsEnabled ? (
-          <Button
-            title={t("payment.subscribe")}
-            onPress={() => buy({ plan: selected }, selected)}
-            loading={busy === selected}
-            disabled={!!busy}
-            style={styles.subscribeBtn}
-          />
+        {catalogue.paymentsEnabled || (manualDetails && manualStatus?.status !== "pending") ? (
+          <View style={styles.paymentMethodRow}>
+            {catalogue.paymentsEnabled && (
+              <Button
+                title={t("payment.payByCard")}
+                onPress={() => buy({ plan: selected }, selected)}
+                loading={busy === selected}
+                disabled={!!busy}
+                style={{ ...styles.subscribeBtn, flex: 1 }}
+              />
+            )}
+            {manualDetails && manualStatus?.status !== "pending" && (
+              <Button
+                title={t("payment.payManual")}
+                variant="secondary"
+                onPress={() =>
+                  goManual({ plan: selected }, catalogue.plans.find((p) => p.code === selected)?.priceDzd ?? 0)
+                }
+                disabled={!!busy}
+                style={{ ...styles.subscribeBtn, flex: 1 }}
+              />
+            )}
+          </View>
         ) : (
           // Never show a button that opens a checkout the server cannot honour.
           <Text style={[styles.disabledNote, { color: colors.textSecondary }]}>
@@ -251,15 +294,28 @@ export default function SubscriptionScreen() {
                 {formatDzd(catalogue.topup.priceDzd)}
               </Text>
             </View>
-            {catalogue.paymentsEnabled && (
-              <Button
-                title={t("payment.buyTopup")}
-                variant="secondary"
-                onPress={() => buy({ kind: "topup" }, "topup")}
-                loading={busy === "topup"}
-                disabled={!!busy}
-                style={styles.topupBtn}
-              />
+            {(catalogue.paymentsEnabled || (manualDetails && manualStatus?.status !== "pending")) && (
+              <View style={styles.paymentMethodRow}>
+                {catalogue.paymentsEnabled && (
+                  <Button
+                    title={t("payment.payByCard")}
+                    variant="secondary"
+                    onPress={() => buy({ kind: "topup" }, "topup")}
+                    loading={busy === "topup"}
+                    disabled={!!busy}
+                    style={{ ...styles.topupBtn, flex: 1 }}
+                  />
+                )}
+                {manualDetails && manualStatus?.status !== "pending" && (
+                  <Button
+                    title={t("payment.payManual")}
+                    variant="secondary"
+                    onPress={() => goManual({ kind: "topup" }, catalogue.topup.priceDzd)}
+                    disabled={!!busy}
+                    style={{ ...styles.topupBtn, flex: 1 }}
+                  />
+                )}
+              </View>
             )}
           </Card>
         </View>
@@ -295,6 +351,9 @@ const styles = StyleSheet.create({
   featureRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   featureText: { fontSize: 14, fontFamily: "Inter_400Regular", flex: 1 },
   subscribeBtn: { marginTop: 8 },
+  paymentMethodRow: { flexDirection: "row", gap: 10 },
+  manualBanner: { marginBottom: 16, padding: 14 },
+  manualBannerText: { fontSize: 13, fontFamily: "Inter_400Regular" },
   disabledNote: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: 12 },
   topupBlock: { marginTop: 28 },
   sectionLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", marginBottom: 12 },
