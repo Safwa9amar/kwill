@@ -1,7 +1,12 @@
 # Kwill on the web — the product in a browser
 
 **Date:** 2026-08-20
-**Status:** design approved, not yet planned
+**Status:** SUPERSEDED 2026-08-25 — see `2026-08-25-kwill-web-nextjs-design.md`.
+Branch `feat/web-version` has 9/14 foundation tasks committed and working
+(`npx expo export --platform web` succeeds as of 2026-08-21) but is paused, not
+abandoned by any technical finding — a deliberate choice was made to build a
+second web client inside `modakerati-dashboard` instead. Do not resume this
+plan without checking that decision still holds.
 **Ships before:** February 2027 (ahead of the فيفري → جوان season peak)
 
 ## The idea
