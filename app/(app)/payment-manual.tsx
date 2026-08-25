@@ -40,7 +40,7 @@ export default function PaymentManualScreen() {
   const [details, setDetails] = useState<ManualPaymentDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [reference, setReference] = useState("");
-  const [image, setImage] = useState<{ base64: string; mimeType: string } | null>(null);
+  const [image, setImage] = useState<{ base64: string; mimeType: string; uri: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -55,11 +55,27 @@ export default function PaymentManualScreen() {
 
   const pickScreenshot = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") return;
+    if (status !== "granted") {
+      Alert.alert(
+        t("payment.manualPhotoPermissionTitle", { defaultValue: "Photo access needed" }),
+        t("payment.manualPhotoPermissionMessage", {
+          defaultValue: "Allow photo access in Settings to attach your transfer screenshot.",
+        }),
+      );
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.7, base64: true });
-    if (result.canceled || !result.assets?.[0]?.base64) return;
+    // A cancel is the student choosing to back out — silent, not an error.
+    if (result.canceled) return;
+    if (!result.assets?.[0]?.base64) {
+      Alert.alert(
+        t("payment.manualPhotoPermissionTitle", { defaultValue: "Photo access needed" }),
+        t("payment.checkoutFailedBody"),
+      );
+      return;
+    }
     const asset = result.assets[0];
-    setImage({ base64: asset.base64!, mimeType: guessMime(asset) });
+    setImage({ base64: asset.base64!, mimeType: guessMime(asset), uri: asset.uri });
   };
 
   const submit = async () => {
@@ -158,7 +174,7 @@ export default function PaymentManualScreen() {
         </Text>
         <Pressable onPress={pickScreenshot} style={[styles.pickButton, { borderColor: colors.borderSubtle }]}>
           {image ? (
-            <Image source={{ uri: `data:${image.mimeType};base64,${image.base64}` }} style={styles.previewImage} />
+            <Image source={{ uri: image.uri }} style={styles.previewImage} />
           ) : (
             <>
               <ImageIcon size={24} color={colors.textSecondary} />
