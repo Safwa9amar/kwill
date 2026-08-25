@@ -246,35 +246,36 @@ export default function SubscriptionScreen() {
           );
         })}
 
-        {catalogue.paymentsEnabled || (manualDetails && manualStatus?.status !== "pending") ? (
-          <View style={styles.paymentMethodRow}>
-            {catalogue.paymentsEnabled && (
-              <Button
-                title={t("payment.payByCard")}
-                onPress={() => buy({ plan: selected }, selected)}
-                loading={busy === selected}
-                disabled={!!busy}
-                style={{ ...styles.subscribeBtn, flex: 1 }}
-              />
-            )}
-            {manualDetails && manualStatus?.status !== "pending" && (
-              <Button
-                title={t("payment.payManual")}
-                variant="secondary"
-                onPress={() =>
-                  goManual({ plan: selected }, catalogue.plans.find((p) => p.code === selected)?.priceDzd ?? 0)
-                }
-                disabled={!!busy}
-                style={{ ...styles.subscribeBtn, flex: 1 }}
-              />
-            )}
-          </View>
-        ) : (
-          // Never show a button that opens a checkout the server cannot honour.
-          <Text style={[styles.disabledNote, { color: colors.textSecondary }]}>
-            {t("payment.unavailable")}
-          </Text>
-        )}
+        {manualStatus?.status !== "pending" &&
+          (catalogue.paymentsEnabled || manualDetails ? (
+            <View style={styles.paymentMethodRow}>
+              {catalogue.paymentsEnabled && (
+                <Button
+                  title={t("payment.payByCard")}
+                  onPress={() => buy({ plan: selected }, selected)}
+                  loading={busy === selected}
+                  disabled={!!busy}
+                  style={{ ...styles.subscribeBtn, flex: 1 }}
+                />
+              )}
+              {manualDetails && (
+                <Button
+                  title={t("payment.payManual")}
+                  variant="secondary"
+                  onPress={() =>
+                    goManual({ plan: selected }, catalogue.plans.find((p) => p.code === selected)?.priceDzd ?? 0)
+                  }
+                  disabled={!!busy}
+                  style={{ ...styles.subscribeBtn, flex: 1 }}
+                />
+              )}
+            </View>
+          ) : (
+            // Never show a button that opens a checkout the server cannot honour.
+            <Text style={[styles.disabledNote, { color: colors.textSecondary }]}>
+              {t("payment.unavailable")}
+            </Text>
+          ))}
 
         {/* Top-up: for someone mid-thesis who just needs a few more. */}
         <View style={styles.topupBlock}>
@@ -294,7 +295,7 @@ export default function SubscriptionScreen() {
                 {formatDzd(catalogue.topup.priceDzd)}
               </Text>
             </View>
-            {(catalogue.paymentsEnabled || (manualDetails && manualStatus?.status !== "pending")) && (
+            {manualStatus?.status !== "pending" && (catalogue.paymentsEnabled || manualDetails) && (
               <View style={styles.paymentMethodRow}>
                 {catalogue.paymentsEnabled && (
                   <Button
@@ -306,7 +307,7 @@ export default function SubscriptionScreen() {
                     style={{ ...styles.topupBtn, flex: 1 }}
                   />
                 )}
-                {manualDetails && manualStatus?.status !== "pending" && (
+                {manualDetails && (
                   <Button
                     title={t("payment.payManual")}
                     variant="secondary"
