@@ -681,6 +681,13 @@ export async function getBrowserAccessToken(): Promise<string | null> {
  * check `response.ok` before reading `response.body` as a stream, since a
  * failure (402 quota_exhausted, 409 continue_instead, etc.) comes back as
  * plain JSON, not a stream.
+ *
+ * The ONE exception to "check response.ok, never a throw": a missing/expired
+ * session throws ChatStreamError(401, "not_signed_in") directly, before any
+ * request is even sent — there's no Response to return in that case. A
+ * caller that wraps the whole send in try/catch (as ChatPanel does) handles
+ * both paths uniformly regardless; a caller that only checked `.ok` without
+ * a surrounding try/catch would miss this one case.
  */
 export async function postChatStream(body: { message: string; threadId: string }): Promise<Response> {
   const token = await getBrowserAccessToken();
@@ -696,16 +703,6 @@ export async function postChatStream(body: { message: string; threadId: string }
   });
 }
 
-/** Parses a non-ok /api/chat/stream response into a ChatStreamError. */
-export async function parseChatStreamError(response: Response): Promise<ChatStreamError> {
-  const body = await response.json().catch(() => null);
-  return new ChatStreamError(
-    response.status,
-    body?.code,
-    body?.error ?? `modakerati-server /api/chat/stream -> ${response.status}`,
-  );
-}
-
 async function browserFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await getBrowserAccessToken();
   if (!token) throw new ChatStreamError(401, "not_signed_in", "Not signed in");
@@ -718,11 +715,14 @@ async function browserFetch<T>(path: string, init?: RequestInit): Promise<T> {
       ...(init?.headers ?? {}),
     },
   });
-  if (!res.ok) throw await parseGenericBrowserError(res, path);
+  if (!res.ok) throw await parseChatStreamError(res, path);
   return (await res.json()) as T;
 }
 
-async function parseGenericBrowserError(response: Response, path: string): Promise<ChatStreamError> {
+/** Parses a non-ok Response from any modakerati-server endpoint this module
+ *  calls into a ChatStreamError. `path` is only used to build a fallback
+ *  message when the response body carries no `error` field of its own. */
+export async function parseChatStreamError(response: Response, path = "/api/chat/stream"): Promise<ChatStreamError> {
   const body = await response.json().catch(() => null);
   return new ChatStreamError(
     response.status,
