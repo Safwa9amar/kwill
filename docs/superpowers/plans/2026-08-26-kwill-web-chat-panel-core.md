@@ -326,6 +326,15 @@ describe("ControlFrameParser", () => {
     ]);
   });
 
+  it("strips a degenerate empty-kind frame ([[MODK_]]) without crashing", () => {
+    const p = new ControlFrameParser();
+    const events = p.push("x[[MODK_]]payload[[/MODK_]]y");
+    expect(events).toEqual([
+      { type: "text", text: "x" },
+      { type: "text", text: "y" },
+    ]);
+  });
+
   it("drops a DOCCHANGES frame with malformed JSON instead of throwing", () => {
     const p = new ControlFrameParser();
     expect(() => p.push("[[MODK_DOCCHANGES]]not json[[/MODK_DOCCHANGES]]")).not.toThrow();
@@ -460,6 +469,14 @@ const RECOGNIZED = new Set(["THINK", "DOCCHANGES", "TITLE"]);
  * Unrecognized frame kinds (MODK_ASK, MODK_CONFIRM, MODK_TOOL, and anything
  * this parser doesn't name) are stripped with no event — the safe default,
  * matching how the mobile client already treats an unknown frame.
+ *
+ * Contract for callers: a complete "\uXXXX" escape that happens to land right
+ * at a holdback boundary can have its two surrogate halves split across TWO
+ * separate "text"/"think" events from two different push() calls. This is
+ * only safe if the caller concatenates event.text fragments verbatim into one
+ * growing string — never renders them as isolated nodes — since JS strings
+ * are plain UTF-16 code-unit sequences and two adjacent restored halves
+ * re-pair into the original character purely through concatenation.
  */
 export class ControlFrameParser {
   private buffer = "";
@@ -541,7 +558,7 @@ export class ControlFrameParser {
 cd ~/modakerati-dashboard && npx vitest run src/features/chat/lib/control-frames.test.ts
 ```
 
-Expected: PASS, 13/13.
+Expected: PASS, 14/14.
 
 - [ ] **Step 5: Commit**
 
