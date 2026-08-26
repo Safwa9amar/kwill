@@ -192,6 +192,16 @@ describe("stripPersistedFrames", () => {
     const raw = "message\n\n[[MODK_IMG]]{}[[/MODK_IMG]]   ";
     expect(stripPersistedFrames(raw)).toBe("message");
   });
+
+  it("strips an UNCLOSED frame left behind by a stream that died mid-frame", () => {
+    const raw = 'hello\n[[MODK_IMG]]{"url":"x"';
+    expect(stripPersistedFrames(raw)).toBe("hello");
+  });
+
+  it("preserves a bare marker with no JSON payload as literal text, not a frame", () => {
+    const raw = "I saw [[MODK_IMG]] in the logs";
+    expect(stripPersistedFrames(raw)).toBe("I saw [[MODK_IMG]] in the logs");
+  });
 });
 ```
 
@@ -215,10 +225,18 @@ Expected: FAIL — `Cannot find module './strip-persisted-frames'`.
 // per control-frames.ts's stripControlFrames. This plan doesn't render
 // attachments, but a thread with mobile-app history must not show the raw
 // JSON payload as literal chat text either.
+//
+// The `|\s*\{[\s\S]*$` alternative and the "bare marker is literal text"
+// reasoning are copied verbatim from modakerati-server/src/lib/chat-threads.ts
+// (IMG_FRAME_RE/FILE_FRAME_RE), which solves this exact problem for the
+// server's own search-text builder: a stream that dies mid-frame leaves an
+// opener with no closer, but a student typing the literal "[[MODK_IMG]]"
+// marker as text is NOT a frame and must be preserved — the `\s*\{` guard
+// distinguishes them, since only a real frame is immediately followed by `{`.
 export function stripPersistedFrames(content: string): string {
   return content
-    .replace(/\[\[MODK_IMG\]\][\s\S]*?\[\[\/MODK_IMG\]\]/g, "")
-    .replace(/\[\[MODK_FILE\]\][\s\S]*?\[\[\/MODK_FILE\]\]/g, "")
+    .replace(/\[\[MODK_IMG\]\](?:[\s\S]*?\[\[\/MODK_IMG\]\]|\s*\{[\s\S]*$)/g, "")
+    .replace(/\[\[MODK_FILE\]\](?:[\s\S]*?\[\[\/MODK_FILE\]\]|\s*\{[\s\S]*$)/g, "")
     .trim();
 }
 ```
@@ -337,10 +355,21 @@ describe("ControlFrameParser", () => {
     expect(p.push("hi \\ud83d\\ude00")).toEqual([{ type: "text", text: "hi 😀" }]);
   });
 
-  it("flush() emits any trailing plain text held back for marker safety", () => {
+  it("reassembles a surrogate escape split across two chunks", () => {
     const p = new ControlFrameParser();
-    p.push("trailing");
-    expect(p.flush()).toEqual([{ type: "text", text: "trailing" }]);
+    const first = p.push("hi \\ud8");
+    const second = p.push("3d\\ude00 there");
+    expect([...first, ...second]).toEqual([
+      { type: "text", text: "hi " },
+      { type: "text", text: "😀 there" },
+    ]);
+  });
+
+  it("flush() emits a marker-prefix fragment held back for safety, once the stream ends without ever completing it", () => {
+    const p = new ControlFrameParser();
+    const events = p.push("trailing [[MOD");
+    expect(events).toEqual([{ type: "text", text: "trailing " }]);
+    expect(p.flush()).toEqual([{ type: "text", text: "[[MOD" }]);
   });
 
   it("flush() emits nothing if the buffer ends mid-frame (a truncated stream)", () => {
@@ -383,12 +412,39 @@ export type ControlFrameEvent =
   | { type: "docChanges"; payload: DocChangesPayload }
   | { type: "title"; payload: TitlePayload };
 
-// Longest fixed marker text this parser ever needs to hold back at the end of
-// an as-yet-unresolved buffer: "[[MODK_" is 7 characters, and a surrogate
-// escape "\uXXXX" is 6 — holding back 6 trailing characters whenever no
-// marker is found is enough to never split either one across an emitted
-// "text" event and the next push().
-const HOLD_BACK = 6;
+const MARKER_PREFIX = "[[MODK_";
+// The longest tail this parser ever needs to hold back: "[[MODK_" is 7
+// characters, so a genuine partial prefix of it is at most 6; a surrogate
+// escape "\uXXXX" is 6 characters, so a genuine partial prefix of it is also
+// at most 6. This bounds the scan in pendingPrefixLength below — it does NOT
+// mean "always withhold the last 6 characters" (an earlier draft of this
+// function did exactly that, and it was wrong: it withheld ordinary trailing
+// prose like "after" or " world" just because it happened to be ≤6 characters
+// long, with nothing in it resembling either pattern).
+const MAX_HOLD_BACK = 6;
+// Matches a backslash alone, or a backslash-u followed by 0–3 hex digits —
+// every possible IN-PROGRESS prefix of a complete "\uXXXX" escape (which has
+// exactly 4 hex digits). A complete 4-digit escape does NOT match this (there
+// is nothing left pending), so it is emitted immediately rather than held.
+const PARTIAL_ESCAPE_RE = /^\\(?:u[0-9a-fA-F]{0,3})?$/;
+
+/**
+ * Length of the trailing suffix of `buffer` that could still grow into a
+ * complete "[[MODK_" marker or a complete "\uXXXX" escape if more text
+ * arrives, and must therefore be held back rather than emitted as text now.
+ * Checked longest-first so the result is the minimum safe holdback, not an
+ * arbitrary one. Text that cannot possibly be the start of either pattern —
+ * the overwhelming majority of a real reply — is never held back, no matter
+ * how short the remaining buffer is.
+ */
+function pendingPrefixLength(buffer: string): number {
+  const maxLen = Math.min(MAX_HOLD_BACK, buffer.length);
+  for (let len = maxLen; len > 0; len--) {
+    const tail = buffer.slice(buffer.length - len);
+    if (MARKER_PREFIX.startsWith(tail) || PARTIAL_ESCAPE_RE.test(tail)) return len;
+  }
+  return 0;
+}
 
 const RECOGNIZED = new Set(["THINK", "DOCCHANGES", "TITLE"]);
 
@@ -413,9 +469,9 @@ export class ControlFrameParser {
     const events: ControlFrameEvent[] = [];
 
     for (;;) {
-      const openIdx = this.buffer.indexOf("[[MODK_");
+      const openIdx = this.buffer.indexOf(MARKER_PREFIX);
       if (openIdx === -1) {
-        const safeLen = Math.max(0, this.buffer.length - HOLD_BACK);
+        const safeLen = this.buffer.length - pendingPrefixLength(this.buffer);
         if (safeLen > 0) {
           events.push({ type: "text", text: unescapeStreamedSurrogates(this.buffer.slice(0, safeLen)) });
           this.buffer = this.buffer.slice(safeLen);
@@ -463,12 +519,17 @@ export class ControlFrameParser {
     return events;
   }
 
-  /** Call once the stream ends. Flushes trailing plain text; a buffer left
-   *  mid-frame (a truncated/failed stream) is discarded, not shown broken. */
+  /** Call after the stream ends. Flushes any trailing plain text that was
+   *  held back for marker/escape safety and never got to complete (e.g. a
+   *  stream that ends right after "...[[MOD" with no more data coming — the
+   *  fragment is shown as the literal text it now provably is, not silently
+   *  dropped). A buffer left mid-frame — past a FULL open tag that never
+   *  closed — is a genuinely truncated frame and is discarded instead, not
+   *  shown as broken partial content. */
   flush(): ControlFrameEvent[] {
     const remaining = this.buffer;
     this.buffer = "";
-    if (!remaining || remaining.includes("[[MODK_")) return [];
+    if (!remaining || remaining.includes(MARKER_PREFIX)) return [];
     return [{ type: "text", text: unescapeStreamedSurrogates(remaining) }];
   }
 }
@@ -480,7 +541,7 @@ export class ControlFrameParser {
 cd ~/modakerati-dashboard && npx vitest run src/features/chat/lib/control-frames.test.ts
 ```
 
-Expected: PASS, 12/12.
+Expected: PASS, 13/13.
 
 - [ ] **Step 5: Commit**
 
