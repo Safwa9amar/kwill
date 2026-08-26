@@ -588,8 +588,15 @@ Mirrors the server's `chatMessages`/`chatThreads` row shapes exactly (`modakerat
 export interface ChatMessage {
   id: string;
   threadId: string | null;
+  /** Deprecated on the server (schema.ts) — still present on the wire since
+   *  the route does a bare `select()` with no column projection, but nothing
+   *  new should read it. */
+  thesisId: string | null;
   role: string; // always "user" | "assistant" in practice, stored as plain text server-side
   content: string;
+  /** Folded/frame-stripped text for search — never the display body. Present
+   *  on the wire for the same reason as thesisId; unused by this plan. */
+  searchText: string | null;
   createdAt: string | null;
 }
 
@@ -1464,16 +1471,20 @@ export function ChatPanel({
       const userMessage: ChatMessage = {
         id: localId(),
         threadId: thread.id,
+        thesisId: thesisId,
         role: "user",
         content: text,
+        searchText: null,
         createdAt: new Date().toISOString(),
       };
       const assistantId = localId();
       const assistantMessage: ChatMessage = {
         id: assistantId,
         threadId: thread.id,
+        thesisId: thesisId,
         role: "assistant",
         content: "",
+        searchText: null,
         createdAt: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, userMessage, assistantMessage]);
