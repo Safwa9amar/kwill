@@ -615,6 +615,11 @@ export interface ThreadSummary {
   updatedAt: string;
   attachedAt: string | null;
 }
+
+/** Default page size for GET /api/threads/:id/messages — the initial page
+ *  loaded both server-side (student.ts) and client-side (student-browser.ts).
+ *  A single shared constant so the two call sites can't drift apart. */
+export const CHAT_MESSAGES_PAGE_SIZE = 5;
 ```
 
 - [ ] **Step 2: Verify it compiles**
@@ -651,6 +656,7 @@ git commit -m "feat(chat): ChatMessage/ThreadSummary types mirrored from modaker
 // — see the chat panel spec's Architecture section. Must only ever be
 // imported from a Client Component.
 import { createClient } from "@/lib/supabase/client";
+import { CHAT_MESSAGES_PAGE_SIZE } from "@/features/chat/types";
 
 // Public var, deliberately: this runs in the browser, unlike student.ts's
 // private MODAKERATI_SERVER_URL — see ImageBlock.tsx for the same distinction.
@@ -742,7 +748,10 @@ export async function listThreadsForThesisBrowser(thesisId: string): Promise<Thr
   return browserFetch<ThreadSummary[]>(`/api/threads?thesisId=${encodeURIComponent(thesisId)}`);
 }
 
-export async function getThreadMessagesBrowser(threadId: string, limit = 5): Promise<ChatMessage[]> {
+export async function getThreadMessagesBrowser(
+  threadId: string,
+  limit = CHAT_MESSAGES_PAGE_SIZE,
+): Promise<ChatMessage[]> {
   return browserFetch<ChatMessage[]>(`/api/threads/${threadId}/messages?limit=${limit}`);
 }
 
@@ -757,11 +766,13 @@ export async function createThreadBrowser(thesisId: string): Promise<ThreadSumma
 }
 ```
 
-Add these two imports at the top of the file, alongside the existing `createClient` import:
+Add these imports at the top of the file, alongside the existing `createClient` import:
 
 ```typescript
 import type { ChatMessage, ThreadSummary } from "@/features/chat/types";
 ```
+
+(`CHAT_MESSAGES_PAGE_SIZE` is a value import, already shown inline above alongside `createClient` — not a `type` import, since it's used as a real default-parameter value, not just a type annotation.)
 
 - [ ] **Step 2: Verify it compiles**
 
@@ -787,10 +798,11 @@ git commit -m "feat(chat): browser-side chat-stream and thread-history client"
 
 - [ ] **Step 1: Add the three thread functions**
 
-Add this import alongside the existing `DocumentDTO` import at the top of the file:
+Add these imports alongside the existing `DocumentDTO` import at the top of the file:
 
 ```typescript
 import type { ChatMessage, ThreadSummary } from "@/features/chat/types";
+import { CHAT_MESSAGES_PAGE_SIZE } from "@/features/chat/types";
 ```
 
 Add these three functions at the end of the file (after `getThesisDocument`):
@@ -808,7 +820,10 @@ export async function getOrCreateThread(thesisId: string): Promise<ThreadSummary
 /** GET /api/threads/:id/messages?limit=N — the N most recent messages,
  *  already in ascending (oldest-first) order. No `before` support here:
  *  loading older history is out of scope for this plan. */
-export async function getThreadMessages(threadId: string, limit = 5): Promise<ChatMessage[]> {
+export async function getThreadMessages(
+  threadId: string,
+  limit = CHAT_MESSAGES_PAGE_SIZE,
+): Promise<ChatMessage[]> {
   return studentFetch<ChatMessage[]>(`/api/threads/${threadId}/messages?limit=${limit}`);
 }
 
