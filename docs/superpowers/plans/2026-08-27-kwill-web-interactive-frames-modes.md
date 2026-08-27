@@ -1333,7 +1333,7 @@ export function ModeChip({
       {open && (
         <div
           role="menu"
-          className="absolute bottom-full mb-2 start-0 z-20 w-80 rounded-xl border border-border bg-modal shadow-lg overflow-hidden"
+          className="absolute bottom-full mb-2 start-0 z-20 w-80 rounded-xl border border-border bg-card shadow-lg overflow-hidden"
         >
           <p className="px-5 pt-4 pb-2 text-[17px] font-semibold text-text">{t("modes.title")}</p>
           <div className="px-4 pb-4">
@@ -1376,7 +1376,7 @@ export function ModeChip({
 }
 ```
 
-Note `bg-input`, `bg-modal`, and `border-border-subtle`: confirm these Tailwind tokens exist in `src/app/globals.css`'s `@theme inline` block (they map to `--input`, `--modal` and `--border-subtle`). If `--modal` is not exposed as a token, use `bg-card` instead and say so in your report — do not invent a token.
+Token note: the `@theme inline` block exposes exactly `background, surface, card, card-hover, input, text, subtext, placeholder, primary, primary-light, accent, success, danger, warning, border, border-subtle` — so `bg-input`, `bg-card`, and `border-border-subtle` are all real. There is deliberately **no** `modal` token, which is why the popover uses `bg-card` rather than the mobile sheet's `bgModal`.
 
 - [ ] **Step 3: Verify it compiles**
 
@@ -1514,7 +1514,7 @@ export function ConfirmCard({
 }
 ```
 
-Note `text-placeholder`: confirm that token exists (it maps to `--placeholder`). If it does not, use `text-subtext` and say so in your report.
+Token note: `text-placeholder` is a real token (`--color-placeholder: var(--placeholder)` in `@theme inline`), matching the mobile card's use of `textPlaceholder` for the undo note.
 
 - [ ] **Step 3: Verify it compiles**
 
