@@ -204,47 +204,59 @@ git commit -m "feat(ui): add mode and stop icons to the icon map"
 **Files:**
 - Create: `src/features/chat/lib/chat-modes.ts`
 
-- [ ] **Step 1: Write the module**
+- [ ] **Step 1: Read the mobile original**
+
+```bash
+cat ~/modakerati/lib/chat-modes.ts
+```
+
+This web file is a **port of that one**, keeping its exports and names so the two clients read alike. The only deliberate differences: icons are Icon-map **name strings** here (the web `Icon` component takes a kebab-case name) rather than imported `lucide-react-native` components, and the i18n key helpers return keys relative to the web bundle's `chat` namespace (`modes.ask.label`) rather than the mobile's top-level `chatModes.ask.label`.
+
+- [ ] **Step 2: Write the module**
 
 Pure data with no React import, so both client components and `src/lib/api/student-browser.ts` can import it freely.
 
 ```typescript
 // src/features/chat/lib/chat-modes.ts
 
-// Mirrors modakerati-server's ChatMode (src/lib/ai/chat-modes.ts). The server
-// accepts exactly these four values and silently falls back to its default on
-// anything else, so a drifted value here fails quietly rather than loudly —
-// keep this list in sync by hand.
+// Ported from ~/modakerati/lib/chat-modes.ts, which is itself mirrored from the
+// server registry (~/modakerati-server/src/lib/ai/chat-modes.ts). Data only —
+// what a mode DOES is decided server-side; the client only shows it and sends
+// it. Keep the four values in sync by hand.
 export type ChatMode = "ask" | "plan" | "assist" | "agent";
 
+/** Display order in the picker: least to most autonomous. */
+export const CHAT_MODES: ChatMode[] = ["ask", "plan", "assist", "agent"];
 export const DEFAULT_CHAT_MODE: ChatMode = "assist";
 
-export interface ChatModeMeta {
-  value: ChatMode;
-  /** Name in the ui Icon map (src/components/ui/icon.tsx). */
-  icon: string;
-  /** true only for `agent`. The mobile app accents just this one mode, on the
-   *  reasoning that "edits immediately, never asks" is the state worth
-   *  noticing — the other three are unremarkable and stay neutral. */
-  accent: boolean;
+/** Names in the ui Icon map (src/components/ui/icon.tsx) — the web counterpart
+ *  of the mobile file's CHAT_MODE_ICONS, which holds lucide-react-native
+ *  components directly. Same four icons. */
+export const CHAT_MODE_ICONS: Record<ChatMode, string> = {
+  ask: "message-circle-question",
+  plan: "clipboard-list",
+  assist: "sparkles",
+  agent: "zap",
+};
+
+/** i18n key for a mode's short label (the chip) and its one-line description
+ *  (the picker). Relative to the `chat` namespace, unlike the mobile app's
+ *  top-level `chatModes.*` — the web bundle nests everything under `chat`. */
+export const chatModeLabelKey = (m: ChatMode) => `modes.${m}.label`;
+export const chatModeHintKey = (m: ChatMode) => `modes.${m}.hint`;
+
+export function isChatMode(v: unknown): v is ChatMode {
+  return v === "ask" || v === "plan" || v === "assist" || v === "agent";
 }
 
-/** Display order in the picker: least to most autonomous. */
-export const CHAT_MODES: ChatModeMeta[] = [
-  { value: "ask", icon: "message-circle-question", accent: false },
-  { value: "plan", icon: "clipboard-list", accent: false },
-  { value: "assist", icon: "sparkles", accent: false },
-  { value: "agent", icon: "zap", accent: true },
-];
-
-/** Narrows the server's `ThreadSummary.mode` (typed as a bare string on the
- *  wire) to a ChatMode, falling back the same way the server does. */
-export function toChatMode(value: string | null | undefined): ChatMode {
-  return CHAT_MODES.some((m) => m.value === value) ? (value as ChatMode) : DEFAULT_CHAT_MODE;
+/** A thread's mode, tolerating a server that returns none or an unknown value —
+ *  the same tolerance the server itself applies. */
+export function chatModeOf(value: unknown): ChatMode {
+  return isChatMode(value) ? value : DEFAULT_CHAT_MODE;
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [ ] **Step 3: Verify it compiles**
 
 ```bash
 cd ~/modakerati-dashboard && npx tsc --noEmit
@@ -252,11 +264,11 @@ cd ~/modakerati-dashboard && npx tsc --noEmit
 
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add src/features/chat/lib/chat-modes.ts
-git commit -m "feat(chat): chat-mode union and picker metadata"
+git commit -m "feat(chat): chat-mode union and picker metadata, ported from the app"
 ```
 
 ---
@@ -1038,6 +1050,7 @@ Replace the whole file with:
     "newThreadFailed": "Couldn't start a new conversation. Try again.",
     "retry": "Retry",
     "stop": "Stop generating",
+    "send": "Send",
     "modes": {
       "title": "How should the assistant work?",
       "ask": { "label": "Ask", "hint": "Answers your questions. Never changes the document." },
@@ -1050,7 +1063,15 @@ Replace the whole file with:
       "approve": "Approve",
       "cancel": "Cancel",
       "undoNote": "You can undo this later from History.",
-      "failed": "Couldn't send your answer. Try again."
+      "failed": "Couldn't send your answer. Try again.",
+      "deleteBlock": "Remove this from your thesis: «{snippet}»",
+      "replaceText": "Replace {count} occurrence(s) of «{find}» with «{replace}»",
+      "overwriteHeader": "Overwrite the page header with «{next}»",
+      "overwriteFooter": "Overwrite the page footer with «{next}»",
+      "make_thesis_ready": "Apply full RTL/Word normalization across the whole document",
+      "front_matter_numbering": "Renumber the front-matter pages across the document",
+      "insert_table_of_contents": "Delete the table of contents you typed by hand and replace it with an automatic one",
+      "remove_table_of_contents": "Delete the table of contents you typed by hand"
     },
     "ask": {
       "dismiss": "Dismiss question",
@@ -1087,6 +1108,7 @@ Replace the whole file with:
     "newThreadFailed": "Impossible de démarrer une nouvelle conversation. Réessayez.",
     "retry": "Réessayer",
     "stop": "Arrêter la génération",
+    "send": "Envoyer",
     "modes": {
       "title": "Comment l'assistant doit-il travailler ?",
       "ask": { "label": "Question", "hint": "Répond à vos questions. Ne modifie jamais le document." },
@@ -1099,7 +1121,15 @@ Replace the whole file with:
       "approve": "Approuver",
       "cancel": "Annuler",
       "undoNote": "Vous pourrez annuler cette action plus tard depuis l'historique.",
-      "failed": "Impossible d'envoyer votre réponse. Réessayez."
+      "failed": "Impossible d'envoyer votre réponse. Réessayez.",
+      "deleteBlock": "Retirer ceci de votre mémoire : « {snippet} »",
+      "replaceText": "Remplacer {count} occurrence(s) de « {find} » par « {replace} »",
+      "overwriteHeader": "Remplacer l'en-tête de page par « {next} »",
+      "overwriteFooter": "Remplacer le pied de page par « {next} »",
+      "make_thesis_ready": "Appliquer la normalisation RTL/Word complète à tout le document",
+      "front_matter_numbering": "Renuméroter les pages liminaires dans tout le document",
+      "insert_table_of_contents": "Supprimer la table des matières que vous avez saisie à la main et la remplacer par une table automatique",
+      "remove_table_of_contents": "Supprimer la table des matières que vous avez saisie à la main"
     },
     "ask": {
       "dismiss": "Ignorer la question",
@@ -1136,6 +1166,7 @@ Replace the whole file with:
     "newThreadFailed": "تعذر بدء محادثة جديدة. حاول مرة أخرى.",
     "retry": "إعادة المحاولة",
     "stop": "إيقاف التوليد",
+    "send": "إرسال",
     "modes": {
       "title": "كيف تريد أن يعمل المساعد؟",
       "ask": { "label": "سؤال", "hint": "يجيب عن أسئلتك ولا يعدّل المذكرة أبداً." },
@@ -1148,7 +1179,15 @@ Replace the whole file with:
       "approve": "موافقة",
       "cancel": "إلغاء",
       "undoNote": "يمكنك التراجع عن هذا لاحقًا من السجل.",
-      "failed": "تعذر إرسال إجابتك. حاول مرة أخرى."
+      "failed": "تعذر إرسال إجابتك. حاول مرة أخرى.",
+      "deleteBlock": "حذف هذا من مذكرتك: «{snippet}»",
+      "replaceText": "استبدال {count} من تكرارات «{find}» بـ «{replace}»",
+      "overwriteHeader": "استبدال رأس الصفحة بـ «{next}»",
+      "overwriteFooter": "استبدال تذييل الصفحة بـ «{next}»",
+      "make_thesis_ready": "تطبيق التنسيق الكامل RTL/Word على المستند بأكمله",
+      "front_matter_numbering": "إعادة ترقيم صفحات البداية في المستند بأكمله",
+      "insert_table_of_contents": "حذف فهرس المحتويات الذي كتبته بنفسك واستبداله بفهرس تلقائي",
+      "remove_table_of_contents": "حذف فهرس المحتويات الذي كتبته بنفسك"
     },
     "ask": {
       "dismiss": "تجاهل السؤال",
@@ -1200,7 +1239,18 @@ git commit -m "i18n(chat): mode, confirm, ask, plan and stop strings"
 **Files:**
 - Create: `src/features/chat/components/ModeChip.tsx`
 
-- [ ] **Step 1: Write the component**
+- [ ] **Step 1: Read the two mobile originals**
+
+```bash
+cat ~/modakerati/components/chat/ChatModeChip.tsx
+cat ~/modakerati/components/chat/ChatModeSheet.tsx
+```
+
+This one web component is a port of **both**: the chip is `ChatModeChip`, and the popover is `ChatModeSheet`'s row list. Mirror the chip's rule that only `agent` is tinted ("no prompts, runs on its own is the state worth noticing before you press send"), and the sheet's row anatomy — a rounded-square icon well, label, one-line hint, and a check on the active mode.
+
+The one deliberate divergence: a `@gorhom/bottom-sheet` modal has no meaning on a desktop web page, so the picker is an anchored popover. Everything the sheet's comments warn about (unmount-when-closed, `requestAnimationFrame` presenting, snap points) is native-sheet plumbing with no web equivalent, so none of it carries over. The popover instead needs the two things a web overlay needs and a native sheet gets for free: dismissal on an outside click and on Escape.
+
+- [ ] **Step 2: Write the component**
 
 ```tsx
 // src/features/chat/components/ModeChip.tsx
@@ -1209,17 +1259,25 @@ git commit -m "i18n(chat): mode, confirm, ask, plan and stop strings"
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Icon } from "@/components/ui";
-import { CHAT_MODES, type ChatMode } from "../lib/chat-modes";
+import {
+  CHAT_MODES,
+  CHAT_MODE_ICONS,
+  chatModeLabelKey,
+  chatModeHintKey,
+  type ChatMode,
+} from "../lib/chat-modes";
 
 /**
- * The mode picker: a pill in the composer that opens a popover of all four
- * modes. Mirrors the mobile app's placement (inline in the composer bar, not a
- * header or settings screen), and its accent rule — only `agent` is
- * highlighted, because "edits immediately, never asks" is the one state worth
- * noticing at a glance.
+ * What this conversation is FOR, sitting in the composer where the student can
+ * see it while they type — which is the moment it matters. Ported from the
+ * app's ChatModeChip + ChatModeSheet; the native bottom sheet becomes an
+ * anchored popover here, since a sheet is meaningless on a desktop page.
  *
- * Selecting a mode does not call any endpoint: there is no mode API. The value
- * rides along on the next message, and the server persists it from there.
+ * Agent is tinted and the others are not: "no prompts, runs on its own" is the
+ * state worth noticing before you press send.
+ *
+ * Selecting a mode calls no endpoint — there is no mode API. The value rides
+ * along on the next message, and the server persists it from there.
  */
 export function ModeChip({
   mode,
@@ -1234,8 +1292,9 @@ export function ModeChip({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // Close on an outside click or Escape — a popover that can only be dismissed
-  // by picking something is a trap.
+  // What a native sheet gets for free and a web popover does not: an outside
+  // click and Escape both dismiss. A popover that can only be closed by picking
+  // something is a trap.
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (e: MouseEvent) => {
@@ -1252,7 +1311,7 @@ export function ModeChip({
     };
   }, [open]);
 
-  const active = CHAT_MODES.find((m) => m.value === mode) ?? CHAT_MODES[2];
+  const isAgent = mode === "agent";
 
   return (
     <div ref={rootRef} className="relative shrink-0">
@@ -1261,50 +1320,55 @@ export function ModeChip({
         disabled={disabled}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={t(chatModeLabelKey(mode))}
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs transition-colors disabled:opacity-50 ${
-          active.accent
-            ? "border-primary text-primary"
-            : "border-border text-subtext hover:bg-card-hover"
+        className={`flex items-center gap-1.5 rounded-full border bg-input px-2.5 py-1 text-[11px] font-semibold transition-colors disabled:opacity-50 ${
+          isAgent ? "border-primary text-primary" : "border-border text-subtext"
         }`}
       >
-        <Icon name={active.icon} size={14} />
-        <span>{t(`modes.${active.value}.label`)}</span>
+        <Icon name={CHAT_MODE_ICONS[mode]} size={13} />
+        <span className="truncate">{t(chatModeLabelKey(mode))}</span>
       </button>
 
       {open && (
         <div
           role="menu"
-          className="absolute bottom-full mb-2 start-0 z-20 w-72 rounded-xl border border-border bg-card shadow-lg overflow-hidden"
+          className="absolute bottom-full mb-2 start-0 z-20 w-80 rounded-xl border border-border bg-modal shadow-lg overflow-hidden"
         >
-          <p className="px-3 pt-3 pb-1.5 text-xs font-medium text-subtext">{t("modes.title")}</p>
-          {CHAT_MODES.map((meta) => (
-            <button
-              key={meta.value}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                onChange(meta.value);
-                setOpen(false);
-              }}
-              className="w-full flex items-start gap-2.5 px-3 py-2.5 text-start hover:bg-card-hover"
-            >
-              <Icon
-                name={meta.icon}
-                size={16}
-                className={`mt-0.5 shrink-0 ${meta.accent ? "text-primary" : "text-subtext"}`}
-              />
-              <span className="min-w-0">
-                <span className="flex items-center gap-1.5 text-sm text-text">
-                  {t(`modes.${meta.value}.label`)}
-                  {meta.value === mode && <Icon name="check" size={13} className="text-primary" />}
-                </span>
-                <span className="block text-xs text-subtext leading-snug">
-                  {t(`modes.${meta.value}.hint`)}
-                </span>
-              </span>
-            </button>
-          ))}
+          <p className="px-5 pt-4 pb-2 text-[17px] font-semibold text-text">{t("modes.title")}</p>
+          <div className="px-4 pb-4">
+            {CHAT_MODES.map((m) => {
+              const active = m === mode;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  role="menuitem"
+                  aria-current={active}
+                  onClick={() => {
+                    onChange(m);
+                    setOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 border-b border-border-subtle px-1 py-3 text-start last:border-b-0 hover:bg-card-hover"
+                >
+                  {/* The 36px rounded icon well the sheet uses, so the four rows
+                      line up regardless of icon width. */}
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-input">
+                    <Icon
+                      name={CHAT_MODE_ICONS[m]}
+                      size={18}
+                      className={active ? "text-primary" : "text-subtext"}
+                    />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-semibold text-text">{t(chatModeLabelKey(m))}</span>
+                    <span className="block text-xs text-subtext leading-snug">{t(chatModeHintKey(m))}</span>
+                  </span>
+                  {active && <Icon name="check" size={18} className="shrink-0 text-primary" />}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -1312,7 +1376,9 @@ export function ModeChip({
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+Note `bg-input`, `bg-modal`, and `border-border-subtle`: confirm these Tailwind tokens exist in `src/app/globals.css`'s `@theme inline` block (they map to `--input`, `--modal` and `--border-subtle`). If `--modal` is not exposed as a token, use `bg-card` instead and say so in your report — do not invent a token.
+
+- [ ] **Step 3: Verify it compiles**
 
 ```bash
 cd ~/modakerati-dashboard && npx tsc --noEmit
@@ -1320,11 +1386,11 @@ cd ~/modakerati-dashboard && npx tsc --noEmit
 
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add src/features/chat/components/ModeChip.tsx
-git commit -m "feat(chat): mode picker chip and popover"
+git commit -m "feat(chat): mode picker chip and popover, ported from the app"
 ```
 
 ---
@@ -1334,7 +1400,22 @@ git commit -m "feat(chat): mode picker chip and popover"
 **Files:**
 - Create: `src/features/chat/components/ConfirmCard.tsx`
 
-- [ ] **Step 1: Write the component**
+- [ ] **Step 1: Read the mobile original**
+
+```bash
+cat ~/modakerati/components/workspace/ComposerConfirm.tsx
+```
+
+Port it. Two things there that a from-scratch version would miss, and that this task exists to carry over:
+
+1. **The preview line is localized per tool kind**, not shown as the server's raw English. `previewText()` switches on `preview.kind` and interpolates from `preview.data`, falling back to `preview.text` for any kind it doesn't know. Without this, an Arabic student reads an English sentence. Note the mobile file's own remark on `delete_block`: the snippet identifies the target, never an index — the same no-index-leak rule the server enforces.
+2. **It uses the error/danger colour, not warning** — a red triangle and a red Approve button. The card is about something irreversible.
+
+Also keep its voice, which the mobile file calls out explicitly: Kwill says what *it* is about to do. Never "the AI wants to…".
+
+The i18next `{{param}}` placeholders become next-intl `{param}` — Task 8 already writes them in that form.
+
+- [ ] **Step 2: Write the component**
 
 ```tsx
 // src/features/chat/components/ConfirmCard.tsx
@@ -1346,17 +1427,17 @@ import { detectDir } from "@/features/workspace/lib/direction";
 import type { ConfirmPayload } from "../lib/control-frames";
 
 /**
- * The approval gate for a destructive document tool, which the server parks in
- * `assist` mode (the default) rather than executing. The turn has already
- * ENDED by the time this renders — the server is waiting on the student.
+ * A destructive action awaiting the student's approval, ported from the app's
+ * ComposerConfirm. Approve executes the server-stored args (never a chat
+ * message); Cancel discards the action. The turn has already ENDED by the time
+ * this renders — the server is waiting on the student.
  *
- * `preview.text` is a server-built, index-scrubbed description; the card shows
- * it verbatim rather than trying to re-render `preview.data`, whose shape
- * varies per tool.
+ * Worded throughout as KWILL doing the thing, never as "the AI" wanting to: the
+ * student asked Kwill, and Kwill is what answers for the change afterwards.
  *
- * This card is ephemeral by design: the server strips MODK_CONFIRM before
- * persisting, so a page reload loses it. The pending action itself survives 30
- * minutes server-side and approving after that degrades gracefully.
+ * Ephemeral by design: the server strips MODK_CONFIRM before persisting, so a
+ * page reload loses the card. The pending action itself survives 30 minutes
+ * server-side, and approving after that degrades gracefully.
  */
 export function ConfirmCard({
   payload,
@@ -1371,23 +1452,60 @@ export function ConfirmCard({
 }) {
   const t = useTranslations("chat");
 
+  // Localized preview line; falls back to the server-built English text for any
+  // tool kind this switch doesn't name.
+  const previewText = (): string => {
+    const d = payload.preview.data as Record<string, string | number>;
+    const fallback = payload.preview.text;
+    switch (payload.preview.kind) {
+      case "delete_block":
+        // The snippet identifies it, not an index — the student never sees a
+        // position (the server enforces the same rule in no-index-leak.ts).
+        return t("confirm.deleteBlock", { snippet: String(d.snippet ?? "") });
+      case "replace_text":
+        return t("confirm.replaceText", {
+          find: String(d.find ?? ""),
+          replace: String(d.replace ?? ""),
+          count: Number(d.count ?? 0),
+        });
+      case "set_header":
+      case "set_section_header":
+        return t("confirm.overwriteHeader", { next: String(d.next ?? "") });
+      case "set_footer":
+      case "set_section_footer":
+        return t("confirm.overwriteFooter", { next: String(d.next ?? "") });
+      case "make_thesis_ready":
+        return t("confirm.make_thesis_ready");
+      case "front_matter_numbering":
+        return t("confirm.front_matter_numbering");
+      case "insert_table_of_contents":
+        return t("confirm.insert_table_of_contents");
+      case "remove_table_of_contents":
+        return t("confirm.remove_table_of_contents");
+      default:
+        return fallback;
+    }
+  };
+
+  const line = previewText();
+
   return (
-    <div className="mx-3 mb-2 rounded-[10px] border border-warning/30 bg-warning/10 px-3.5 py-3">
+    <div className="mx-3 mb-2 rounded-[10px] border border-danger/30 bg-danger/10 px-3.5 py-3">
       <div className="flex items-start gap-2">
-        <Icon name="alert-triangle" size={16} className="mt-0.5 shrink-0 text-warning" />
+        <Icon name="alert-triangle" size={16} className="mt-0.5 shrink-0 text-danger" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-text">{t("confirm.title")}</p>
-          <p dir={detectDir(payload.preview.text)} className="mt-1 text-sm text-subtext">
-            {payload.preview.text}
+          <p className="text-[15px] font-semibold text-text">{t("confirm.title")}</p>
+          <p dir={detectDir(line)} className="mt-1 text-sm font-medium text-subtext">
+            {line}
           </p>
-          <p className="mt-1.5 text-xs text-subtext">{t("confirm.undoNote")}</p>
+          <p className="mt-1.5 text-xs text-placeholder">{t("confirm.undoNote")}</p>
         </div>
       </div>
-      <div className="mt-3 flex gap-2">
-        <Button type="button" size="sm" variant="warning" disabled={busy} onClick={onApprove}>
+      <div className="mt-3 flex flex-wrap gap-2.5">
+        <Button type="button" variant="danger" disabled={busy} onClick={onApprove}>
           {t("confirm.approve")}
         </Button>
-        <Button type="button" size="sm" variant="muted" disabled={busy} onClick={onCancel}>
+        <Button type="button" variant="muted" disabled={busy} onClick={onCancel}>
           {t("confirm.cancel")}
         </Button>
       </div>
@@ -1396,7 +1514,9 @@ export function ConfirmCard({
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+Note `text-placeholder`: confirm that token exists (it maps to `--placeholder`). If it does not, use `text-subtext` and say so in your report.
+
+- [ ] **Step 3: Verify it compiles**
 
 ```bash
 cd ~/modakerati-dashboard && npx tsc --noEmit
@@ -1404,11 +1524,11 @@ cd ~/modakerati-dashboard && npx tsc --noEmit
 
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add src/features/chat/components/ConfirmCard.tsx
-git commit -m "feat(chat): approval card for parked destructive actions"
+git commit -m "feat(chat): approval card with localized previews, ported from the app"
 ```
 
 ---
@@ -1418,14 +1538,25 @@ git commit -m "feat(chat): approval card for parked destructive actions"
 **Files:**
 - Create: `src/features/chat/components/AskCard.tsx`
 
-- [ ] **Step 1: Write the component**
+- [ ] **Step 1: Read the mobile original**
+
+```bash
+cat ~/modakerati/components/workspace/ComposerAsk.tsx
+```
+
+Port it. The thing a from-scratch version gets wrong: when `allowFreeText` is true the card carries a **real text input with its own Send button**, not a hint telling the student to type somewhere else. Mirror that, plus the dismiss × in the header (the product rule that a student may always wave a question away) and the option chips' semi-transparent brand border.
+
+One addition beyond the mobile file: `previews`. `ComposerAsk` doesn't render them, but the payload carries them for the `ask_user_with_previews` tool, and a web panel has the room to show thumbnails where a composer sheet did not. When `previews` is present it replaces the plain chips; each tile answers with its own `label`, exactly as a chip would.
+
+- [ ] **Step 2: Write the component**
 
 ```tsx
 // src/features/chat/components/AskCard.tsx
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Icon } from "@/components/ui";
+import { Button, Icon, fInput } from "@/components/ui";
 import { detectDir } from "@/features/workspace/lib/direction";
 import type { AskPayload } from "../lib/control-frames";
 
@@ -1440,14 +1571,15 @@ function previewSrc(previewUrl: string, accessToken: string | null): string | nu
 }
 
 /**
- * A question the assistant asked mid-turn. The turn has already ENDED — the
- * server is waiting for the student's answer, which is just an ordinary next
- * message carrying the chosen label. There is no ask endpoint, so every option
- * here routes back through the normal send path.
+ * The model's clarifying question, ported from the app's ComposerAsk. Tapping
+ * an option answers immediately; the free-text row (when allowed) submits typed
+ * answers. The turn has already ENDED — the server is waiting for the student's
+ * answer, which is just an ordinary next message carrying the chosen label.
+ * There is no ask endpoint, so every path here routes back through normal send.
  *
  * Ephemeral by design: the server strips MODK_ASK before persisting, so this
- * card does not survive a reload. Dismissible, per the product rule that every
- * AI question can be waved away.
+ * card does not survive a reload. Always dismissible — the student has the
+ * right to leave a question unanswered.
  */
 export function AskCard({
   payload,
@@ -1463,13 +1595,22 @@ export function AskCard({
   onDismiss: () => void;
 }) {
   const t = useTranslations("chat");
+  const [text, setText] = useState("");
   const previews = payload.previews ?? [];
+
+  const submit = (answer: string) => {
+    const trimmed = answer.trim();
+    if (trimmed && !busy) onAnswer(trimmed);
+  };
 
   return (
     <div className="mx-3 mb-2 rounded-[10px] border border-border bg-card px-3.5 py-3">
       <div className="flex items-start gap-2">
         <Icon name="message-circle-question" size={16} className="mt-0.5 shrink-0 text-primary" />
-        <p dir={detectDir(payload.question)} className="min-w-0 flex-1 text-sm text-text">
+        <p
+          dir={detectDir(payload.question)}
+          className="min-w-0 flex-1 text-[15px] font-semibold text-text"
+        >
           {payload.question}
         </p>
         <button
@@ -1478,7 +1619,7 @@ export function AskCard({
           aria-label={t("ask.dismiss")}
           className="shrink-0 text-subtext hover:text-text"
         >
-          <Icon name="x" size={14} />
+          <Icon name="x" size={18} />
         </button>
       </div>
 
@@ -1491,14 +1632,14 @@ export function AskCard({
                 key={preview.id}
                 type="button"
                 disabled={busy}
-                onClick={() => onAnswer(preview.label)}
-                className="rounded-lg border border-border p-2 text-start hover:border-primary disabled:opacity-50"
+                onClick={() => submit(preview.label)}
+                className="rounded-lg border border-primary/30 bg-card p-2 text-start hover:border-primary disabled:opacity-50"
               >
                 {src && (
                   // eslint-disable-next-line @next/next/no-img-element -- authenticated URL, not a static asset next/image can optimize
                   <img src={src} alt={preview.label} className="mb-1.5 w-full rounded h-auto" />
                 )}
-                <span dir={detectDir(preview.label)} className="block text-xs font-medium text-text">
+                <span dir={detectDir(preview.label)} className="block text-[13px] font-medium text-text">
                   {preview.label}
                 </span>
                 {preview.description && (
@@ -1519,8 +1660,8 @@ export function AskCard({
                 type="button"
                 disabled={busy}
                 dir={detectDir(option)}
-                onClick={() => onAnswer(option)}
-                className="rounded-full border border-border px-3 py-1.5 text-xs text-text hover:border-primary hover:text-primary disabled:opacity-50"
+                onClick={() => submit(option)}
+                className="rounded-2xl border border-primary/30 bg-card px-3.5 py-2 text-[13px] font-medium text-text hover:border-primary disabled:opacity-50"
               >
                 {option}
               </button>
@@ -1530,14 +1671,43 @@ export function AskCard({
       )}
 
       {payload.allowFreeText && (
-        <p className="mt-2 text-xs text-subtext italic">{t("ask.typeYourOwn")}</p>
+        <div className="mt-3 flex items-end gap-2">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submit(text);
+              }
+            }}
+            disabled={busy}
+            placeholder={t("ask.typeYourOwn")}
+            aria-label={t("ask.typeYourOwn")}
+            dir={detectDir(payload.question)}
+            rows={1}
+            // Wraps rather than scrolling the start of the answer out of view —
+            // a typed Arabic sentence outgrew one line in the app and only its
+            // tail stayed readable — and follows the question's direction so the
+            // caret starts on the correct side in RTL.
+            className={`${fInput} max-h-26 resize-none`}
+          />
+          <Button
+            type="button"
+            size="sm"
+            disabled={busy || !text.trim()}
+            onClick={() => submit(text)}
+          >
+            {t("send")}
+          </Button>
+        </div>
       )}
     </div>
   );
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [ ] **Step 3: Verify it compiles**
 
 ```bash
 cd ~/modakerati-dashboard && npx tsc --noEmit
@@ -1545,11 +1715,11 @@ cd ~/modakerati-dashboard && npx tsc --noEmit
 
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add src/features/chat/components/AskCard.tsx
-git commit -m "feat(chat): question card with option chips and previews"
+git commit -m "feat(chat): question card with chips, previews and free text, ported from the app"
 ```
 
 ---
@@ -1559,74 +1729,146 @@ git commit -m "feat(chat): question card with option chips and previews"
 **Files:**
 - Create: `src/features/chat/components/PlanCard.tsx`
 
-- [ ] **Step 1: Write the component**
+- [ ] **Step 1: Read the mobile original**
+
+```bash
+cat ~/modakerati/components/chat/PlanCard.tsx
+```
+
+Port it carefully — this is the richest of the three cards, and four of its behaviours are load-bearing:
+
+1. **The double-execute latch (`fired` ref).** Its comment is explicit that `disabled` alone cannot stop a double tap: `disabled` only goes true once the *caller* has re-rendered with `running=true`, and any caller that awaits something first leaves the button live for those frames. Executing a plan twice applies every edit in it twice. The latch closes in the same tick as the press and reopens only when a run ends without finishing. A dead button is the cheap failure here; a thesis edited twice is not.
+2. **The step badge carries three states** in one fixed-size circle so the list never reflows as a run walks down it: a tick when done, a spinner on the step being worked on, its plain 1-based number until then.
+3. **`activeIndex`** is the first step with no tick *while running* — and `-1` both when idle and when every step is ticked, so a run whose last frame has landed but whose prose is still streaming doesn't spin on a step that doesn't exist.
+4. **`tick.note`** renders under its step in the success colour — "the only line on the card written after the fact". A from-scratch version drops this and loses what was actually done.
+
+Also port the **"Ask for changes"** secondary button. It only calls back; the caller decides what it means (focusing the composer), because the student answering in their own words *is* the revision — there is no edit-the-plan mode. Note the mobile file's remark that the actions row must wrap: "Demander des modifications" beside "Exécuter" is wider than a card.
+
+- [ ] **Step 2: Write the component**
 
 ```tsx
 // src/features/chat/components/PlanCard.tsx
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Button, Icon } from "@/components/ui";
 import { detectDir } from "@/features/workspace/lib/direction";
 import type { PlanPayload, PlanStepPayload } from "../lib/control-frames";
-import { isPlanExecuted } from "../lib/plan-frames";
+
+/** The same small spinner the ui Button uses for its loading state, inline so a
+ *  step badge can host it without pulling in a button. */
+function Spinner({ className = "" }: { className?: string }) {
+  return (
+    <svg className={`animate-spin h-3.5 w-3.5 ${className}`} viewBox="0 0 24 24" aria-hidden>
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  );
+}
 
 /**
- * A plan the model proposed in `plan` mode. Unlike the confirm and ask cards,
- * this one PERSISTS — the server keeps MODK_PLAN frames in message content, so
- * the card comes back after a reload, rebuilt by plan-frames.ts.
+ * A plan the assistant proposed in Plan mode: its title, its steps in order,
+ * and the decision. Ported from the app's PlanCard.
  *
- * Executed-vs-offered has no server flag: a plan with any step tick has been
- * run, one with none is still an offer. That is the same inference the server
- * itself uses. A plan that ran but produced no ticks re-arms its button, which
- * matches the mobile app.
+ * Unlike the confirm and ask cards this one PERSISTS — the server keeps
+ * MODK_PLAN frames in message content, so it comes back after a reload, rebuilt
+ * by plan-frames.ts.
  *
- * Ticks are neither dense nor ordered — step 3 can land before step 2 — so each
- * step is looked up by its own index rather than assuming a completed prefix.
+ * Once a run starts the steps become a live CHECKLIST. The ticks are not
+ * derived here and cannot be: they are streamed (and persisted) on the message
+ * that EXECUTES the plan, while this card belongs to the message that PROPOSED
+ * it. They arrive as `ticks`, folded across the thread by planId.
+ *
+ * ⚠️ Executing twice would apply every edit in the plan twice, so the button is
+ * latched as well as disabled — see `fired` below.
  */
 export function PlanCard({
   plan,
   ticks,
   running,
+  done,
   disabled,
   onExecute,
+  onAskChanges,
 }: {
   plan: PlanPayload;
+  /** Which steps are ticked off. Live during a run, and rebuilt from the stored
+   *  frames on a reload, so the card reads the same either way. */
   ticks: PlanStepPayload[];
+  /** The plan is executing right now — Execute is a spinner and refuses taps. */
   running: boolean;
+  /** The run finished. The card stays as the record of what was done. */
+  done: boolean;
   disabled: boolean;
   onExecute: () => void;
+  onAskChanges: () => void;
 }) {
   const t = useTranslations("chat");
-  const doneIndices = new Set(ticks.map((tick) => tick.index));
-  const executed = isPlanExecuted(plan.id, { [plan.id]: ticks });
+
+  // `disabled` alone cannot stop a double tap: it only goes true once the CALLER
+  // has re-rendered with running=true, and a caller that awaits anything before
+  // flipping it leaves the button live for those frames. The latch closes on the
+  // press itself, in the same tick, and reopens only when a run has ended
+  // without finishing (a failure the student may retry).
+  const fired = useRef(false);
+  useEffect(() => {
+    if (!running) fired.current = false;
+  }, [running]);
+
+  const press = () => {
+    if (running || done || fired.current) return;
+    fired.current = true;
+    onExecute();
+  };
+
+  const busy = running || done;
+
+  // `ticks` is not dense — the assistant can finish step 3 before step 2 — so
+  // look each step up rather than assuming a prefix is done.
+  const tickAt = (i: number) => ticks.find((tick) => tick.index === i);
+  // While a run is in flight, the first step with no tick is the one being
+  // worked on. -1 when idle, and -1 once every step is ticked (a run whose last
+  // frame has landed but whose prose is still streaming must not spin on a step
+  // that does not exist).
+  const activeIndex = running ? plan.steps.findIndex((_, i) => !tickAt(i)) : -1;
 
   return (
-    <div className="my-2 rounded-[10px] border border-border bg-card px-3.5 py-3">
-      <div className="flex items-start gap-2">
-        <Icon name="clipboard-list" size={16} className="mt-0.5 shrink-0 text-primary" />
-        <p dir={detectDir(plan.title)} className="min-w-0 flex-1 text-sm font-medium text-text">
+    <div className="my-2 rounded-[14px] border border-border bg-card p-3.5">
+      <div className="flex items-center gap-2">
+        <Icon name="clipboard-list" size={16} className="shrink-0 text-primary" />
+        <p dir={detectDir(plan.title)} className="min-w-0 flex-1 text-[15px] font-semibold text-text">
           {plan.title}
         </p>
-        {running && <span className="shrink-0 text-xs text-subtext">{t("plan.running")}</span>}
       </div>
 
-      <ol className="mt-2.5 space-y-1.5">
-        {plan.steps.map((step, index) => {
-          const done = doneIndices.has(index);
+      <ol className="mt-3 space-y-2.5">
+        {plan.steps.map((step, i) => {
+          const tick = tickAt(i);
+          const isDone = !!tick;
+          const isActive = i === activeIndex;
           return (
-            <li key={index} className="flex items-start gap-2">
-              <span className="mt-0.5 shrink-0">
-                {done ? (
-                  <Icon name="check" size={14} className="text-success" />
+            <li key={`${plan.id}-${i}`} className="flex items-start gap-2.5">
+              {/* The badge carries the state: a tick when the step is done, a
+                  spinner on the one being worked on, its plain number until
+                  then. Same 22px circle in all three so the list never reflows
+                  as a run walks down it. */}
+              <span className="mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-input">
+                {isDone ? (
+                  <Icon name="check" size={13} className="text-success" />
+                ) : isActive ? (
+                  <Spinner className="text-primary" />
                 ) : (
-                  <span className="block h-3.5 w-3.5 rounded-full border border-border" />
+                  <span className="text-xs font-semibold text-subtext">{i + 1}</span>
                 )}
               </span>
-              <span className="min-w-0">
+              <span className="min-w-0 flex-1">
+                {/* Struck AND dimmed: the strike is what reads as "done" at a
+                    glance, and dropping to subtext keeps it comfortably legible
+                    rather than fading it out. */}
                 <span
                   dir={detectDir(step.title)}
-                  className={`block text-sm ${done ? "text-subtext line-through" : "text-text"}`}
+                  className={`block text-sm font-medium ${isDone ? "text-subtext line-through" : "text-text"}`}
                 >
                   {step.title}
                 </span>
@@ -1635,18 +1877,35 @@ export function PlanCard({
                     {step.detail}
                   </span>
                 )}
+                {/* What was actually done, in the student's own language. Sits
+                    under the step it belongs to and takes the success colour —
+                    it is the only line on the card written after the fact. */}
+                {tick?.note && (
+                  <span dir={detectDir(tick.note)} className="block text-xs text-success">
+                    {tick.note}
+                  </span>
+                )}
               </span>
             </li>
           );
         })}
       </ol>
 
-      {executed ? (
-        <p className="mt-3 text-xs text-subtext">{t("plan.done")}</p>
+      {done ? (
+        <div className="mt-3 flex items-center gap-1.5">
+          <Icon name="check" size={15} className="text-success" />
+          <span className="text-[13px] font-semibold text-success">{t("plan.done")}</span>
+        </div>
       ) : (
-        <div className="mt-3">
-          <Button type="button" size="sm" disabled={disabled || running} onClick={onExecute}>
+        // Wraps because the secondary label is long in the languages that
+        // matter: "Demander des modifications" beside "Exécuter" is wider than
+        // the card. A second line beats a clipped button.
+        <div className="mt-3 flex flex-wrap items-center gap-2.5">
+          <Button type="button" loading={running} disabled={busy || disabled} onClick={press}>
             {running ? t("plan.running") : t("plan.execute")}
+          </Button>
+          <Button type="button" variant="muted" disabled={running || disabled} onClick={onAskChanges}>
+            {t("plan.askChanges")}
           </Button>
         </div>
       )}
@@ -1655,7 +1914,7 @@ export function PlanCard({
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [ ] **Step 3: Verify it compiles**
 
 ```bash
 cd ~/modakerati-dashboard && npx tsc --noEmit
@@ -1663,11 +1922,11 @@ cd ~/modakerati-dashboard && npx tsc --noEmit
 
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add src/features/chat/components/PlanCard.tsx
-git commit -m "feat(chat): plan card with step ticks and execute"
+git commit -m "feat(chat): plan card with live checklist and execute latch, ported from the app"
 ```
 
 ---
@@ -1685,7 +1944,7 @@ Replace the whole file with:
 // src/features/chat/components/Composer.tsx
 "use client";
 
-import { useState, type KeyboardEvent } from "react";
+import { useState, type KeyboardEvent, type RefObject } from "react";
 import { Button, fInput } from "@/components/ui";
 import { ModeChip } from "./ModeChip";
 import type { ChatMode } from "../lib/chat-modes";
@@ -1699,6 +1958,7 @@ export function Composer({
   streaming,
   onStop,
   stopLabel,
+  inputRef,
 }: {
   onSend: (message: string) => void;
   disabled: boolean;
@@ -1709,6 +1969,9 @@ export function Composer({
   streaming: boolean;
   onStop: () => void;
   stopLabel: string;
+  /** Owned by ChatPanel so a plan card's "Ask for changes" can focus the
+   *  composer — the student answering in their own words IS the revision. */
+  inputRef: RefObject<HTMLTextAreaElement | null>;
 }) {
   const [value, setValue] = useState("");
 
@@ -1733,6 +1996,7 @@ export function Composer({
       </div>
       <div className="flex items-end gap-2">
         <textarea
+          ref={inputRef}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -1811,6 +2075,7 @@ export function MessageBubble({
   runningPlanId = null,
   plansDisabled = false,
   onExecutePlan,
+  onAskPlanChanges,
 }: {
   role: "user" | "assistant";
   content: string;
@@ -1823,6 +2088,7 @@ export function MessageBubble({
   runningPlanId?: string | null;
   plansDisabled?: boolean;
   onExecutePlan?: (planId: string) => void;
+  onAskPlanChanges?: () => void;
 }) {
   const dir = detectDir(content);
   const isUser = role === "user";
@@ -1842,17 +2108,27 @@ export function MessageBubble({
         </div>
       )}
 
-      {plans.map((plan) => (
-        <div key={plan.id} className="w-full max-w-[85%]">
-          <PlanCard
-            plan={plan}
-            ticks={ticksByPlanId[plan.id] ?? []}
-            running={runningPlanId === plan.id}
-            disabled={plansDisabled}
-            onExecute={() => onExecutePlan?.(plan.id)}
-          />
-        </div>
-      ))}
+      {plans.map((plan) => {
+        const ticks = ticksByPlanId[plan.id] ?? [];
+        const running = runningPlanId === plan.id;
+        return (
+          <div key={plan.id} className="w-full max-w-[85%]">
+            <PlanCard
+              plan={plan}
+              ticks={ticks}
+              running={running}
+              // No server flag records "this plan ran". The one durable signal
+              // is a tick naming it — the same inference the server itself
+              // uses. Not `done` while it is still running, or the card would
+              // drop its live checklist mid-run.
+              done={!running && ticks.length > 0}
+              disabled={plansDisabled}
+              onExecute={() => onExecutePlan?.(plan.id)}
+              onAskChanges={() => onAskPlanChanges?.()}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1880,6 +2156,7 @@ export function MessageList({
   runningPlanId,
   plansDisabled,
   onExecutePlan,
+  onAskPlanChanges,
 }: {
   messages: ChatMessage[];
   plansByMessageId: Record<string, PlanPayload[]>;
@@ -1887,6 +2164,7 @@ export function MessageList({
   runningPlanId: string | null;
   plansDisabled: boolean;
   onExecutePlan: (planId: string) => void;
+  onAskPlanChanges: () => void;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -1906,6 +2184,7 @@ export function MessageList({
           runningPlanId={runningPlanId}
           plansDisabled={plansDisabled}
           onExecutePlan={onExecutePlan}
+          onAskPlanChanges={onAskPlanChanges}
         />
       ))}
       <div ref={bottomRef} />
@@ -1966,7 +2245,7 @@ import {
 import { consumeChatStream } from "../lib/consume-chat-stream";
 import { stripPersistedFrames } from "../lib/strip-persisted-frames";
 import { extractPlanState } from "../lib/plan-frames";
-import { toChatMode, type ChatMode } from "../lib/chat-modes";
+import { chatModeOf, type ChatMode } from "../lib/chat-modes";
 import { MessageList } from "./MessageList";
 import { Composer } from "./Composer";
 import { ThreadHistory } from "./ThreadHistory";
@@ -2011,7 +2290,7 @@ export function ChatPanel({
   const initialPlanState = extractPlanState(initialMessages);
 
   const [thread, setThread] = useState(initialThread);
-  const [mode, setMode] = useState<ChatMode>(toChatMode(initialThread.mode));
+  const [mode, setMode] = useState<ChatMode>(chatModeOf(initialThread.mode));
   const [messages, setMessages] = useState<ChatMessage[]>(stripAll(initialMessages));
   const [plansByMessageId, setPlansByMessageId] = useState(initialPlanState.plansByMessageId);
   const [ticksByPlanId, setTicksByPlanId] = useState(initialPlanState.ticksByPlanId);
@@ -2031,6 +2310,7 @@ export function ChatPanel({
   const mountedRef = useRef(true);
   const abortRef = useRef<AbortController | null>(null);
   const pendingStopRef = useRef<Promise<void> | null>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     return () => {
@@ -2284,6 +2564,14 @@ export function ChatPanel({
     [sending, runTurn, thread.id, t],
   );
 
+  /** A plan card's "Ask for changes" only calls back — the caller decides what
+   *  it means. Here, as on mobile, it means put the cursor in the composer:
+   *  the student answering in their own words IS the revision, and there is no
+   *  separate edit-the-plan mode. */
+  const askPlanChanges = useCallback(() => {
+    composerInputRef.current?.focus();
+  }, []);
+
   /** Abort locally FIRST and synchronously so the UI never waits on the
    *  network (a hung reader would otherwise strand the composer), then tell
    *  the server fire-and-forget. Only ever called from the Stop button — an
@@ -2300,7 +2588,7 @@ export function ChatPanel({
   const loadThreadState = (target: ThreadSummary, msgs: ChatMessage[]) => {
     const planState = extractPlanState(msgs);
     setThread(target);
-    setMode(toChatMode(target.mode));
+    setMode(chatModeOf(target.mode));
     setMessages(stripAll(msgs));
     setPlansByMessageId(planState.plansByMessageId);
     setTicksByPlanId(planState.ticksByPlanId);
@@ -2395,6 +2683,7 @@ export function ChatPanel({
         runningPlanId={runningPlanId}
         plansDisabled={sending || quotaExhausted || switchingThread}
         onExecutePlan={executePlan}
+        onAskPlanChanges={askPlanChanges}
       />
 
       {switchingThread && (
@@ -2454,6 +2743,7 @@ export function ChatPanel({
         streaming={sending}
         onStop={stopTurn}
         stopLabel={t("stop")}
+        inputRef={composerInputRef}
       />
     </div>
   );
