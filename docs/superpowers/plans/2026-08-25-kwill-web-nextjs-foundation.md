@@ -129,7 +129,7 @@ Expected: FAIL — `Cannot find module './direction'`.
 // ranges for Hebrew, Arabic, Syriac, Thaana, and Arabic presentation forms —
 // the same range the app uses — and falls back to the caller's default (the
 // thesis's own `rtl` flag) when the text carries no such character at all.
-const RTL_CHAR = /[֑-߿יִ-﷽ﹰ-ﻼ]/;
+const RTL_CHAR = /[\u0590-\u05ff\u0600-\u06ff\u0700-\u074f\u0750-\u077f\u0780-\u07bf\u0800-\u083f\u0840-\u085f\u08a0-\u08ff\ufb1d-\ufb4d\ufb50-\ufdff\ufe70-\ufeff]/;
 
 export function detectDir(text: string, fallbackRtl = false): "rtl" | "ltr" {
   if (RTL_CHAR.test(text)) return "rtl";
@@ -270,7 +270,12 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { DocumentDTO } from "@/features/workspace/types";
 
-const BASE = process.env.NEXT_PUBLIC_MODAKERATI_SERVER_URL ?? "http://localhost:3000";
+// A private (non-NEXT_PUBLIC_) var on purpose: this module is server-only and
+// calls modakerati-server machine-to-machine. The sibling browser-facing
+// NEXT_PUBLIC_MODAKERATI_SERVER_URL (used later, in ImageBlock's <img src>)
+// must resolve publicly over HTTPS; this one may point at an internal address
+// if ops ever splits them, matching the existing sibling src/lib/api/server.ts.
+const BASE = process.env.MODAKERATI_SERVER_URL ?? "http://localhost:3000";
 
 export class StudentApiError extends Error {
   status: number;
@@ -398,10 +403,10 @@ Expected: PASS.
 - [ ] **Step 3: Confirm the env var already exists**
 
 ```bash
-grep NEXT_PUBLIC_MODAKERATI_SERVER_URL ~/modakerati-dashboard/.env.local.example
+grep -w MODAKERATI_SERVER_URL ~/modakerati-dashboard/.env.local.example
 ```
 
-Expected: one line, already present (added for the Word add-in) — no `.env` change needed for this plan.
+Expected: one line, already present (added for admin/server-to-server calls, see `src/lib/api/server.ts`) — no `.env` change needed for this plan.
 
 - [ ] **Step 4: Commit**
 
@@ -451,7 +456,9 @@ const STUDENT_AUTH_PATHS = new Set(["/app/login", "/app/signup"]);
   // signed-out visitor to /app/* would fall into the staff rule below and land
   // on /login, which redirects into /d on success — the wrong destination for
   // a student, and a page that never mentions Kwill's student product at all.
-  if (pathname.startsWith("/app") && !user) {
+  // Anchored to a path boundary (not a bare startsWith) so a future sibling
+  // route like /apply or /approve can never be silently swept into this gate.
+  if ((pathname === "/app" || pathname.startsWith("/app/")) && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/app/login";
     return NextResponse.redirect(url);
@@ -648,11 +655,11 @@ export function TextboxBlock({ block }: { block: TextboxBlockDTO }) {
     <div
       id={`block-${block.index}`}
       dir={dir}
-      className={`px-4 py-3 ${block.shape.rounded ? "rounded-xl" : "rounded-none"} ${ALIGN_CLASS[block.alignment ?? ""] ?? ""}`}
+      className={`px-4 py-3 text-text ${block.shape.rounded ? "rounded-xl" : "rounded-none"} ${ALIGN_CLASS[block.alignment ?? ""] ?? ""}`}
       style={{
         backgroundColor: block.shape.fill ?? undefined,
         border: block.shape.border
-          ? `${block.shape.border.pt}px solid ${block.shape.border.color}`
+          ? `${block.shape.border.pt}pt solid ${block.shape.border.color}`
           : undefined,
       }}
     >
@@ -701,6 +708,7 @@ Three sources, in priority order: an inline `dataUri`, a native chart's `svg`, o
 
 ```tsx
 // src/features/workspace/components/blocks/ImageBlock.tsx
+import { detectDir } from "../../lib/direction";
 import type { DocBlockDTO } from "../../types";
 
 type ImageBlockDTO = Extract<DocBlockDTO, { kind: "image" }>;
@@ -750,7 +758,9 @@ export function ImageBlock({
         </div>
       )}
       {block.caption && (
-        <figcaption className="text-sm text-subtext text-center">{block.caption}</figcaption>
+        <figcaption dir={detectDir(block.caption)} className="text-sm text-subtext text-center">
+          {block.caption}
+        </figcaption>
       )}
     </figure>
   );
@@ -788,13 +798,18 @@ payload can never execute script content regardless of what it contains."
 
 ```tsx
 // src/features/workspace/components/blocks/OtherBlock.tsx
+import { detectDir } from "../../lib/direction";
 import type { DocBlockDTO } from "../../types";
 
 type OtherBlockDTO = Extract<DocBlockDTO, { kind: "other" }>;
 
 export function OtherBlock({ block }: { block: OtherBlockDTO }) {
   return (
-    <div id={`block-${block.index}`} className="px-3 py-2 text-sm text-subtext italic">
+    <div
+      id={`block-${block.index}`}
+      dir={detectDir(block.text ?? "")}
+      className="px-3 py-2 text-sm text-subtext italic"
+    >
       {block.text || `— ${block.tag} —`}
     </div>
   );
@@ -843,7 +858,19 @@ export function DocumentBlocks({
           case "other":
             return <OtherBlock key={block.index} block={block} />;
           default:
-            return null;
+            // Defensive backstop, not dead code: lib/api/student.ts does a bare
+            // `as T` cast with no runtime validation, so a server-side DTO
+            // addition or a malformed payload can reach here with a `kind`
+            // outside today's 5-member union. Render something visible rather
+            // than silently dropping content a student can't otherwise see.
+            return (
+              <div
+                key={(block as { index?: number }).index ?? -1}
+                className="px-3 py-2 text-sm text-subtext italic"
+              >
+                — unsupported block —
+              </div>
+            );
         }
       })}
     </div>
@@ -925,7 +952,9 @@ Two feature-local locale bundles, registered in `src/i18n/messages.ts` exactly t
       "titleLabel": "Title",
       "languageLabel": "Language",
       "submit": "Create",
-      "limitReached": "You already have a thesis on the free plan. Open it from your app to continue, or upgrade from the Kwill app."
+      "limitReached": "You already have a thesis on the free plan. Open it from your app to continue, or upgrade from the Kwill app.",
+      "backToTheses": "Back to your theses",
+      "createFailed": "Something went wrong creating your thesis. Please try again."
     }
   }
 }
@@ -965,7 +994,9 @@ Two feature-local locale bundles, registered in `src/i18n/messages.ts` exactly t
       "titleLabel": "Titre",
       "languageLabel": "Langue",
       "submit": "Créer",
-      "limitReached": "Vous avez déjà un mémoire sur l'offre gratuite. Ouvrez-le depuis votre espace pour continuer, ou passez à un forfait supérieur depuis l'application Kwill."
+      "limitReached": "Vous avez déjà un mémoire sur l'offre gratuite. Ouvrez-le depuis votre espace pour continuer, ou passez à un forfait supérieur depuis l'application Kwill.",
+      "backToTheses": "Retour à vos mémoires",
+      "createFailed": "Une erreur est survenue lors de la création de votre mémoire. Veuillez réessayer."
     }
   }
 }
@@ -1005,7 +1036,9 @@ Two feature-local locale bundles, registered in `src/i18n/messages.ts` exactly t
       "titleLabel": "العنوان",
       "languageLabel": "اللغة",
       "submit": "إنشاء",
-      "limitReached": "لديك بالفعل مذكرة واحدة ضمن الخطة المجانية. افتحها من مساحتك للمتابعة، أو قم بالترقية من تطبيق Kwill."
+      "limitReached": "لديك بالفعل مذكرة واحدة ضمن الخطة المجانية. افتحها من مساحتك للمتابعة، أو قم بالترقية من تطبيق Kwill.",
+      "backToTheses": "العودة إلى مذكراتك",
+      "createFailed": "حدث خطأ أثناء إنشاء مذكرتك. يرجى المحاولة مرة أخرى."
     }
   }
 }
@@ -1421,13 +1454,18 @@ git commit -m "feat(web-app): /app auth gate + profile bootstrap, no staff_role 
 
 ```tsx
 // src/app/app/(workspace)/page.tsx
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import Link from "next/link";
 import { Card, Button, PageHeader } from "@/components/ui";
 import { listMyTheses } from "@/lib/api/student";
 
 export default async function StudentHomePage() {
   const t = await getTranslations("studentApp.home");
+  // A Server Component's toLocaleDateString() runs on the server with no
+  // implicit browser locale, so it must be passed explicitly — otherwise an
+  // fr/ar visitor sees a French/Arabic sentence wrapped around an
+  // English-formatted date.
+  const locale = await getLocale();
   const theses = await listMyTheses();
 
   return (
@@ -1457,7 +1495,7 @@ export default async function StudentHomePage() {
               <Card className="hover:bg-card-hover transition-colors">
                 <h2 className="text-text font-medium">{thesis.title}</h2>
                 <p className="text-sm text-subtext">
-                  {t("updated", { date: new Date(thesis.updatedAt).toLocaleDateString() })}
+                  {t("updated", { date: new Date(thesis.updatedAt).toLocaleDateString(locale) })}
                 </p>
               </Card>
             </Link>
@@ -1499,6 +1537,7 @@ git commit -m "feat(web-app): student home — thesis list or empty state"
 "use server";
 
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { createThesis, StudentApiError } from "@/lib/api/student";
 
 export async function createNewThesis(formData: FormData) {
@@ -1516,7 +1555,12 @@ export async function createNewThesis(formData: FormData) {
     if (e instanceof StudentApiError && e.status === 402) {
       redirect("/app/new?limit=1");
     }
-    redirect("/app/new?error=" + encodeURIComponent(e instanceof Error ? e.message : "Unknown error"));
+    // Never forward a raw StudentApiError/fetch message here: on a non-402
+    // failure it can be modakerati-server's own `${path} -> ${status}` string
+    // (see lib/api/student.ts's studentFetch) or a raw fetch failure —
+    // internal plumbing a student has no use for and shouldn't see.
+    const t = await getTranslations("studentApp.newThesis");
+    redirect("/app/new?error=" + encodeURIComponent(t("createFailed")));
   }
 
   redirect(`/app/${thesis.id}`);
@@ -1528,6 +1572,7 @@ export async function createNewThesis(formData: FormData) {
 ```tsx
 // src/app/app/(workspace)/new/page.tsx
 import { getTranslations } from "next-intl/server";
+import Link from "next/link";
 import { Button, fInput, PageHeader } from "@/components/ui";
 import { createNewThesis } from "./action";
 
@@ -1567,8 +1612,11 @@ export default async function NewThesisPage({
         </div>
 
         {limit && (
-          <div className="px-3.5 py-2.5 bg-warning/10 border border-warning/20 rounded-[10px]">
+          <div className="px-3.5 py-2.5 bg-warning/10 border border-warning/20 rounded-[10px] space-y-2">
             <p className="text-warning text-sm">{t("limitReached")}</p>
+            <Link href="/app" className="text-sm text-primary hover:underline inline-block">
+              {t("backToTheses")}
+            </Link>
           </div>
         )}
 
@@ -1616,6 +1664,7 @@ git commit -m "feat(web-app): new-thesis form, surfaces the free-tier limit as a
 import { getTranslations } from "next-intl/server";
 import { getThesisDocument, getAccessToken } from "@/lib/api/student";
 import { DocumentBlocks } from "@/features/workspace";
+import { detectDir } from "@/features/workspace/lib/direction";
 
 export default async function WorkspacePage({
   params,
@@ -1637,7 +1686,9 @@ export default async function WorkspacePage({
   return (
     <div>
       <header className="border-b border-border px-8 py-4">
-        <h1 className="text-lg font-semibold text-text">{doc.title || t("untitled")}</h1>
+        <h1 dir={detectDir(doc.title)} className="text-lg font-semibold text-text">
+          {doc.title || t("untitled")}
+        </h1>
       </header>
       <DocumentBlocks blocks={doc.blocks} thesisId={thesisId} accessToken={accessToken} />
     </div>

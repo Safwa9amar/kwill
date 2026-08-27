@@ -51,13 +51,17 @@ What keeps a turn from dead-ending.
 - [ ] **B5. Turn survives backgrounding.** Close the tab, come back to the finished answer. `markTurnInterrupted` + a `[0, 1.5 s, 4 s, 8 s]` resume poll that never retries and never marks failed. → `ai-service.ts` `resumeInterruptedTurns` (M)
 - [ ] **B6. 409 `continue_instead`** silently becomes a continuation rather than an error. → `ai-service.ts` (S)
 
-## Batch C — message actions and attachments
+## Batch C — message actions and attachments (C2, C3, C5 ✅ SHIPPED 2026-08-27)
+
+Plan: `docs/superpowers/plans/2026-08-27-kwill-web-chat-batch-c.md`. C1 deferred until Batch B lands its turn-work logic (its Regenerate/Continue entries depend on it); C4 still open.
+
+Web-only deviations, recorded so they are not mistaken for gaps: no Camera button (meaningless on a desktop panel) and no Paste button (Ctrl/Cmd+V is handled natively by the composer instead).
 
 - [ ] **C1. Message actions row.** Nothing sits under an answer today. Destination chips (Writer, Library) plus an overflow with Share, View full, View PDF, Download Word / PDF, Tasks. LaTeX shows disabled "soon". → `MessageActions.tsx` (L)
-- [ ] **C2. Image attachments.** Attach / paste / camera, up to 4, thumbnails in the bubble, full-screen viewer. → `lib/chat-images.ts` (L)
-- [ ] **C3. Document attach → source.** Attaching a .docx or PDF uploads it to the thesis's **sources** first, so the AI can actually read it. → `app/(app)/chat.tsx` `uploadAttachmentAsSource` (M)
+- [x] **C2. Image attachments.** Attach / paste / camera, up to 4, thumbnails in the bubble, full-screen viewer. → `lib/chat-images.ts` (L)
+- [x] **C3. Document attach → source.** Attaching a .docx or PDF uploads it to the thesis's **sources** first, so the AI can actually read it. → `app/(app)/chat.tsx` `uploadAttachmentAsSource` (M)
 - [ ] **C4. In-chat PDF preview.** Full-screen viewer with an honest progress bar. → `ChatPdfViewer.tsx` (M)
-- [ ] **C5. Voice dictation.** Mic appends a transcript to the composer. Web equivalent is the Web Speech API. → `lib/voice.ts` (S)
+- [x] **C5. Voice dictation.** Mic appends a transcript to the composer. Web equivalent is the Web Speech API. → `lib/voice.ts` (S)
 
 ## Batch D — threads, history, quota
 
