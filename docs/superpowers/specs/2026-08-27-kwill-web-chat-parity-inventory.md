@@ -23,20 +23,22 @@ Foundation + Plan 2a + Plan 3, all merged to `master`:
 
 ---
 
-## Batch A — "it looks broken" (highest impact, do first)
+## Batch A — "it looks broken" ✅ SHIPPED 2026-08-27
 
-These are why the panel currently reads as unfinished. Every one is visible on a first use.
+Merged to `master` in `~/modakerati-dashboard`. Plan: `docs/superpowers/plans/2026-08-27-kwill-web-chat-batch-a.md`.
 
-- [ ] **A1. Markdown styling.** Lists have no bullets, tables no borders, code no card, headings render at body size. The panel has *zero* chat CSS today. → `components/Markdown.tsx` (M)
-- [ ] **A2. File download cards.** `[[MODK_FILE]]` is stripped, so the assistant says "the download card should appear" and nothing does. Format badge, size, page count, Download. → `components/FileCard.tsx` (S)
-- [ ] **A3. Image rendering in replies.** `[[MODK_IMG]]` is stripped. Grid of thumbnails in the bubble. → `components/ChatImages.tsx` (M)
-- [ ] **A4. Live thinking trace.** `MODK_THINK` text is captured then discarded. Should stream in a fading window and collapse to "Thought for 45s". → `components/ThinkingTrace.tsx` (M)
-- [ ] **A5. AI working note.** Spinning mark + m:ss clock + escalating copy at 25 s / 90 s, so a three-minute tool run isn't mistaken for a hang. → `components/AiWorkingNote.tsx` (M)
-- [ ] **A6. Scroll pinning + scroll-to-latest.** The list currently yanks to the bottom every 90 ms while a reply streams, fighting anyone reading back. → `app/(app)/chat.tsx` `handleScroll` (S)
-- [ ] **A7. Long-answer collapse.** Clip at 1200 chars with a gradient fade, expand, full view. → `MessageBubble.tsx`, `MessageViewer.tsx` (S)
-- [ ] **A8. Welcome / empty state.** A blank pane today. Art plus two CTAs. → `ChatWelcome.tsx` (S)
-- [ ] **A9. Loading skeletons.** Layout-shaped placeholders, never a spinner (a standing product rule). → `ChatSkeleton.tsx` (S)
-- [ ] **A10. Time dividers.** "Today 3:51 PM" between sittings, on a 30-minute gap. → `TimeDivider.tsx` (S)
+Also landed alongside it, from the "share the app's logic" directive: six pure-logic files copied **verbatim** from `~/modakerati/lib/` — `retry.ts`, `turn-work.ts`, `thread-groups.ts` (into `src/features/chat/lib/`) and `block-links.ts`, `search-match.ts`, `text-normalize.ts` (into `src/lib/doc/`). Each carries a "keep in sync by hand" header and is byte-identical below it. They are not wired up yet, but they hand Batch B its retry policy (B2) and continue-vs-regenerate logic (B3/B4) without re-deriving them.
+
+- [x] **A1. Markdown styling.** Lists have no bullets, tables no borders, code no card, headings render at body size. The panel has *zero* chat CSS today. → `components/Markdown.tsx` (M)
+- [x] **A2. File download cards.** `[[MODK_FILE]]` is stripped, so the assistant says "the download card should appear" and nothing does. Format badge, size, page count, Download. → `components/FileCard.tsx` (S)
+- [x] **A3. Image rendering in replies.** `[[MODK_IMG]]` is stripped. Grid of thumbnails in the bubble. → `components/ChatImages.tsx` (M)
+- [x] **A4. Live thinking trace.** `MODK_THINK` text is captured then discarded. Should stream in a fading window and collapse to "Thought for 45s". → `components/ThinkingTrace.tsx` (M)
+- [x] **A5. AI working note.** Spinning mark + m:ss clock + escalating copy at 25 s / 90 s, so a three-minute tool run isn't mistaken for a hang. → `components/AiWorkingNote.tsx` (M)
+- [x] **A6. Scroll pinning + scroll-to-latest.** The list currently yanks to the bottom every 90 ms while a reply streams, fighting anyone reading back. → `app/(app)/chat.tsx` `handleScroll` (S)
+- [x] **A7. Long-answer collapse.** Clip at 1200 chars with a gradient fade, expand, full view. → `MessageBubble.tsx`, `MessageViewer.tsx` (S)
+- [x] **A8. Welcome / empty state.** A blank pane today. Art plus two CTAs. → `ChatWelcome.tsx` (S)
+- [x] **A9. Loading skeletons.** Layout-shaped placeholders, never a spinner (a standing product rule). → `ChatSkeleton.tsx` (S)
+- [x] **A10. Time dividers.** "Today 3:51 PM" between sittings, on a 30-minute gap. → `TimeDivider.tsx` (S)
 
 ## Batch B — turn robustness
 
