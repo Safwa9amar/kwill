@@ -1,9 +1,12 @@
 # Kwill web chat panel — Plan 2 of the Next.js web app
 
 **Date:** 2026-08-26
-**Status:** design approved, not yet planned
+**Status:** Plan 2a SHIPPED (merged to `master` 2026-08-27). Plan 2b SUPERSEDED — see below.
 **Builds on:** `2026-08-25-kwill-web-nextjs-design.md` (spec) / `2026-08-25-kwill-web-nextjs-foundation.md` (plan) — the Foundation, merged to `master` and deployed to production in `~/modakerati-dashboard`.
-**Ships as two plans:** Plan 2a (chat core) lands first as a complete, independently useful chat experience; Plan 2b (interactive frames) builds on it. Both are described here since they share one architecture — see "Two-plan split" below for exactly where the seam is.
+
+> ⚠️ **Plan 2b is superseded by `2026-08-27-kwill-web-interactive-frames-modes-design.md`.** Do not implement Plan 2b from this document. The newer spec absorbs and corrects it against the actual server source: `MODK_CONFIRM` and `MODK_ASK` are **stripped before persistence** (ephemeral, live-stream only), `MODK_PLAN`/`MODK_PLAN_STEP` are a **third, distinct frame family that persists** and was not accounted for here at all, and answering a `MODK_ASK` needs **no dedicated endpoint** (it is an ordinary next message). The newer spec also carries the mode switcher, the stop button, and the brand-colour correction.
+
+**Original two-plan split (historical):** Plan 2a (chat core) landed first as a complete, independently useful chat experience; Plan 2b (interactive frames) was to build on it. See "Two-plan split" below for where the seam was drawn.
 
 ## What ships
 
