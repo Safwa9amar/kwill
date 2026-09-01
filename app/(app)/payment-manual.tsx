@@ -12,7 +12,8 @@ import {
   Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { Redirect, useRouter, useLocalSearchParams } from "expo-router";
+import { PURCHASES_HIDDEN } from "@/lib/purchases";
 import { useTranslation } from "react-i18next";
 import * as ImagePicker from "expo-image-picker";
 import * as Clipboard from "expo-clipboard";
@@ -32,6 +33,11 @@ function guessMime(asset: ImagePicker.ImagePickerAsset): string {
 }
 
 export default function PaymentManualScreen() {
+  // No iOS navigation path leads here (lib/purchases.ts), but a screen that IS
+  // a payment form must be unreachable even by deep link. The condition is a
+  // platform constant, so the hooks below it never change order.
+  if (PURCHASES_HIDDEN) return <Redirect href="/(app)/subscription" />;
+
   const { t } = useTranslation();
   const colors = useThemeColors();
   const router = useRouter();

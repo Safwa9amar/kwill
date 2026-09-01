@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { X, Sparkles } from "lucide-react-native";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { useBillingStore, useQuotaBlocked, useQuotaAvailable, useQuotaLow } from "@/stores/billing-store";
+import { PURCHASES_HIDDEN } from "@/lib/purchases";
 import { visualRow, visualTextAlign } from "@/lib/rtl-layout";
 
 // Two states, one card, pinned above the composer:
@@ -40,11 +41,13 @@ export function QuotaNotice() {
     ? t("payment.quotaBlockedTitle")
     : t("payment.quotaLow", { count: Math.max(0, available) });
 
+  // On iOS the copy states the limit and stops — "renew" and "buy" name a
+  // purchase the iOS app is not allowed to offer or point at (lib/purchases.ts).
   const body = isBlocked
     ? blocked === "month-cap"
-      ? t("payment.quotaMonthCapBody")
-      : t("payment.quotaBlockedBody")
-    : t("payment.quotaBlockedBody");
+      ? t(PURCHASES_HIDDEN ? "payment.quotaMonthCapBodyStatus" : "payment.quotaMonthCapBody")
+      : t(PURCHASES_HIDDEN ? "payment.quotaBlockedBodyStatus" : "payment.quotaBlockedBody")
+    : t(PURCHASES_HIDDEN ? "payment.quotaBlockedBodyStatus" : "payment.quotaBlockedBody");
 
   return (
     <View
@@ -80,7 +83,7 @@ export function QuotaNotice() {
         style={[styles.cta, { backgroundColor: colors.brandPrimary }]}
         hitSlop={8}
       >
-        <Text style={styles.ctaText}>{t("payment.viewPlans")}</Text>
+        <Text style={styles.ctaText}>{t(PURCHASES_HIDDEN ? "payment.myPlan" : "payment.viewPlans")}</Text>
       </Pressable>
 
       {/* Only the warning is dismissible. Hiding the blocked card would leave a

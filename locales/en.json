@@ -596,7 +596,7 @@
     "topupNeverExpires": "Used after your allowance. Never expires.",
     "buyTopup": "Buy messages",
     "payByCard": "Pay by card",
-    "payManual": "Pay via BaridiMob/CCP",
+    "payManual": "BaridiMob/CCP",
     "manualUnderReview": "Your BaridiMob/CCP payment is under review. We'll notify you once it's checked.",
     "manualRejectedNote": "Your last submission couldn't be verified: {{reason}}. You can try again below.",
     "manualAmountLabel": "Amount to transfer",
@@ -620,15 +620,21 @@
     "confirmingBody": "This takes a few seconds. You can keep using the app.",
     "quotaBlockedTitle": "You are out of messages",
     "quotaBlockedBody": "Renew your plan or buy extra messages to keep going.",
+    "quotaBlockedBodyStatus": "You have used all your available messages for now.",
     "quotaMonthCapBody": "You have reached this month's limit. It resets next month, or you can buy extra messages.",
+    "quotaMonthCapBodyStatus": "You have reached this month's limit. It resets next month.",
     "quotaLow": "{{count}} messages left",
-    "viewPlans": "View plans"
+    "viewPlans": "View plans",
+    "myPlan": "My plan",
+    "accountLinkedNote": "Your plan and message balance are linked to your Kwill account and follow you on every device."
   },
   "thesisLimit": {
     "titleOne": "Your free plan holds one thesis",
     "title": "Your plan holds {{count}} theses",
     "bodyOne": "You already have one. Carry on writing it, delete it if you would rather start a different one, or move to a plan that holds several.",
-    "body": "You have {{used}} of {{limit}}. Delete one to start another, or move to a plan that holds more."
+    "bodyOneStatus": "You already have one. Carry on writing it, or delete it if you would rather start a different one.",
+    "body": "You have {{used}} of {{limit}}. Delete one to start another, or move to a plan that holds more.",
+    "bodyStatus": "You have {{used}} of {{limit}}. Delete one to start another."
   },
   "profile": {
     "profile": "Profile",

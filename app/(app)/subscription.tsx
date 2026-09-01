@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Check, Sparkles } from "lucide-react-native";
 import { useBillingStore } from "@/stores/billing-store";
+import { PURCHASES_HIDDEN } from "@/lib/purchases";
 import { startCheckout, fetchManualPaymentDetails, fetchManualPaymentStatus } from "@/lib/api";
 import type { ManualPaymentDetails, ManualPaymentStatus } from "@/lib/api";
 import type { PlanCode, PlanOffer } from "@/types/billing";
@@ -57,6 +58,9 @@ export default function SubscriptionScreen() {
   useFocusEffect(
     useCallback(() => {
       void refreshAll();
+      // On iOS the manual-payment path does not exist, so its state is never
+      // fetched — a pending-review banner would name a way to pay.
+      if (PURCHASES_HIDDEN) return;
       void fetchManualPaymentDetails().then(setManualDetails).catch(() => setManualDetails(null));
       void fetchManualPaymentStatus().then(setManualStatus).catch(() => setManualStatus(null));
     }, [refreshAll]),
@@ -127,7 +131,9 @@ export default function SubscriptionScreen() {
       <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={["top"]}>
         <View style={styles.header}>
           <BackButton />
-          <Text style={[styles.title, { color: colors.textPrimary }]}>{t("payment.plansTitle")}</Text>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>
+            {t(PURCHASES_HIDDEN ? "payment.myPlan" : "payment.plansTitle")}
+          </Text>
           <View style={{ width: 30 }} />
         </View>
         <View style={styles.centre}>
@@ -150,6 +156,40 @@ export default function SubscriptionScreen() {
   }
 
   const planLabel = (code: PlanCode) => t(`payment.plan_${code}`);
+
+  // iOS: plan STATUS only — see lib/purchases.ts. No plan cards, no prices, no
+  // top-up, no manual path, and nothing that says where purchasing happens.
+  if (PURCHASES_HIDDEN) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={["top"]}>
+        <View style={styles.header}>
+          <BackButton />
+          <Text style={[styles.title, { color: colors.textPrimary }]}>{t("payment.myPlan")}</Text>
+          <View style={{ width: 30 }} />
+        </View>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {quota && (
+            <Card style={styles.quotaCard} borderColor={colors.borderSubtle}>
+              <Text style={[styles.quotaLabel, { color: colors.textSecondary }]}>
+                {t("payment.currentPlan", { plan: planLabel(quota.plan) })}
+              </Text>
+              <Text style={[styles.quotaBig, { color: colors.textPrimary }]}>
+                {t("payment.messagesLeft", { count: quota.available })}
+              </Text>
+              {quota.topupRemaining > 0 && (
+                <Text style={[styles.quotaSub, { color: colors.textSecondary }]}>
+                  {t("payment.includingTopup", { count: quota.topupRemaining })}
+                </Text>
+              )}
+            </Card>
+          )}
+          <Text style={[styles.disabledNote, { color: colors.textSecondary }]}>
+            {t("payment.accountLinkedNote")}
+          </Text>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   const features = (p: PlanOffer): string[] => {
     const list = [

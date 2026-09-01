@@ -1,6 +1,7 @@
 import { Alert } from "react-native";
 import { router } from "expo-router";
 import i18n from "@/lib/i18n";
+import { PURCHASES_HIDDEN } from "@/lib/purchases";
 import { useBillingStore } from "@/stores/billing-store";
 import type { ThesisAllowance } from "@/types/billing";
 
@@ -36,10 +37,17 @@ export function thesisLimitTitle(from?: LimitFacts): string {
   return limit === 1 ? i18n.t("thesisLimit.titleOne") : i18n.t("thesisLimit.title", { count: limit });
 }
 
-/** The sentence under it — always naming the ways out, never only the wall. */
+/**
+ * The sentence under it — always naming the ways out, never only the wall.
+ * On iOS "move to a plan" is a way out the app may not name (lib/purchases.ts),
+ * so the wording there stops at write-on or delete.
+ */
 export function thesisLimitBody(from?: LimitFacts): string {
   const { limit, used } = facts(from);
-  return limit === 1 ? i18n.t("thesisLimit.bodyOne") : i18n.t("thesisLimit.body", { used, limit });
+  if (limit === 1) {
+    return i18n.t(PURCHASES_HIDDEN ? "thesisLimit.bodyOneStatus" : "thesisLimit.bodyOne");
+  }
+  return i18n.t(PURCHASES_HIDDEN ? "thesisLimit.bodyStatus" : "thesisLimit.body", { used, limit });
 }
 
 /**
@@ -77,7 +85,10 @@ export async function guardThesisLimit(): Promise<boolean> {
 export function showThesisLimitAlert(from?: LimitFacts): void {
   Alert.alert(thesisLimitTitle(from), thesisLimitBody(from), [
     { text: i18n.t("common.cancel"), style: "cancel" },
-    { text: i18n.t("payment.viewPlans"), onPress: () => router.push("/(app)/subscription" as any) },
+    {
+      text: i18n.t(PURCHASES_HIDDEN ? "payment.myPlan" : "payment.viewPlans"),
+      onPress: () => router.push("/(app)/subscription" as any),
+    },
   ]);
 }
 

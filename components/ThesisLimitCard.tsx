@@ -7,6 +7,7 @@ import { useThemeColors } from "@/hooks/useThemeColors";
 import { useThesisStore } from "@/stores/thesis-store";
 import { useThesisLimit, useThesesUsed } from "@/stores/billing-store";
 import { thesisLimitTitle, thesisLimitBody } from "@/lib/thesis-limit";
+import { PURCHASES_HIDDEN } from "@/lib/purchases";
 import { visualRow, visualTextAlign } from "@/lib/rtl-layout";
 
 // Why the student cannot start another thesis, said BEFORE they invest anything
@@ -82,7 +83,7 @@ export function ThesisLimitCard() {
         onPress={() => router.push("/(app)/subscription" as any)}
         style={[styles.cta, { backgroundColor: colors.brandPrimary }]}
       >
-        <Text style={styles.ctaText}>{t("payment.viewPlans")}</Text>
+        <Text style={styles.ctaText}>{t(PURCHASES_HIDDEN ? "payment.myPlan" : "payment.viewPlans")}</Text>
       </Pressable>
     </View>
   );

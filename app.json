@@ -22,12 +22,14 @@
       "icon": "./assets/AppIcon.icon",
       "supportsTablet": false,
       "bundleIdentifier": "com.kwill.app",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSSpeechRecognitionUsageDescription": "Kwill uses speech recognition to turn your voice into text in your thesis.",
-        "NSMicrophoneUsageDescription": "Kwill uses your microphone to dictate text into your thesis."
+        "NSMicrophoneUsageDescription": "Kwill uses your microphone to dictate text into your thesis.",
+        "NSCameraUsageDescription": "Kwill uses the camera to let you take a photo and insert it into your thesis document — for example, photographing a printed chart, a lab result, or handwritten notes to add as a figure in a chapter.",
+        "NSPhotoLibraryUsageDescription": "Kwill uses your photo library to let you choose images to insert into your thesis document or attach to the AI assistant — for example, selecting a graph or diagram from your photos to add as a figure in a chapter."
       },
       "appleTeamId": "VM5A7U2YT2"
     },
@@ -72,6 +74,13 @@
         }
       ],
       "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Kwill uses the camera to let you take a photo and insert it into your thesis document — for example, photographing a printed chart, a lab result, or handwritten notes to add as a figure in a chapter.",
+          "photosPermission": "Kwill uses your photo library to let you choose images to insert into your thesis document or attach to the AI assistant — for example, selecting a graph or diagram from your photos to add as a figure in a chapter."
+        }
+      ],
       [
         "expo-speech-recognition",
         {

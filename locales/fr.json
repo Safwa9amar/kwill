@@ -596,7 +596,7 @@
     "topupNeverExpires": "Utilises apres votre quota. Sans expiration.",
     "buyTopup": "Acheter des messages",
     "payByCard": "Payer par carte",
-    "payManual": "Payer via BaridiMob/CCP",
+    "payManual": "BaridiMob/CCP",
     "manualUnderReview": "Votre paiement BaridiMob/CCP est en cours de verification. Nous vous informerons des que c'est fait.",
     "manualRejectedNote": "Votre derniere soumission n'a pas pu etre verifiee : {{reason}}. Vous pouvez reessayer ci-dessous.",
     "manualAmountLabel": "Montant a transferer",
@@ -620,15 +620,21 @@
     "confirmingBody": "Cela prend quelques secondes. Vous pouvez continuer a utiliser l'application.",
     "quotaBlockedTitle": "Vous n'avez plus de messages",
     "quotaBlockedBody": "Renouvelez votre forfait ou achetez des messages pour continuer.",
+    "quotaBlockedBodyStatus": "Vous avez utilisé tous vos messages disponibles pour le moment.",
     "quotaMonthCapBody": "Vous avez atteint la limite de ce mois. Elle se reinitialise le mois prochain, ou achetez des messages.",
+    "quotaMonthCapBodyStatus": "Vous avez atteint la limite de ce mois. Elle se réinitialise le mois prochain.",
     "quotaLow": "{{count}} messages restants",
-    "viewPlans": "Voir les forfaits"
+    "viewPlans": "Voir les forfaits",
+    "myPlan": "Mon forfait",
+    "accountLinkedNote": "Votre forfait et votre solde de messages sont liés à votre compte Kwill et vous suivent sur tous vos appareils."
   },
   "thesisLimit": {
     "titleOne": "Votre forfait gratuit permet un seul mémoire",
     "title": "Votre forfait permet {{count}} mémoires",
     "bodyOne": "Vous en avez déjà un. Continuez à le rédiger, supprimez-le si vous préférez en commencer un autre, ou passez à un forfait qui en permet plusieurs.",
-    "body": "Vous en avez {{used}} sur {{limit}}. Supprimez-en un pour en commencer un autre, ou passez à un forfait qui en permet davantage."
+    "bodyOneStatus": "Vous en avez déjà un. Continuez à le rédiger, ou supprimez-le si vous préférez en commencer un autre.",
+    "body": "Vous en avez {{used}} sur {{limit}}. Supprimez-en un pour en commencer un autre, ou passez à un forfait qui en permet davantage.",
+    "bodyStatus": "Vous en avez {{used}} sur {{limit}}. Supprimez-en un pour en commencer un autre."
   },
   "profile": {
     "profile": "Profil",

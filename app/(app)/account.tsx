@@ -22,6 +22,7 @@ import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRTL } from "@/hooks/useRTL";
 import { useAuthStore } from "@/stores/auth-store";
 import { useProfileStore } from "@/stores/profile-store";
+import { PURCHASES_HIDDEN } from "@/lib/purchases";
 import { BackButton } from "@/components/BackButton";
 import { AvatarPicker } from "@/components/AvatarPicker";
 
@@ -85,7 +86,7 @@ export default function AccountScreen() {
     {
       key: "plan",
       icon: Sparkles,
-      label: t("account.upgradePlan"),
+      label: t(PURCHASES_HIDDEN ? "payment.myPlan" : "account.upgradePlan"),
       brand: true,
       onPress: () => router.push("/(app)/subscription" as any),
     },
