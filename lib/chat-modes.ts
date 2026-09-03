@@ -1,7 +1,7 @@
 import { MessageCircleQuestion, ClipboardList, Sparkles, Zap } from "lucide-react-native";
 
 // The four conversation modes, mirrored from the server registry
-// (~/modakerati-server/src/lib/ai/chat-modes.ts). Data only — what a mode DOES is
+// (~/kwill-server/src/lib/ai/chat-modes.ts). Data only — what a mode DOES is
 // decided server-side; the app only shows it and sends it.
 export type ChatMode = "ask" | "plan" | "assist" | "agent";
 

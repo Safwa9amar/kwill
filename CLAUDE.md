@@ -6,16 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## This repo is one of three
 
-Kwill (formerly Modakerati — the repo directories still carry the old name) is an Expo app for Algerian university students writing their thesis (mémoire/مذكرة). It cannot be understood alone — three sibling repos under `~/` share **one Supabase project** (`janzgpfnjzihelcwmkkg`):
+Kwill (formerly Modakerati) is an Expo app for Algerian university students writing their thesis (mémoire/مذكرة). It cannot be understood alone — three sibling repos under `~/` share **one Supabase project** (`janzgpfnjzihelcwmkkg`):
 
 | Repo | What it owns |
 |---|---|
-| `~/modakerati` (here) | Expo React Native app — the student-facing product |
-| `~/modakerati-server` | Hono API + **all AI tools and prompts** + the .docx engine integration |
-| `~/modakerati-dashboard` | Next.js staff console (Vercel, deploys on push to `master`) |
+| `~/kwill` (here) | Expo React Native app — the student-facing product |
+| `~/kwill-server` | Hono API + **all AI tools and prompts** + the .docx engine integration |
+| `~/kwill-dashboard` | Next.js staff console (Vercel, deploys on push to `master`) |
 | `~/mdocxengine` | The OOXML engine (`Doc`, part managers, the docx "doctor") |
 
-The AI's behaviour lives in the **server**, not here. A change to what the assistant says or does is `~/modakerati-server/src/lib/ai/` — this repo only renders it.
+The AI's behaviour lives in the **server**, not here. A change to what the assistant says or does is `~/kwill-server/src/lib/ai/` — this repo only renders it.
 
 ## Verification
 
@@ -28,8 +28,8 @@ npx tsc --noEmit          # the only automated check that exists here
 The server and dashboard *do* have vitest:
 
 ```bash
-cd ~/modakerati-server && npx vitest run                                    # full suite (~1000 tests)
-cd ~/modakerati-server && npx vitest run src/lib/ai/__tests__/foo.test.ts   # one file
+cd ~/kwill-server && npx vitest run                                    # full suite (~1000 tests)
+cd ~/kwill-server && npx vitest run src/lib/ai/__tests__/foo.test.ts   # one file
 ```
 
 Some server suites are slow under full-suite load and time out at the 5s default; re-run with `--testTimeout=60000` before treating a timeout as a failure.

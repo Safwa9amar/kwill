@@ -4,7 +4,7 @@
 // raisable without custom SMTP on the Supabase side. A student mid-reset does
 // not care whose quota ran out — they just never receive anything.
 //
-// The server route (POST /auth/recovery-link in ~/modakerati-server) mints the
+// The server route (POST /auth/recovery-link in ~/kwill-server) mints the
 // SAME link through Supabase's admin API, which generates without sending and so
 // costs nothing from that allowance, and mails it from our own domain. Supabase's
 // configuration is untouched, which is the point: this is a fallback, not a

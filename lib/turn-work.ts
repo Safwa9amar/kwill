@@ -1,7 +1,7 @@
 // Did the assistant's last turn already DO something?
 //
 // The client-side half of the server's `assessTurnWork`
-// (~/modakerati-server/src/lib/ai/continue-turn.ts), and deliberately WEAKER
+// (~/kwill-server/src/lib/ai/continue-turn.ts), and deliberately WEAKER
 // than it. A turn that stopped mid-job — eight of twelve plan steps applied, the
 // socket gone — must be CONTINUED, never restarted: restarting deletes the plan
 // card with its ticks and re-applies edits that are already in the student's

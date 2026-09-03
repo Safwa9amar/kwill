@@ -64,7 +64,7 @@ our own server instead:
 
 ```
 resetPasswordForEmail() → "email rate limit exceeded"
-  → POST /auth/recovery-link   (~/modakerati-server/src/routes/auth-recovery.ts)
+  → POST /auth/recovery-link   (~/kwill-server/src/routes/auth-recovery.ts)
       → supabaseAdmin.generateLink()   ← mints the link, sends nothing
       → nodemailer over our SMTP       ← our domain, sender reads "Kwill"
 ```
@@ -95,7 +95,7 @@ protection lives in the handler:
 
 With no `SMTP_*` variables the route answers `503 mailer_unconfigured` and the
 app keeps Supabase's message rather than claiming a mail was sent. Fill them in
-`~/modakerati-server/.env` (placeholders are already there) and on the host — see
+`~/kwill-server/.env` (placeholders are already there) and on the host — see
 *Outbound mail* in `DEPLOY_OCTENIUM.md`. cPanel on greenpedal.net can issue them
 directly, which avoids Resend and domain verification entirely.
 

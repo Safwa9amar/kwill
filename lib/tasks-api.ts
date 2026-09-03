@@ -2,7 +2,7 @@ import { apiGet, apiPost, apiDelete } from "./api";
 
 /**
  * Scheduled tasks — the student queues jobs, picks a time, and the server runs
- * them with the app closed. Mirrors ~/modakerati-server/src/routes/tasks.ts.
+ * them with the app closed. Mirrors ~/kwill-server/src/routes/tasks.ts.
  *
  * Deliberately separate from lib/api.ts, which is already 2000+ lines: this is a
  * self-contained surface and reads better on its own. The four request helpers

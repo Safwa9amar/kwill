@@ -9,8 +9,8 @@
 #   4. (re)connects the phone over adb and reverses the dev ports
 #
 # Files it rewrites:
-#   ~/modakerati/.env         EXPO_PUBLIC_SUPABASE_URL (:54331), EXPO_PUBLIC_API_URL (:3000)
-#   ~/modakerati-server/.env  STORAGE_PUBLIC_HOST
+#   ~/kwill/.env         EXPO_PUBLIC_SUPABASE_URL (:54331), EXPO_PUBLIC_API_URL (:3000)
+#   ~/kwill-server/.env  STORAGE_PUBLIC_HOST
 #
 # Usage:
 #   ./scripts/dev-net.sh                              full run: env + supabase + services + adb
@@ -26,8 +26,8 @@
 
 set -uo pipefail
 
-APP_DIR="$HOME/modakerati"
-SERVER_DIR="$HOME/modakerati-server"
+APP_DIR="$HOME$HOME/kwill"
+SERVER_DIR="$HOME$HOME/kwill-server"
 APP_ENV="$APP_DIR/.env"
 SERVER_ENV="$SERVER_DIR/.env"
 DEVICE_MEMO="$HOME/.modakerati-adb-device"

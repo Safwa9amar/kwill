@@ -1,7 +1,7 @@
 // The [[MODK_PLAN]] frame — a plan the assistant proposed, rendered as a card with
 // an Execute button — and the [[MODK_PLAN_STEP]] frame that ticks its steps off
 // while it runs (second half of this file). Mirrors
-// ~/modakerati-server/src/lib/ai/plan-frames.ts.
+// ~/kwill-server/src/lib/ai/plan-frames.ts.
 //
 // PERSISTED, unlike [[MODK_CONFIRM]]: the server saves it onto the message, so the
 // card must survive reopening the conversation. That means parsing it in TWO
@@ -58,7 +58,7 @@ export function stripPlanFrames(text: string): string {
 // job (stores/chat-store.ts, `planSteps`), which folds every tick it can find in
 // a thread into one planId-keyed record.
 //
-// Mirrors ~/modakerati-server/src/lib/ai/plan-frames.ts.
+// Mirrors ~/kwill-server/src/lib/ai/plan-frames.ts.
 // ─────────────────────────────────────────────────────────────────────────────
 export interface PlanStepProgress {
   /** Which plan was ticked. Minted server-side — never taken from the model. */
