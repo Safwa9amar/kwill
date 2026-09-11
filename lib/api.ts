@@ -1635,6 +1635,10 @@ export type DocumentDTO =
       // Optional: older SQLite-cached DTOs predate this field.
       sections?: DocSectionDTO[];
       downloadUrl: string;
+      // Hash of the stored bytes (server `theses.docHash`). Optional: older
+      // SQLite-cached DTOs predate it. The docx surface reloads when it differs
+      // from the ETag of the document it holds.
+      docHash?: string | null;
     }
   | { docMode: string; available: false };
 
