@@ -67,7 +67,7 @@ cd ~/kwill-server && npx tsc --noEmit
 - Create: `~/kwill-server/src/lib/docx-etag.ts`
 - Test: `~/kwill-server/src/lib/__tests__/docx-etag.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // src/lib/__tests__/docx-etag.test.ts
@@ -103,12 +103,12 @@ describe("ifMatchAllows (PUT → proceed?)", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd ~/kwill-server && npx vitest run src/lib/__tests__/docx-etag.test.ts`
 Expected: FAIL — `Cannot find module '../docx-etag'`
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 ```ts
 // src/lib/docx-etag.ts
@@ -159,12 +159,12 @@ export function ifMatchAllows(header: string | null | undefined, hash: string | 
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `cd ~/kwill-server && npx vitest run src/lib/__tests__/docx-etag.test.ts`
 Expected: PASS (13 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd ~/kwill-server && git add src/lib/docx-etag.ts src/lib/__tests__/docx-etag.test.ts && git commit -m "feat(docx): ETag helpers for the whole-bytes document routes"
@@ -175,12 +175,12 @@ cd ~/kwill-server && git add src/lib/docx-etag.ts src/lib/__tests__/docx-etag.te
 **Files:**
 - Modify: `~/kwill-server/src/routes/thesis/document.ts` (the `PUT /:id/docx` block, ≈line 188)
 
-- [ ] **Step 1: Find the byte-read helper the mirror route uses**
+- [x] **Step 1: Find the byte-read helper the mirror route uses**
 
 Run: `cd ~/kwill-server && grep -n "downloadDocx" src/routes/thesis/mirror.ts | head -2`
 Expected: an `import { downloadDocx } from "…"` line. Copy that exact import into `document.ts` (top of file, next to the other imports). Also add: `import { ifMatchAllows, ifNoneMatchIsCurrent, quoteEtag } from "../../lib/docx-etag";` (adjust the relative path to match how `document.ts` imports its other `lib/` modules).
 
-- [ ] **Step 2: Add the GET route directly ABOVE the existing `app.put("/:id/docx"`**
+- [x] **Step 2: Add the GET route directly ABOVE the existing `app.put("/:id/docx"`**
 
 ```ts
   // GET the WHOLE .docx — the load path of the client-side Word editor (the app's
@@ -216,7 +216,7 @@ Expected: an `import { downloadDocx } from "…"` line. Copy that exact import i
   });
 ```
 
-- [ ] **Step 3: Guard the PUT with `If-Match` and return the new hash**
+- [x] **Step 3: Guard the PUT with `If-Match` and return the new hash**
 
 Replace the body of the existing `app.put("/:id/docx", …)` from `const [thesis] = …` through the `withThesisLock` call with:
 
@@ -267,12 +267,12 @@ Also update the PUT's leading comment: replace the "⚠️ No merge. Bytes repla
   // editor of record for the student's own typing (spec D2/D4).
 ```
 
-- [ ] **Step 4: Typecheck and run the suite**
+- [x] **Step 4: Typecheck and run the suite**
 
 Run: `cd ~/kwill-server && npx tsc --noEmit && npx vitest run --testTimeout=60000 2>&1 | tail -5`
 Expected: tsc silent; vitest all green (same count as before + 13).
 
-- [ ] **Step 5: Smoke the route against the local server**
+- [x] **Step 5: Smoke the route against the local server**
 
 Run (server running on :3000, `$TOKEN` a student access token, `$ID` a live thesis):
 ```bash
@@ -283,7 +283,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X PUT "http://localhost:3000/api/thesi
 ```
 Expected: `200` + an `ETag`; then `304`; then `412`.
 
-- [ ] **Step 6: Commit and deploy as a patch**
+- [x] **Step 6: Commit and deploy as a patch**
 
 ```bash
 cd ~/kwill-server && git add src/routes/thesis/document.ts && git commit -m "feat(docx): GET /:id/docx with ETag; PUT honours If-Match (412 on a stale save)"
@@ -296,7 +296,7 @@ Deploy per the server's convention (fix → patch; see memory `server-versioning
 - Modify: `~/kwill-server/src/lib/thesis-doc.ts` (the DTO union ≈line 217 and the return ≈line 1189–1198)
 - Modify: `~/kwill/lib/api.ts` (`DocumentDTO`, ≈line 1628)
 
-- [ ] **Step 1: Server — add the field to the type and the object**
+- [x] **Step 1: Server — add the field to the type and the object**
 
 In the union member at ≈line 217 append `docHash: string | null` after `downloadUrl: string`:
 ```ts
@@ -310,7 +310,7 @@ In the return object at ≈line 1198, after `downloadUrl,` add:
 ```
 Run: `cd ~/kwill-server && npx tsc --noEmit` → silent. Commit: `git commit -am "feat(docx): document DTO carries docHash"`.
 
-- [ ] **Step 2: App — mirror it on the type**
+- [x] **Step 2: App — mirror it on the type**
 
 In `lib/api.ts` `DocumentDTO`'s available branch, after `downloadUrl: string;` add:
 ```ts
@@ -328,7 +328,7 @@ Run: `cd ~/kwill && npx tsc --noEmit` → silent. Commit: `git add lib/api.ts &&
 - Create: `~/kwill/vitest.config.ts`
 - Modify: `~/kwill/CLAUDE.md` (the "Verification" section)
 
-- [ ] **Step 1: Install and configure**
+- [x] **Step 1: Install and configure**
 
 Run: `cd ~/kwill && npm install -D vitest@^4`
 
@@ -357,7 +357,7 @@ export default defineConfig({
 ```
 Add to `package.json` scripts: `"test": "vitest run"`.
 
-- [ ] **Step 2: Record it where the next session will look**
+- [x] **Step 2: Record it where the next session will look**
 
 In `CLAUDE.md` → "Verification", replace `**This app has no JS test runner.** There are no test files and no lint config.` with:
 ```
@@ -365,12 +365,12 @@ In `CLAUDE.md` → "Verification", replace `**This app has no JS test runner.** 
 ```
 and add `npx vitest run              # pure lib modules (docx-editor bridge, block ids)` under `npx tsc --noEmit`.
 
-- [ ] **Step 3: Verify the runner starts**
+- [x] **Step 3: Verify the runner starts**
 
 Run: `cd ~/kwill && npx vitest run`
 Expected: `No test files found` (exit 0 — nothing matches yet).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd ~/kwill && git add package.json package-lock.json vitest.config.ts CLAUDE.md && git commit -m "chore(test): vitest for the app's pure modules"
@@ -382,7 +382,7 @@ cd ~/kwill && git add package.json package-lock.json vitest.config.ts CLAUDE.md 
 - Create: `lib/docx-block-id.ts`
 - Test: `lib/docx-block-id.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // lib/docx-block-id.test.ts
@@ -419,12 +419,12 @@ describe("isBodyId", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd ~/kwill && npx vitest run lib/docx-block-id.test.ts`
 Expected: FAIL — `Failed to resolve import "./docx-block-id"`
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 ```ts
 // lib/docx-block-id.ts
@@ -464,12 +464,12 @@ export function isBodyId(id: string | null | undefined): boolean {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `cd ~/kwill && npx vitest run lib/docx-block-id.test.ts`
 Expected: PASS (5 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd ~/kwill && git add lib/docx-block-id.ts lib/docx-block-id.test.ts && git commit -m "feat(docx): parse the engine's node id into a block index"
@@ -483,7 +483,7 @@ The native chrome dispatches `{type, value, nonce}` (see `components/workspace/l
 - Create: `components/workspace/docx-editor/bridge/command-map.ts`
 - Test: `components/workspace/docx-editor/bridge/command-map.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // components/workspace/docx-editor/bridge/command-map.test.ts
@@ -565,12 +565,12 @@ describe("mapCommand — Lexical-only envelopes", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd ~/kwill && npx vitest run components/workspace/docx-editor/bridge/command-map.test.ts`
 Expected: FAIL — cannot resolve `./command-map`
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 ```ts
 // components/workspace/docx-editor/bridge/command-map.ts
@@ -675,12 +675,12 @@ export function mapCommand(cmd: LexicalCommand): EngineAction[] {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `cd ~/kwill && npx vitest run components/workspace/docx-editor/bridge/command-map.test.ts`
 Expected: PASS (12 tests)
 
-- [ ] **Step 5: Gate and commit**
+- [x] **Step 5: Gate and commit**
 
 Run: `cd ~/kwill && npx tsc --noEmit && node scripts/verify-use-dom.mjs | tail -1` → silent tsc; `All 3 'use dom' module(s) bundle cleanly`.
 ```bash
@@ -694,7 +694,7 @@ git add components/workspace/docx-editor/bridge/command-map.ts components/worksp
 - Modify: `stores/lexical-editor-store.ts`
 - Modify: `app/(app)/settings.tsx` (Developer section)
 
-- [ ] **Step 1: `writerEngine` in settings (persisted)**
+- [x] **Step 1: `writerEngine` in settings (persisted)**
 
 In `stores/settings-store.ts`: add `export type WriterEngine = "lexical" | "docx";` under `ToolbarOrientation`. In `SettingsState`, after `lastThesisId`:
 ```ts
@@ -706,7 +706,7 @@ In `stores/settings-store.ts`: add `export type WriterEngine = "lexical" | "docx
 ```
 In the initial state after `lastThesisId: null,`: `writerEngine: "lexical",` and after `setLastThesisId`: `setWriterEngine: (writerEngine) => set({ writerEngine }),`.
 
-- [ ] **Step 2: `reload` on the bridge store**
+- [x] **Step 2: `reload` on the bridge store**
 
 In `stores/lexical-editor-store.ts`, after `flushEdits` in the interface:
 ```ts
@@ -720,7 +720,7 @@ In `stores/lexical-editor-store.ts`, after `flushEdits` in the interface:
 ```
 Initial state: `reload: null,`; action: `registerReload: (f) => set({ reload: f }),`.
 
-- [ ] **Step 3: The Developer toggle**
+- [x] **Step 3: The Developer toggle**
 
 In `app/(app)/settings.tsx`, inside the `__DEV__` Developer `rows`, after the "Word Editor (native)" row:
 ```ts
@@ -742,7 +742,7 @@ and, with the other `useSettingsStore` selectors at the top of the component (pr
   const setWriterEngine = useSettingsStore((s) => s.setWriterEngine);
 ```
 
-- [ ] **Step 4: Gate and commit**
+- [x] **Step 4: Gate and commit**
 
 Run: `cd ~/kwill && npx tsc --noEmit` → silent.
 ```bash
@@ -758,7 +758,7 @@ These run INSIDE the WebView (they use `fetch`) but hold no React and no engine 
 - Create: `components/workspace/docx-editor/bridge/save-loop.ts`
 - Test: `components/workspace/docx-editor/bridge/load-document.test.ts`, `components/workspace/docx-editor/bridge/save-loop.test.ts`
 
-- [ ] **Step 1: Write the failing loader test**
+- [x] **Step 1: Write the failing loader test**
 
 ```ts
 // components/workspace/docx-editor/bridge/load-document.test.ts
@@ -807,12 +807,12 @@ describe("fetchDocument", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd ~/kwill && npx vitest run components/workspace/docx-editor/bridge/load-document.test.ts`
 Expected: FAIL — cannot resolve `./load-document`
 
-- [ ] **Step 3: Write the loader**
+- [x] **Step 3: Write the loader**
 
 ```ts
 // components/workspace/docx-editor/bridge/load-document.ts
@@ -848,7 +848,7 @@ export async function fetchDocument(o: {
 }
 ```
 
-- [ ] **Step 4: Run the loader test — PASS (5 tests). Then write the failing save-loop test**
+- [x] **Step 4: Run the loader test — PASS (5 tests). Then write the failing save-loop test**
 
 ```ts
 // components/workspace/docx-editor/bridge/save-loop.test.ts
@@ -973,7 +973,7 @@ describe("createSaveLoop", () => {
 });
 ```
 
-- [ ] **Step 5: Run it to verify it fails, then write the save loop**
+- [x] **Step 5: Run it to verify it fails, then write the save loop**
 
 Run: `cd ~/kwill && npx vitest run components/workspace/docx-editor/bridge/save-loop.test.ts` → FAIL (module missing).
 
@@ -1096,7 +1096,7 @@ export function createSaveLoop(o: {
 }
 ```
 
-- [ ] **Step 6: Run both tests — PASS (5 + 7). Gate and commit**
+- [x] **Step 6: Run both tests — PASS (5 + 7). Gate and commit**
 
 Run: `cd ~/kwill && npx vitest run && npx tsc --noEmit && node scripts/verify-use-dom.mjs | tail -1`
 ```bash
@@ -1114,7 +1114,7 @@ This replaces the current `DocxEditorDom.tsx` (the 2026-09-10 spike: fetch-by-UR
 - Rewrite: `components/workspace/docx-editor/DocxEditorDom.tsx`
 - Modify: `vitest.config.ts` — already includes `components/workspace/docx-editor/bridge/**/*.test.ts`
 
-- [ ] **Step 1: Failing test for the block-level id predicate**
+- [x] **Step 1: Failing test for the block-level id predicate**
 
 ```ts
 // components/workspace/docx-editor/bridge/dom-selectors.test.ts
@@ -1135,7 +1135,7 @@ describe("isBlockLevelId", () => {
 ```
 Run: `cd ~/kwill && npx vitest run components/workspace/docx-editor/bridge/dom-selectors.test.ts` → FAIL (module missing).
 
-- [ ] **Step 2: `dom-selectors.ts` — read the painted DOM without knowing its attribute names**
+- [x] **Step 2: `dom-selectors.ts` — read the painted DOM without knowing its attribute names**
 
 ```ts
 // components/workspace/docx-editor/bridge/dom-selectors.ts
@@ -1210,7 +1210,7 @@ export function spannedBlocks(sel: Selection | null): { blocks: SpannedBlock[]; 
 ```
 Run the test → PASS (2 tests).
 
-- [ ] **Step 3: `find-block.ts` — index → engine match (spec D7, the one allowed direction)**
+- [x] **Step 3: `find-block.ts` — index → engine match (spec D7, the one allowed direction)**
 
 ```ts
 // components/workspace/docx-editor/bridge/find-block.ts
@@ -1233,7 +1233,7 @@ export function findBlockMatch(editor: Editor, index: number, text: string, maxL
 }
 ```
 
-- [ ] **Step 4: `Bridge.tsx` — the React half, mounted as a CHILD of `<DocxEditor>` (it needs the editor context for the hooks, exactly as the web `TrialBubble` does)**
+- [x] **Step 4: `Bridge.tsx` — the React half, mounted as a CHILD of `<DocxEditor>` (it needs the editor context for the hooks, exactly as the web `TrialBubble` does)**
 
 ```tsx
 // components/workspace/docx-editor/bridge/Bridge.tsx
@@ -1442,7 +1442,7 @@ export function Bridge(p: BridgeProps) {
 }
 ```
 
-- [ ] **Step 5: Rewrite `DocxEditorDom.tsx`**
+- [x] **Step 5: Rewrite `DocxEditorDom.tsx`**
 
 ```tsx
 'use dom';
@@ -1596,12 +1596,12 @@ export default function DocxEditorDom({
 ```
 Note: `onChange` on `<DocxEditor>` is NOT used — `Bridge` subscribes to the `change` event itself so the structural flag and the dirty mark live in one place.
 
-- [ ] **Step 6: Gates**
+- [x] **Step 6: Gates**
 
 Run: `cd ~/kwill && npx vitest run && npx tsc --noEmit && node scripts/verify-use-dom.mjs | tail -1`
 Expected: all tests pass; tsc silent (if `chrome`, `className` or `snapshot().page` are rejected, read the prop's real name in `node_modules/@docx-editor.dev/react/dist/index.d.ts` — the web trial at `~/kwill-dashboard/src/features/editor/docx-editor/WordEditorTrial.tsx:255` compiles against the same 2.12.0 types and is the reference); `All 3 'use dom' module(s) bundle cleanly`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add components/workspace/docx-editor && git commit -m "feat(docx): DOM surface with the native command/state bridge, save loop and reload"
@@ -1614,7 +1614,7 @@ Mirrors `WorkspaceLexicalView`'s host duties for Phase 1 (its `onState` handling
 **Files:**
 - Create: `components/workspace/WorkspaceDocxView.tsx`
 
-- [ ] **Step 1: Write the host**
+- [x] **Step 1: Write the host**
 
 ```tsx
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -1826,7 +1826,7 @@ const styles = StyleSheet.create({
 ```
 `editorTopRef` from `onLayout.y` is the editor's offset inside its parent; `WorkspaceLexicalView` measures the absolute screen top with `measureInWindow` — copy its `wrapRef.current?.measureInWindow(...)` block into this host's `onLayout` if the pill lands offset (it will on Android where the status-bar strip is above).
 
-- [ ] **Step 2: Gate and commit**
+- [x] **Step 2: Gate and commit**
 
 Run: `cd ~/kwill && npx tsc --noEmit` → silent. `git add components/workspace/WorkspaceDocxView.tsx && git commit -m "feat(docx): native host for the docx Writer surface"`.
 
@@ -1835,7 +1835,7 @@ Run: `cd ~/kwill && npx tsc --noEmit` → silent. `git add components/workspace/
 **Files:**
 - Modify: `app/(app)/thesis-workspace.tsx` (import ≈line 55; the mount ≈line 870)
 
-- [ ] **Step 1: Switch the Writer layer**
+- [x] **Step 1: Switch the Writer layer**
 
 Add the import next to `WorkspaceLexicalView`'s: `import { WorkspaceDocxView } from "@/components/workspace/WorkspaceDocxView";` and, with the screen's other primitive selectors, `const writerEngine = useSettingsStore((s) => s.writerEngine);` (add the `useSettingsStore` import if the file does not have it — `grep -n useSettingsStore "app/(app)/thesis-workspace.tsx"`).
 
@@ -1856,11 +1856,11 @@ Replace the `<WorkspaceLexicalView … />` element with:
               )}
 ```
 
-- [ ] **Step 2: Retire the spike screen**
+- [x] **Step 2: Retire the spike screen**
 
 `app/(app)/word-native.tsx` was the 2026-09-10 proof that the editor bundles; it passes the OLD `docxUrl` prop and no longer compiles against Task 9. The flag replaces it: delete the file, its `<Stack.Screen name="word-native" />` line in `app/(app)/_layout.tsx`, and the "Word Editor (native)" row in `app/(app)/settings.tsx`. Keep `word-trial.tsx` (the WebView-onto-the-web-app baseline) — it is the side-by-side comparison for Task 12.
 
-- [ ] **Step 3: Gate and commit**
+- [x] **Step 3: Gate and commit**
 
 Run: `cd ~/kwill && npx tsc --noEmit && node scripts/verify-use-dom.mjs | tail -1`.
 ```bash
@@ -1891,7 +1891,7 @@ git add "app/(app)/thesis-workspace.tsx" "app/(app)/_layout.tsx" "app/(app)/sett
 
 Record anything that fails in `docs/superpowers/plans/2026-09-10-docx-editor-migration.md` under a "Phase 1 findings" heading before moving on — Phases 2–4 are expanded from those findings.
 
-- [ ] **Step 3: The export gate**
+- [x] **Step 3: The export gate**
 
 Run: `cd ~/kwill && npx expo export --platform android --output-dir /tmp/kwill-export 2>&1 | grep -E "Bundled|failed"; git diff --stat app.json`
 Expected: four `Bundled` lines, no `failed`; an EMPTY `app.json` diff (if not: `git checkout app.json`).
@@ -1901,6 +1901,21 @@ Expected: four `Bundled` lines, no `failed`; an EMPTY `app.json` diff (if not: `
 ```bash
 git add docs/superpowers/plans/2026-09-10-docx-editor-migration.md && git commit -m "docs(plan): Phase 1 findings from device verification"
 ```
+
+### Phase 1 findings (2026-09-11)
+
+Tasks 1–11 were built and reviewed task-by-task (subagent-driven, two-stage review). **Task 12's device checklist has NOT been run** — it needs a physical Android phone; the export gate (Step 3) is green: four `Bundled` lines, no `failed`, `app.json` unchanged. The server commits are **not deployed** (Task 2 Step 6 pending: `npm run deploy` as a patch after the device check).
+
+What the build taught that the plan did not know:
+
+- **The installed engine is `@docx-editor.dev/*` 2.16.0, not 2.12.** There is **no `applyFormatting` command**. Marks SET semantics are done in `Bridge.tsx` by comparing `editor.isActive(commandForSlot("text.<mark>"))` with the wanted boolean and executing `toggleMark` only on a difference; colour is `commandForSlotValue("text.color", HEX | "auto")` → `setMarkAttr {mark:"color", attr:"val"}`. `commandForSlotValue` is not re-exported by `@docx-editor.dev/react` (imported from `@docx-editor.dev/core/editor`, which Metro maps to `dist/editor.cjs`); `TextMatch` only from `@docx-editor.dev/core/contracts/editor` (type-only). `getSelectionFormatting()` is nullable.
+- **`scripts/verify-use-dom.mjs` follows only relative specifiers**, so the bare `@docx-editor.dev/core/editor` import in `Bridge.tsx` is not covered by that gate; `expo export` is.
+- **The plan's `save-loop.ts` lost a chained save** (two `flush()` calls before the first `saveOnce` ran cleared `dirty` for both). Fixed by consuming `dirty` synchronously at the call site; the plan's "chained" test also asserted before any microtask could run and was given an `await vi.advanceTimersByTimeAsync(0)`.
+- **Task 2's premise was stale**: `PUT /:id/docx` existed only *uncommitted* (the 2026-09-10 trial), so `72ea612` introduced both routes. Review then found that the content-derived GET ETag (`hashOf(bytes served)`) turns any byte writer that skips `theses.docHash` into a **permanent 412** — `apply_formatting` (MCP) and the rescue rebuild were such writers and now go through `persistThesisDocx` / set `docHash`. Rule for the future: every writer of the live bytes must update `docHash`.
+- **Runtime facts the type gates cannot see (found by review of Task 9, fixed in `81a693b`):** `EditorSnapshot.isLoading` never flips once bytes were supplied, so anything keyed on it after `load()` never runs — caret restore now runs off the `change`/`selectionChange` events. `useEditorCommand` returns a fresh object per state change, and a memoised report reads a mount-time snapshot — read live with `toolbarCommandState(editor, slot)` / execute with `runToolbarCommand` (both exported from `@docx-editor.dev/react`). `Editor.isActive` is derived only for marks and alignment at 2.16 — list `blockType` cannot be reported until the engine derives `toggleList`. A programmatic `load()` emits a `change` — it must not mark the document dirty. `document.hasFocus()` lags in a WebView: `userDriven` is `focused || recent`, never an AND. In a release build the DOM page loads from `file:///android_asset/www.bundle/…`, so the wasm URL must be resolved against `document.baseURI`; **`public/harfbuzz.wasm` is NOT packaged beside the page**: in the 09-11 `expo export` it sits at the export root while the DOM pages are in `www.bundle/`, so a release build (page at `file:///android_asset/www.bundle/…`) probably cannot reach it by any URL — the shaper would fall back to fixed-width metrics, now surfaced to the host as `onError("wasmUnavailable")` instead of a console warning. Dev (Metro serves `public/`) is unaffected. **Pull Task 29 (`require()` the wasm) forward to right after the device pass.**
+- `className="h-full"` on `<DocxEditor>` is inert in the DOM document (nativewind does not process it); `PAGE_CSS` defines `.h-full{height:100%}` itself.
+- Server tsconfig is non-strict; a `{ stale: true as const }` / `{ stale: false as const }` union does not narrow at the return position, so the PUT's lock callback returns one shape.
+- Three server commits initially swept in the uncommitted `mdocxengine`→`@kwill/docx-engine` rename hunks of files they touched; each was split so HEAD stays consistent with the committed `package.json`. Check `git diff -- <file>` before editing a file in that tree.
 
 ---
 
