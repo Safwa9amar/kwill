@@ -102,12 +102,17 @@ export default function DocxEditorDom({
   useEffect(() => () => { void saveLoop.flush().catch(() => {}).finally(() => saveLoop.dispose()); }, [saveLoop]);
 
   useEffect(() => {
-        let alive = true;
+    let alive = true;
     void (async () => {
       try {
         // The shaper must be ready BEFORE the editor opens the bytes (see
-        // bridge/shaper.ts); a failure here is the wasmUnavailable case.
-        await ensureShaper();
+        // bridge/shaper.ts). A failure is REPORTED, not fatal: the document
+        // still opens with fixed-width metrics (pagination then differs from
+        // Word) rather than leaving the student a blank screen — the case an
+        // OTA update hits today, since public/ does not travel with updates.
+        await ensureShaper().catch((e) => {
+          void onError?.(`text shaping is unavailable, so page layout will differ from Word: ${String((e as Error)?.message ?? e)}`);
+        });
         const r = await fetchDocument({ apiBase, thesisId, token });
         if (!alive || r.status !== 200) return;
         saveLoop.setHash(r.docHash);

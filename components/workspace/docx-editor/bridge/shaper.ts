@@ -19,16 +19,27 @@
 
 import { load } from "harfbuzzjs";
 
+// EXPO_BASE_URL is inlined at build time: "/" in dev (Metro serves public/ from
+// its root) and "./" in a release build (expo embeds public/ INTO www.bundle,
+// next to the DOM page). It is undefined only under vitest.
 export function wasmUrl(baseUrl: string | undefined = process.env.EXPO_BASE_URL): string {
   return `${baseUrl ?? ""}harfbuzz.wasm`;
 }
 
 let pending: Promise<void> | null = null;
 
+/** Resolves once the shaper is initialised; memoised on success, forgotten on
+ *  failure so a remount can retry (a transient 404 must not disable shaping
+ *  for the life of the WebView). `locateFile` is the ONLY working path: the
+ *  factory's own fallback is `new URL(…, import.meta.url)`, and Expo's
+ *  import.meta registry answers null in a DOM bundle. */
 export function ensureShaper(o: { load?: typeof load; baseUrl?: string } = {}): Promise<void> {
   if (!pending) {
     const url = wasmUrl(o.baseUrl);
-    pending = (o.load ?? load)({ locateFile: () => url });
+    pending = (o.load ?? load)({ locateFile: () => url }).catch((e) => {
+      pending = null;
+      throw e;
+    });
   }
   return pending;
 }

@@ -28,17 +28,21 @@ describe("harfbuzzjs patch", () => {
 describe("wasmUrl", () => {
   it("prefixes the public asset with EXPO_BASE_URL (Expo's documented DOM-component form)", () => {
     expect(wasmUrl("http://192.168.1.2:8081/")).toBe("http://192.168.1.2:8081/harfbuzz.wasm");
-    expect(wasmUrl("")).toBe("harfbuzz.wasm");
-    expect(wasmUrl(undefined)).toBe("harfbuzz.wasm");
+    expect(wasmUrl("/")).toBe("/harfbuzz.wasm");     // dev: Metro serves public/ at the root
+    expect(wasmUrl("./")).toBe("./harfbuzz.wasm");   // release: public/ is embedded into www.bundle
+    expect(wasmUrl(undefined)).toBe("harfbuzz.wasm"); // vitest only (no inlining)
   });
 });
 
 describe("ensureShaper", () => {
-  it("loads once with a locateFile that answers the wasm URL, and memoises", async () => {
+  it("forgets a failed load so the next call retries, then memoises the success", async () => {
+    const failing = vi.fn(async () => { throw new Error("404"); });
+    await expect(ensureShaper({ load: failing, baseUrl: "http://x/" })).rejects.toThrow("404");
     const load = vi.fn(async () => {});
     const p1 = ensureShaper({ load, baseUrl: "http://x/" });
     const p2 = ensureShaper({ load, baseUrl: "http://x/" });
     await p1; await p2;
+    expect(failing).toHaveBeenCalledTimes(1);
     expect(load).toHaveBeenCalledTimes(1);
     const arg = (load.mock.calls[0] as unknown as [{ locateFile: (p: string) => string }])[0];
     expect(arg.locateFile("harfbuzz.wasm")).toBe("http://x/harfbuzz.wasm");
