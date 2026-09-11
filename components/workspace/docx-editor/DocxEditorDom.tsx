@@ -1,44 +1,31 @@
 'use dom';
 
-// The eigenpal docx-editor, bundled INTO the app as an Expo DOM component.
+// The docx-editor as THE Writer surface, bundled into the app as an Expo DOM
+// component. Speaks the native chrome's existing contract (LexicalCommand in,
+// LexicalState out — see bridge/Bridge.tsx), loads and saves the document itself
+// (bytes never cross the JSON bridge), and reloads on request.
 //
-// This is the native counterpart of the web trial at /app/<id>/word: the same
-// @docx-editor.dev packages, but resolved by Metro and shipped in the binary,
-// so the editor works with no Next.js server in front of it.
+// ⚠️ babel-preset-expo allows this module ONE export, the default. Everything
+// else lives in ./bridge/. Gate: node scripts/verify-use-dom.mjs.
 //
-// ⚠️ babel-preset-expo's use-dom-directive plugin allows this module exactly ONE
-// export and it must be the default. A named non-type export is a BUNDLE-time
-// failure that renders the host screen blank, and `npx tsc --noEmit` cannot see
-// it. The gate is `node scripts/verify-use-dom.mjs`.
-//
-// TWO ASSET PROBLEMS, because the packages resolve their own bytes with
-// `new URL(..., import.meta.url)` — a form Webpack/Vite turn into emitted
-// assets and Metro does NOT:
-//
-//   1. harfbuzz.wasm. Without it the shaper reports `wasmUnavailable` and
-//      silently falls back to fixed-width measurement — which would make this
-//      render nothing trustworthy about pagination. Fixed by pointing
-//      setHarfBuzzWasmUrl at a copy served from public/, which Expo copies into
-//      the binary for DOM components. ⚠️ public assets do NOT travel over EAS
-//      Update; a package upgrade that changes the wasm needs a REBUILD, and the
-//      runtime refuses a version mismatch rather than shaping with unverified
-//      metrics.
-//
-//   2. The bundled font bytes. `loadDefaultFonts()` from @docx-editor.dev/fonts
-//      resolves every .ttf the same unsupported way, so it is NOT used here.
-//      Fonts come from the package's Google resolver instead, over the network.
-//      That is the deliberate trade: no offline fonts yet, in exchange for an
-//      editor that loads at all. See makeFontResolver below.
+// Assets: harfbuzz.wasm is served from public/ (copied into the binary; not
+// OTA-updatable — Task 29 moves it to require()). Without it the shaper reports
+// `wasmUnavailable` and silently falls back to fixed-width measurement, which
+// would make nothing about pagination trustworthy. Fonts come from the package's
+// Google resolver until Task 27 bundles Arabic faces; loadDefaultFonts() is never
+// used because its `new URL(…, import.meta.url)` cannot resolve under Metro.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DocxEditor } from "@docx-editor.dev/react";
-import type { DocxEditorRef, FontConfigurationFragment, FontResolver } from "@docx-editor.dev/react";
+import type { DocxEditorRef, Editor, FontConfigurationFragment, FontResolver } from "@docx-editor.dev/react";
 import { setHarfBuzzWasmUrl } from "@docx-editor.dev/core/layout";
 import { googleFonts } from "@docx-editor.dev/fonts/google";
 import "@docx-editor.dev/core/styles/editor.css";
+import type { LexicalCommand, LexicalState } from "@/components/workspace/lexical/editor-components/types";
+import { Bridge } from "./bridge/Bridge";
+import { fetchDocument } from "./bridge/load-document";
+import { createSaveLoop, type SaveState } from "./bridge/save-loop";
 
-// Expo copies public/ into the binary and serves it to DOM components under
-// this base. In dev it is Metro's origin; in a release build, the file:// root.
 let wasmConfigured = false;
 function ensureWasm(): void {
   if (wasmConfigured) return;
@@ -47,10 +34,10 @@ function ensureWasm(): void {
 }
 
 /**
- * Arabic is the whole point of this app, and Amiri is the only Arabic family in
- * the package's Google catalogue — it is NOT metric-compatible with Traditional
- * Arabic or Sakkal Majalla, so an Arabic thesis paginates like Amiri rather
- * than like Word. Same known limit as the web trial; not a bug to chase here.
+ * Amiri is the only Arabic family in the package's Google catalogue, and it is
+ * NOT metric-compatible with Traditional Arabic or Sakkal Majalla — so an Arabic
+ * thesis paginates like Amiri rather than like Word. Same known limit as the web
+ * trial; not a bug to chase here.
  */
 function makeFontResolver(): FontResolver {
   const google = googleFonts({
@@ -63,77 +50,109 @@ function makeFontResolver(): FontResolver {
   });
   return async (request): Promise<FontConfigurationFragment> => {
     const fragment = await google(request);
-    if (fragment.failures.length) {
-      console.warn("[docx-dom] font faces that failed to load:", fragment.failures);
-    }
+    if (fragment.failures.length) console.warn("[docx] font faces that failed to load:", fragment.failures);
     return { sources: fragment.sources, substitutions: fragment.substitutions };
   };
 }
 
-/**
- * Props cross the DOM-component JSON bridge, so every one is serializable and
- * every callback is async.
- *
- * The document arrives as a URL, NOT as bytes. An ArrayBuffer cannot cross the
- * bridge at all, and base64 could — but a thesis runs to megabytes, and pushing
- * that through a JSON transport would stall the bridge on every open. The
- * WebView has its own network stack, so it fetches the signed URL itself and
- * the bytes never touch the native side.
- */
+// The WebView gives the page no height of its own; the engine needs one. `.h-full`
+// is spelled out here rather than left to Tailwind — nativewind does not process
+// this document, so the class would otherwise be inert.
+const PAGE_CSS = "html,body,#root{height:100%;margin:0;overflow:hidden;background:#f0f0f5}.h-full{height:100%}";
+
 export default function DocxEditorDom({
-  docxUrl,
-  onReady,
-  onError,
-  onDirty,
+  apiBase, thesisId, token, command, scrollToIndex, reloadNonce, flushNonce,
+  onState, onSave, onReady, onFlushed, onReloaded, onServerFormat, onError,
   dom: _dom,
 }: {
-  docxUrl: string;
-  onReady?: () => Promise<void>;
+  apiBase: string;
+  thesisId: string;
+  token: string;
+  command?: LexicalCommand | null;
+  scrollToIndex?: { index: number; text: string; nonce: number } | null;
+  reloadNonce?: number;
+  flushNonce?: number;
+  onState: (s: LexicalState) => Promise<void>;
+  onSave?: (s: SaveState) => Promise<void>;
+  onReady?: (info: { pages: number; docHash: string | null }) => Promise<void>;
+  onFlushed?: (nonce: number) => Promise<void>;
+  onReloaded?: (docHash: string | null) => Promise<void>;
+  onServerFormat?: (index: number, changes: { direction: "rtl" | "ltr" }) => Promise<void>;
   onError?: (message: string) => Promise<void>;
-  onDirty?: () => Promise<void>;
   dom?: import("expo/dom").DOMProps;
 }) {
   const ref = useRef<DocxEditorRef>(null);
-  const [bytes, setBytes] = useState<Uint8Array | null>(null);
+  const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
+  const tokenRef = useRef(token);
+  tokenRef.current = token;
+  const fonts = useMemo(() => makeFontResolver(), []);
+
+  // One save loop per mount; getBytes is bound to the ref so it always saves the
+  // editor that is on screen.
+  const saveLoop = useMemo(
+    () => createSaveLoop({
+      apiBase, thesisId,
+      token: () => tokenRef.current,
+      getBytes: async () => (await ref.current?.save()) ?? null,
+      onState: (s) => void onSave?.(s),
+    }),
+    [apiBase, thesisId], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  useEffect(() => () => saveLoop.dispose(), [saveLoop]);
 
   useEffect(() => {
     ensureWasm();
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
+    let alive = true;
     void (async () => {
       try {
-        const res = await fetch(docxUrl);
-        if (!res.ok) throw new Error(`${res.status} fetching the document`);
-        const buf = await res.arrayBuffer();
-        if (!cancelled) setBytes(new Uint8Array(buf));
+        const r = await fetchDocument({ apiBase, thesisId, token });
+        if (!alive || r.status !== 200) return;
+        saveLoop.setHash(r.docHash);
+        setBytes(r.bytes);
       } catch (e) {
-        if (!cancelled) void onError?.(`could not load the document: ${String(e)}`);
+        if (alive) void onError?.(`could not load the document: ${String(e)}`);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [docxUrl, onError]);
+    return () => { alive = false; };
+  }, [apiBase, thesisId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleReady = useCallback(() => {
-    void onReady?.();
-  }, [onReady]);
+  const handleReady = (editor: Editor) => {
+    void onReady?.({ pages: editor.snapshot().page.total, docHash: saveLoop.getHash() });
+  };
 
-  const handleChange = useCallback(() => {
-    void onDirty?.();
-  }, [onDirty]);
-
-  if (!bytes) return null;
+  if (!bytes) return <style>{PAGE_CSS}</style>;
 
   return (
-    <DocxEditor
-      ref={ref}
-      document={bytes}
-      fonts={makeFontResolver()}
-      onReady={handleReady}
-      onChange={handleChange}
-    />
+    <div style={{ height: "100%" }}>
+      <style>{PAGE_CSS}</style>
+      <DocxEditor
+        ref={ref}
+        document={bytes}
+        mode="edit"
+        fonts={fonts}
+        colorMode="light"
+        zoomMode="auto"
+        chrome={false}
+        onReady={handleReady}
+        onFontError={(e) => console.warn("[docx] font error", e.code)}
+        className="h-full"
+      >
+        <Bridge
+          editorRef={ref}
+          saveLoop={saveLoop}
+          apiBase={apiBase}
+          thesisId={thesisId}
+          token={token}
+          command={command}
+          scrollToIndex={scrollToIndex}
+          reloadNonce={reloadNonce}
+          flushNonce={flushNonce}
+          onState={(s) => void onState(s)}
+          onFlushed={(n) => void onFlushed?.(n)}
+          onReloaded={(h) => void onReloaded?.(h)}
+          onServerFormat={(i, c) => void onServerFormat?.(i, c)}
+        />
+      </DocxEditor>
+    </div>
   );
 }
