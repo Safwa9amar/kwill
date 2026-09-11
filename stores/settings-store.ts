@@ -8,6 +8,8 @@ type Language = "ar" | "en" | "fr";
 
 export type ToolbarOrientation = "horizontal" | "vertical";
 
+export type WriterEngine = "lexical" | "docx";
+
 interface SettingsState {
   theme: ThemeName;
   language: Language;
@@ -33,12 +35,17 @@ interface SettingsState {
   // launch has to know which document to paint before any screen has mounted —
   // hence persisted here rather than in the (in-memory) thesis store.
   lastThesisId: string | null;
+  // Which surface the workspace mounts as the Writer (spec D12). "lexical" is the
+  // shipping editor; "docx" is the docx-editor migration behind Settings →
+  // Developer until parity is verified, then the default flips (Phase 5).
+  writerEngine: WriterEngine;
   setTheme: (theme: ThemeName) => void;
   setLanguage: (language: Language) => void;
   completeOnboarding: () => void;
   setAutocompleteEnabled: (v: boolean) => void;
   setToolbarOrientation: (v: ToolbarOrientation) => void;
   setLastThesisId: (id: string | null) => void;
+  setWriterEngine: (v: WriterEngine) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -55,6 +62,7 @@ export const useSettingsStore = create<SettingsState>()(
       autocompleteTouched: false,
       toolbarOrientation: "vertical",
       lastThesisId: null,
+      writerEngine: "lexical",
       setTheme: (theme) => set({ theme }),
       setLanguage: (language) => set({ language }),
       completeOnboarding: () => set({ hasCompletedOnboarding: true }),
@@ -66,6 +74,7 @@ export const useSettingsStore = create<SettingsState>()(
       },
       setToolbarOrientation: (v) => set({ toolbarOrientation: v }),
       setLastThesisId: (id) => set({ lastThesisId: id }),
+      setWriterEngine: (writerEngine) => set({ writerEngine }),
     }),
     {
       name: "kwill-settings",

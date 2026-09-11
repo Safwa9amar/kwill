@@ -70,6 +70,8 @@ export default function SettingsScreen() {
   const setAutocompleteEnabled = useSettingsStore((s) => s.setAutocompleteEnabled);
   const toolbarOrientation = useSettingsStore((s) => s.toolbarOrientation);
   const setToolbarOrientation = useSettingsStore((s) => s.setToolbarOrientation);
+  const writerEngine = useSettingsStore((s) => s.writerEngine);
+  const setWriterEngine = useSettingsStore((s) => s.setWriterEngine);
   // Selected as two primitives, not a derived object — a fresh literal from a
   // selector re-renders on every store write (see the Zustand selector trap).
   const byokEnabled = useByokStore((s) => s.enabled);
@@ -276,6 +278,17 @@ export default function SettingsScreen() {
                 label: "Word Editor (native)",
                 type: "chevron" as const,
                 onPress: () => router.push("/(app)/word-native" as any),
+              },
+              {
+                // Spec D12: the docx-editor as THE Writer surface in the workspace,
+                // instead of the Lexical editor. Persisted; takes effect on the next
+                // workspace open.
+                icon: FileText,
+                iconColor: colors.brandPrimary,
+                label: "Writer: docx-editor",
+                type: "toggle" as const,
+                toggleValue: writerEngine === "docx",
+                onToggle: (v: boolean) => setWriterEngine(v ? "docx" : "lexical"),
               },
             ],
           },

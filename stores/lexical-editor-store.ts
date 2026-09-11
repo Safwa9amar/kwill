@@ -54,6 +54,12 @@ interface LexicalEditorState {
   // Callers that are about to act on the SERVER doc (AI turn) await it so pending
   // typing lands first; resolves immediately when no Writer is mounted.
   flushEdits: (() => Promise<void>) | null;
+  // Waitable RELOAD of the docx surface from the server's bytes (registered by the
+  // docx Writer view; null under Lexical, which reseeds from the DTO instead).
+  // Callers that just mutated the document on the SERVER — a sheet, a chart edit,
+  // history undo — await it so the student sees the result. Conditional on the
+  // document hash, so a no-op is one 304. Spec D3.
+  reload: (() => Promise<void>) | null;
   // Consume-once flag: set right before a pill edit mutates the doc so the editor
   // view skips the reseed (it already applied the edit in place).
   skipReseed: boolean;
@@ -67,6 +73,7 @@ interface LexicalEditorState {
   setActive: (a: boolean) => void;
   setHistoryAvail: (canUndo: boolean, canRedo: boolean) => void;
   registerFlushEdits: (f: (() => Promise<void>) | null) => void;
+  registerReload: (f: (() => Promise<void>) | null) => void;
   requestSkipReseed: () => void;
   consumeSkipReseed: () => boolean;
   requestForceReseed: () => void;
@@ -94,6 +101,7 @@ export const useLexicalEditorStore = create<LexicalEditorState>((set, get) => ({
   canUndo: false,
   canRedo: false,
   flushEdits: null,
+  reload: null,
   skipReseed: false,
   forceReseed: false,
   dispatch: (type, value) => set({ command: { type, value, nonce: ++nonce } }),
@@ -106,6 +114,7 @@ export const useLexicalEditorStore = create<LexicalEditorState>((set, get) => ({
     if (s.canUndo !== canUndo || s.canRedo !== canRedo) set({ canUndo, canRedo });
   },
   registerFlushEdits: (f) => set({ flushEdits: f }),
+  registerReload: (f) => set({ reload: f }),
   requestSkipReseed: () => set({ skipReseed: true }),
   consumeSkipReseed: () => {
     if (!get().skipReseed) return false;
