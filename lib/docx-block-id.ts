@@ -28,6 +28,6 @@ export function blockIndexFromId(id: string | null | undefined): number | null {
 
 /** Only the main body's indices are block indices — a header or footnote story
  *  has its own numbering and must never be mistaken for one. */
-export function isBodyId(id: string | null | undefined): boolean {
+export function isBodyId(id: string | null | undefined): id is string {
   return !!id && id.startsWith(BODY_PART);
 }

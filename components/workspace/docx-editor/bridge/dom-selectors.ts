@@ -13,7 +13,7 @@ import { blockIndexFromId, isBodyId } from "@/lib/docx-block-id";
 const BODY_PREFIX = "/word/document.xml#";
 
 export function isBlockLevelId(id: string | null | undefined): boolean {
-  return isBodyId(id) && /#\d+\.\d+\.\d+$/.test(id as string);
+  return isBodyId(id) && /#\d+\.\d+\.\d+$/.test(id);
 }
 
 /** The body node id an element carries, if any. */

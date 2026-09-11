@@ -1,16 +1,23 @@
 // The live half of the bridge. Runs inside the engine's React context (a child
-// of <DocxEditor>), so the slot/style/format hooks resolve. Owns: the selection
-// report (engine → LexicalState), command execution (LexicalCommand → engine),
-// the save loop's triggers, flush, reload and scroll-to-index.
+// of <DocxEditor>), so the paragraph style/format hooks resolve. Owns: the
+// selection report (engine → LexicalState), command execution (LexicalCommand →
+// engine), the save loop's triggers, flush, reload and scroll-to-index.
 //
-// Hooks are called UNCONDITIONALLY and the slot table is fixed — React's rule.
+// ⚠️ Everything the REPORT reads is asked of the engine at the moment it runs.
+// `report` is dispatched from the engine's own event loop, BEFORE React has
+// re-rendered, so any value captured from a render — a `useEditorCommand` result
+// object, a memoised callback's closure — is by construction one event stale, and
+// for a slot table that only re-memoises on a state change it is frozen at mount
+// (that bug shipped: undo/redo permanently disabled, lists never reported).
+// `toolbarCommandState(editor, id)` and `runToolbarCommand(editor, id)` are the
+// hook-free forms of the same can/exec path, so nothing here needs a slot table.
 
-import { useCallback, useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import {
   commandForSlot,
-  useEditorCommand,
+  runToolbarCommand,
+  toolbarCommandState,
   useEditorEvent,
-  useEditorState,
   useParagraphFormat,
   useParagraphStyle,
 } from "@docx-editor.dev/react";
@@ -29,10 +36,24 @@ import { fetchDocument } from "./load-document";
 import type { SaveLoop } from "./save-loop";
 
 // A report counts as the student's own doing for this long after a touch/key.
-// Same constant, same reason as Lexical's EditorBridge: focus leaving the WebView
-// (tapping ✦ Ask) collapses the selection, and the host must be able to refuse
-// the phantom single-block report that follows.
+// Lexical's EditorBridge uses 700ms; this surface is a WebView over a paginated
+// engine whose selection settles later, so it keeps the plan's wider window.
 const DRIVING_MS = 1500;
+const DRIVING_EVENTS = ["pointerdown", "touchstart", "mousedown", "keydown", "beforeinput"] as const;
+
+// How long a pending caret restore keeps retrying after a load(). The engine
+// re-parses asynchronously, so the first events after `load()` can still see the
+// old (or no) document; each one retries, and this bounds it.
+const RESTORE_WINDOW_MS = 8000;
+
+// The twelve slots the native chrome can reach, as a runtime guard: mapCommand
+// hands back a plain string and ChromeSlotId is a compile-time union.
+const SLOTS = new Set<string>([
+  "text.bold", "text.italic", "text.underline",
+  "alignment.left", "alignment.center", "alignment.right", "alignment.justify",
+  "list.bullet", "list.numbered", "format.clear", "history.undo", "history.redo",
+]);
+const asSlot = (s: string): ChromeSlotId | null => (SLOTS.has(s) ? (s as ChromeSlotId) : null);
 
 // SET semantics over a TOGGLE vocabulary. The engine has no "make it bold"
 // command — `toggleMark` flips — while the pill's blockFormat carries booleans
@@ -55,11 +76,12 @@ function applyMarks(editor: Editor, marks: Record<string, unknown>): void {
   }
   if ("color" in marks) {
     const c = marks.color as { kind?: string; value?: string } | null | undefined;
-    const value = c?.kind === "hex" && c.value ? c.value : "auto";
-    const cmd = commandForSlotValue("text.color", value);
+    const cmd = commandForSlotValue("text.color", c?.kind === "hex" && c.value ? c.value : "auto");
     if (cmd) editor.exec(cmd);
   }
 }
+
+export type BlockRef = { index: number; text: string };
 
 export type BridgeProps = {
   editorRef: RefObject<DocxEditorRef | null>;
@@ -74,43 +96,63 @@ export type BridgeProps = {
   onState: (s: LexicalState) => void;
   onFlushed: ((nonce: number) => void) | undefined;
   onReloaded: ((docHash: string | null) => void) | undefined;
-  onServerFormat: ((index: number, changes: { direction: "rtl" | "ltr" }) => void) | undefined;
+  // The block carries its TEXT as well as its index: between a local structural
+  // edit and the re-parse that follows the save, an index alone can name the
+  // wrong paragraph, and the host re-resolves by text before it mutates.
+  onServerFormat: ((target: BlockRef, changes: { direction: "rtl" | "ltr" }) => void) | undefined;
 };
 
 export function Bridge(p: BridgeProps) {
   const editorOf = () => p.editorRef.current?.getEditor() ?? null;
   const drivenAt = useRef(0);
-  const lastFocus = useRef<{ index: number; text: string } | null>(null);
+  const pageFocused = useRef(true);
+  const lastFocus = useRef<BlockRef | null>(null);
   const structureChanged = useRef(false);
-  const restore = useRef<{ index: number; text: string } | null>(null);
+  const restore = useRef<(BlockRef & { until: number }) | null>(null);
+  // The first change after mount belongs to the document the host handed in as a
+  // prop, not to the student. See `onChange` below.
+  const programmatic = useRef(true);
+  // The store replays its last command to a freshly mounted surface; that nonce
+  // was already acted on by whoever was mounted before us.
+  const seenNonce = useRef(p.command?.nonce ?? -1);
 
-  // Fixed slot table (hooks, unconditional).
-  const slots: Record<string, ReturnType<typeof useEditorCommand>> = {
-    "text.bold": useEditorCommand("text.bold"),
-    "text.italic": useEditorCommand("text.italic"),
-    "text.underline": useEditorCommand("text.underline"),
-    "alignment.left": useEditorCommand("alignment.left"),
-    "alignment.center": useEditorCommand("alignment.center"),
-    "alignment.right": useEditorCommand("alignment.right"),
-    "alignment.justify": useEditorCommand("alignment.justify"),
-    "list.bullet": useEditorCommand("list.bullet"),
-    "list.numbered": useEditorCommand("list.numbered"),
-    "format.clear": useEditorCommand("format.clear"),
-    "history.undo": useEditorCommand("history.undo"),
-    "history.redo": useEditorCommand("history.redo"),
-  };
   const style = useParagraphStyle();
   const para = useParagraphFormat();
-  const isLoading = useEditorState((s) => s.isLoading);
 
+  // Two independent signals, because neither is trustworthy alone on a WebView:
+  // `hasFocus()` lags a focus change, and the page can keep `activeElement` after
+  // the native view has taken focus away. Mirrors EditorBridge's `focused ||
+  // recent` — an AND would make every report after a lagging blur `userDriven:
+  // false`, and the host refuses a selection shrink on exactly that flag.
   useEffect(() => {
-    const mark = () => { drivenAt.current = Date.now(); };
-    for (const ev of ["pointerdown", "keydown", "touchstart"]) document.addEventListener(ev, mark, true);
-    return () => { for (const ev of ["pointerdown", "keydown", "touchstart"]) document.removeEventListener(ev, mark, true); };
+    const stamp = () => { drivenAt.current = Date.now(); pageFocused.current = true; };
+    const gained = () => { pageFocused.current = true; };
+    const lost = () => { pageFocused.current = false; };
+    for (const e of DRIVING_EVENTS) document.addEventListener(e, stamp, true);
+    window.addEventListener("focus", gained);
+    window.addEventListener("blur", lost);
+    return () => {
+      for (const e of DRIVING_EVENTS) document.removeEventListener(e, stamp, true);
+      window.removeEventListener("focus", gained);
+      window.removeEventListener("blur", lost);
+    };
   }, []);
 
+  const isUserDriven = (): boolean => {
+    const root = document.querySelector('[contenteditable="true"]');
+    const focused =
+      pageFocused.current &&
+      (typeof document.hasFocus !== "function" || document.hasFocus()) &&
+      // Nothing editable on the page yet — never veto on a signal we don't have.
+      (!root || root === document.activeElement || root.contains(document.activeElement));
+    return focused || Date.now() - drivenAt.current < DRIVING_MS;
+  };
+
   // ── engine → native: the selection report ──
-  const report = useCallback(() => {
+  // NOT memoised: `useEditorEvent` keeps the latest handler in a ref and
+  // subscribes once, so a fresh closure every render is both correct and the
+  // only way this reads current props.
+  const report = () => {
     const editor = editorOf();
     if (!editor) return;
     const sel = window.getSelection();
@@ -120,8 +162,8 @@ export function Bridge(p: BridgeProps) {
     const fmt = editor.getSelectionFormatting();
     const styleId = fmt?.styleId ?? "";
     const h = /^Heading([1-6])$/.exec(styleId);
-    const blockType = slots["list.bullet"].isActive ? "bullet"
-      : slots["list.numbered"].isActive ? "number"
+    const blockType = toolbarCommandState(editor, "list.bullet").active ? "bullet"
+      : toolbarCommandState(editor, "list.numbered").active ? "number"
       : h ? `h${h[1]}`
       : styleId === "Quote" ? "quote"
       : "paragraph";
@@ -134,17 +176,62 @@ export function Bridge(p: BridgeProps) {
       index: focus?.index ?? -1,
       text: focus?.text ?? "",
       blocks: blocks.map(({ index, text }) => ({ index, text })),
-      y: rect && rect.height > 0 ? rect.top : -1,
-      canUndo: slots["history.undo"].isEnabled,
-      canRedo: slots["history.redo"].isEnabled,
-      userDriven: document.hasFocus() && Date.now() - drivenAt.current < DRIVING_MS,
+      // A caret's range rect can be zero-height; the block's own box still
+      // anchors the native pill at the right height.
+      y: rect && rect.height > 0 ? rect.top : (focus ? focus.el.getBoundingClientRect().top : -1),
+      canUndo: toolbarCommandState(editor, "history.undo").enabled,
+      canRedo: toolbarCommandState(editor, "history.redo").enabled,
+      userDriven: isUserDriven(),
     });
-  }, [p.onState]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
 
-  useEditorEvent("selectionChange", report);
+  // Put the caret back after a load(): the engine re-parses and every node id is
+  // new, so the position is re-found by TEXT. Driven by the engine's own events
+  // rather than `snapshot().isLoading` — that flag means "no bytes handed over
+  // yet" and is false from the first load onwards, so an effect keyed on it fires
+  // exactly once, before any restore is ever pending.
+  const tryRestore = (editor: Editor) => {
+    const keep = restore.current;
+    if (!keep) return;
+    if (Date.now() > keep.until) { restore.current = null; return; }
+    const m = findBlockMatch(editor, keep.index, keep.text);
+    if (!m) return; // not re-parsed yet — the next event retries
+    restore.current = null; // cleared BEFORE selectMatch, which re-enters here
+    editor.selectMatch(m);
+    editor.scrollToBlock(m.blockId);
+  };
+
+  /** Hand the engine bytes WE produced: the caret is remembered and the change it
+   *  emits must not be mistaken for the student typing. */
+  const loadDocument = (bytes: ArrayBuffer) => {
+    const keep = lastFocus.current;
+    if (keep) restore.current = { ...keep, until: Date.now() + RESTORE_WINDOW_MS };
+    programmatic.current = true;
+    p.editorRef.current?.load(bytes);
+  };
+
+  useEditorEvent("selectionChange", () => {
+    const editor = editorOf();
+    if (editor) tryRestore(editor);
+    report();
+  });
+
   useEditorEvent("change", (change) => {
-    if ((change.created?.length ?? 0) + (change.deleted?.length ?? 0) > 0) structureChanged.current = true;
-    p.saveLoop.markDirty();
+    const created = change.created?.length ?? 0;
+    const deleted = change.deleted?.length ?? 0;
+    if (created + deleted > 0) structureChanged.current = true;
+    const wasProgrammatic = programmatic.current;
+    programmatic.current = false;
+    // A load() we asked for emits a change that carries a revision and no block
+    // ids; marking THAT dirty would PUT back the bytes we just took in — on open,
+    // after every reload, and after every D7 re-parse. A student's edit names the
+    // blocks it touched, so it still marks dirty even if the flag was left armed
+    // by a load that turned out to emit nothing.
+    if (!(wasProgrammatic && created + deleted + (change.dirty?.length ?? 0) === 0)) {
+      p.saveLoop.markDirty();
+    }
+    const editor = editorOf();
+    if (editor) tryRestore(editor);
     report();
   });
 
@@ -152,10 +239,11 @@ export function Bridge(p: BridgeProps) {
   useEffect(() => {
     const cmd = p.command;
     const editor = editorOf();
-    if (!cmd || !editor) return;
+    if (!cmd || !editor || cmd.nonce === seenNonce.current) return;
+    seenNonce.current = cmd.nonce;
     for (const a of mapCommand(cmd)) {
       switch (a.kind) {
-        case "slot": slots[a.slot]?.execute(); break;
+        case "slot": { const s = asSlot(a.slot); if (s) runToolbarCommand(editor, s); break; }
         case "style": style.setValue(a.styleId); break;
         case "paragraph": para.apply(a.update); break;
         case "marks": applyMarks(editor, a.marks); break;
@@ -165,7 +253,7 @@ export function Bridge(p: BridgeProps) {
           if (m) editor.selectMatch(m);
           break;
         }
-        case "server": { const f = lastFocus.current; if (f) p.onServerFormat?.(f.index, a.changes); break; }
+        case "server": { const f = lastFocus.current; if (f) p.onServerFormat?.({ ...f }, a.changes); break; }
         case "noop": break;
       }
     }
@@ -175,61 +263,60 @@ export function Bridge(p: BridgeProps) {
   useEffect(() => {
     const n = p.flushNonce;
     if (n == null) return;
-    void p.saveLoop.flush().finally(() => p.onFlushed?.(n));
+    void p.saveLoop.flush().catch(() => {}).finally(() => p.onFlushed?.(n));
   }, [p.flushNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── reload from the server (spec D3), conditional on the hash we hold ──
-  const reload = useCallback(async (force: boolean) => {
-    try {
-      const r = await fetchDocument({ apiBase: p.apiBase, thesisId: p.thesisId, token: p.token, ifNoneMatch: force ? null : p.saveLoop.getHash() });
-      if (r.status === 304) { p.onReloaded?.(p.saveLoop.getHash()); return; }
-      restore.current = lastFocus.current;
-      p.editorRef.current?.load(r.bytes);
-      p.saveLoop.setHash(r.docHash);
-      p.onReloaded?.(r.docHash);
-    } catch (e) {
-      console.warn("[docx] reload failed", e);
-      p.onReloaded?.(p.saveLoop.getHash());
-    }
-  }, [p.apiBase, p.thesisId, p.token, p.saveLoop, p.onReloaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The WebView can be torn down or backgrounded without React unmounting us in
+  // time to await anything, so the debounce window is flushed on the page's own
+  // last-gasp events too.
+  useEffect(() => {
+    const flush = () => { void p.saveLoop.flush().catch(() => {}); };
+    const onVisibility = () => { if (document.visibilityState === "hidden") flush(); };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [p.saveLoop]);
 
+  // ── reload from the server (spec D3), conditional on the hash we hold ──
   useEffect(() => {
     if (p.reloadNonce == null || p.reloadNonce === 0) return;
-    void reload(false);
+    void (async () => {
+      try {
+        const r = await fetchDocument({ apiBase: p.apiBase, thesisId: p.thesisId, token: p.token, ifNoneMatch: p.saveLoop.getHash() });
+        if (r.status === 304) { p.onReloaded?.(p.saveLoop.getHash()); return; }
+        loadDocument(r.bytes);
+        p.saveLoop.setHash(r.docHash);
+        p.onReloaded?.(r.docHash);
+      } catch (e) {
+        console.warn("[docx] reload failed", e);
+        p.onReloaded?.(p.saveLoop.getHash());
+      }
+    })();
   }, [p.reloadNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // After a save that changed paragraph STRUCTURE, re-parse our own bytes so the
   // node ids are positional again (D7). No network: the bytes are the ones we
-  // just sent. The caret is put back by the effect below.
+  // just sent. The caret is put back by tryRestore.
   useEffect(() => {
     const unsub = p.saveLoop.onSaved((bytes) => {
       if (!structureChanged.current) return;
       structureChanged.current = false;
-      restore.current = lastFocus.current;
-      p.editorRef.current?.load(bytes);
+      loadDocument(bytes);
     });
     return unsub;
-  }, [p.saveLoop, p.editorRef]);
-
-  // Put the caret back after any load() — the engine re-parses, ids are new.
-  useEffect(() => {
-    if (isLoading) return;
-    const keep = restore.current;
-    const editor = editorOf();
-    if (!keep || !editor) return;
-    restore.current = null;
-    const m = findBlockMatch(editor, keep.index, keep.text);
-    if (m) { editor.selectMatch(m); editor.scrollToBlock(m.blockId); }
-  }, [isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [p.saveLoop, p.editorRef]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── scroll to a block index (outline drawer, modk:// links, deep link) ──
   useEffect(() => {
     const t = p.scrollToIndex;
     const editor = editorOf();
-    if (!t || !editor || isLoading) return;
+    if (!t || !editor) return;
     const m = findBlockMatch(editor, t.index, t.text);
     if (m) editor.scrollToBlock(m.blockId);
-  }, [p.scrollToIndex?.nonce, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [p.scrollToIndex?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return null;
 }

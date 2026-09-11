@@ -22,14 +22,23 @@ import { setHarfBuzzWasmUrl } from "@docx-editor.dev/core/layout";
 import { googleFonts } from "@docx-editor.dev/fonts/google";
 import "@docx-editor.dev/core/styles/editor.css";
 import type { LexicalCommand, LexicalState } from "@/components/workspace/lexical/editor-components/types";
-import { Bridge } from "./bridge/Bridge";
+import { Bridge, type BlockRef } from "./bridge/Bridge";
 import { fetchDocument } from "./bridge/load-document";
 import { createSaveLoop, type SaveState } from "./bridge/save-loop";
 
 let wasmConfigured = false;
 function ensureWasm(): void {
   if (wasmConfigured) return;
-  setHarfBuzzWasmUrl(`${process.env.EXPO_BASE_URL ?? "/"}harfbuzz.wasm`);
+  // Resolved against the PAGE, never against EXPO_BASE_URL. A release build serves
+  // this document from `file:///android_asset/www.bundle/<hash>.html` (expo/src/dom/
+  // base.ts) and never consults EXPO_BASE_URL on native at all, so the old
+  // `${EXPO_BASE_URL ?? "/"}harfbuzz.wasm` resolved to `file:///harfbuzz.wasm` —
+  // and flipped behaviour on whether the bundler inlined "" (which `??` does not
+  // treat as nullish) or nothing. `document.baseURI` is the page's real origin in
+  // dev, in a release APK and under an OTA update alike.
+  // ⚠️ That the file is actually shipped NEXT TO the page in a release APK is
+  // unverified until Task 12 runs on a device / Task 29 moves it to require().
+  setHarfBuzzWasmUrl(new URL("harfbuzz.wasm", document.baseURI).href);
   wasmConfigured = true;
 }
 
@@ -77,7 +86,10 @@ export default function DocxEditorDom({
   onReady?: (info: { pages: number; docHash: string | null }) => Promise<void>;
   onFlushed?: (nonce: number) => Promise<void>;
   onReloaded?: (docHash: string | null) => Promise<void>;
-  onServerFormat?: (index: number, changes: { direction: "rtl" | "ltr" }) => Promise<void>;
+  // { index, text } rather than a bare index: the host re-resolves the block by
+  // its text before it mutates, because a local structural edit can move it
+  // between the report and the op. See bridge/Bridge.tsx.
+  onServerFormat?: (target: BlockRef, changes: { direction: "rtl" | "ltr" }) => Promise<void>;
   onError?: (message: string) => Promise<void>;
   dom?: import("expo/dom").DOMProps;
 }) {
@@ -98,7 +110,10 @@ export default function DocxEditorDom({
     }),
     [apiBase, thesisId], // eslint-disable-line react-hooks/exhaustive-deps
   );
-  useEffect(() => () => saveLoop.dispose(), [saveLoop]);
+  // Navigating away must not drop the debounce window: dispose() makes every
+  // queued save bail, so the pending bytes are flushed FIRST and the loop is torn
+  // down only once that PUT has settled.
+  useEffect(() => () => { void saveLoop.flush().catch(() => {}).finally(() => saveLoop.dispose()); }, [saveLoop]);
 
   useEffect(() => {
     ensureWasm();
@@ -134,7 +149,7 @@ export default function DocxEditorDom({
         zoomMode="auto"
         chrome={false}
         onReady={handleReady}
-        onFontError={(e) => console.warn("[docx] font error", e.code)}
+        onFontError={(e) => { console.warn("[docx] font error", e.code); void onError?.(`font/shaping error: ${e.code}`); }}
         className="h-full"
       >
         <Bridge
@@ -150,7 +165,7 @@ export default function DocxEditorDom({
           onState={(s) => void onState(s)}
           onFlushed={(n) => void onFlushed?.(n)}
           onReloaded={(h) => void onReloaded?.(h)}
-          onServerFormat={(i, c) => void onServerFormat?.(i, c)}
+          onServerFormat={(t, c) => void onServerFormat?.(t, c)}
         />
       </DocxEditor>
     </div>

@@ -6,6 +6,7 @@ import DocxEditorDom from "@/components/workspace/docx-editor/DocxEditorDom";
 import type { LexicalState } from "@/components/workspace/lexical/editor-components/types";
 import type { SaveState } from "@/components/workspace/docx-editor/bridge/save-loop";
 import type { DocBlockDTO } from "@/lib/api";
+import { resolveBlockIndexStrict } from "@/lib/block-links";
 import { supabase } from "@/lib/supabase";
 import { useThesisDocStore } from "@/stores/thesis-doc-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
@@ -149,8 +150,19 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
 
   // Direction has no engine command: the server's `format` op, whose echo bumps
   // the tick → the hash moves → the effect above reloads the surface.
-  const onServerFormat = useCallback(async (index: number, changes: { direction: "rtl" | "ltr" }) => {
+  //
+  // The index the surface reported can be stale by the time the op is built — a
+  // local structural edit mints node ids the DTO knows nothing about until the
+  // save that follows re-parses them (spec D7) — so the block is re-found by its
+  // TEXT first, against the model `flushEdits` has just brought up to date. Same
+  // rule as a block link: trust the index while its text still agrees, else the
+  // one unambiguous paragraph that carries it. A miss leaves the reported index
+  // standing, which is what this did before.
+  const onServerFormat = useCallback(async (target: { index: number; text: string }, changes: { direction: "rtl" | "ltr" }) => {
     await flushEdits();
+    const d = useThesisDocStore.getState().byId[thesisId];
+    const blocks = d?.available ? d.blocks : undefined;
+    const index = resolveBlockIndexStrict(blocks, target.index, target.text) ?? target.index;
     await useThesisDocStore.getState().mutate(thesisId, { type: "format", indices: [index], changes });
   }, [thesisId, flushEdits]);
 
