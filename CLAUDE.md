@@ -19,10 +19,11 @@ The AI's behaviour lives in the **server**, not here. A change to what the assis
 
 ## Verification
 
-**This app has no JS test runner.** There are no test files and no lint config. The gate before claiming anything works is:
+**This app runs Vitest for PURE modules only** (`npx vitest run`; the allow-list is in `vitest.config.ts` — anything importing `react-native` cannot run under node). There is no lint config. The gate before claiming anything works is:
 
 ```bash
 npx tsc --noEmit          # the only automated check that exists here
+npx vitest run              # pure lib modules (docx-editor bridge, block ids)
 ```
 
 The server and dashboard *do* have vitest:
