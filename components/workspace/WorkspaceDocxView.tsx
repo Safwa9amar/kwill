@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { useThemeColors } from "@/hooks/useThemeColors";
+import { typography } from "@/constants/typography";
 import DocxEditorDom from "@/components/workspace/docx-editor/DocxEditorDom";
 import type { LexicalState } from "@/components/workspace/lexical/editor-components/types";
 import type { SaveState } from "@/components/workspace/docx-editor/bridge/save-loop";
@@ -54,6 +55,11 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   const editorTopRef = useRef(0);
   const lastSelKeyRef = useRef("");
   const flushWaiters = useRef(new Map<number, () => void>());
+  // Monotonic, NOT Date.now(): two flushes inside the same millisecond would collide
+  // on the key (the first resolver overwritten and never settled) and, worse,
+  // setFlushNonce would be handed an identical value — React bails, the prop never
+  // changes, and the Bridge's effect never fires for the second one either.
+  const flushSeq = useRef(0);
   const reloadWaiters = useRef<(() => void)[]>([]);
 
   // A fresh token on mount; the DOM side holds it for its own fetches. (A session
@@ -72,7 +78,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
 
   // flushEdits: bump a nonce the DOM watches; resolve when it reports back (8s cap).
   const flushEdits = useCallback((): Promise<void> => new Promise((resolve) => {
-    const n = Date.now();
+    const n = ++flushSeq.current;
     flushWaiters.current.set(n, resolve);
     setFlushNonce(n);
     setTimeout(() => { if (flushWaiters.current.delete(n)) resolve(); }, 8000);
@@ -117,8 +123,10 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
       editorHashRef.current = s.docHash;
       setBanner("Saved");
       // The block model must catch up with the bytes: indices for the AI, the
-      // outline drawer, block links. revalidate no-ops while ops are queued —
-      // there are none on this surface.
+      // outline drawer, block links. Nothing is lost when an op IS queued (this
+      // surface enqueues one — see onServerFormat): revalidate returns early rather
+      // than clobbering the unflushed optimistic edit, and that op's own server echo
+      // reconciles the doc when it lands.
       void useThesisDocStore.getState().revalidate(thesisId);
     } else if (s.kind === "stale") {
       // Phase 1: reload the server's version and say so. Phase 4 (Task 28) keeps
@@ -158,6 +166,11 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   // engine → native, copied from WorkspaceLexicalView.onState (non-chrome path).
   const onState = useCallback(async (s: LexicalState) => {
     useLexicalEditorStore.getState().setHistoryAvail(!!s.canUndo, !!s.canRedo);
+    // History availability rides EVERY report, so it is read before this guard.
+    // Nothing below it should act on a report with no focused block: tapping ✦ takes
+    // focus out of the WebView and the engine reports index -1, which would otherwise
+    // reset the pill's Bold/H2/RTL indicators out from under the student.
+    if (s.index < 0) return;
     if (useWorkspaceStore.getState().selectMode) { lastSelKeyRef.current = ""; return; }
     if (s.userDriven === false && (s.blocks?.length ?? 1) <= 1 && useWorkspaceStore.getState().selectedBlocks.length > 1) return;
     useWorkspaceStore.getState().setChromeSelection(null);
@@ -203,7 +216,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
       />
       {banner ? (
         <View style={[styles.banner, { backgroundColor: colors.bgCard, borderColor: colors.borderDefault }]}>
-          <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{banner}</Text>
+          <Text style={[styles.bannerText, { color: colors.textSecondary }]}>{banner}</Text>
         </View>
       ) : null}
     </View>
@@ -212,5 +225,9 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  // Matches WorkspaceLexicalView's own banner: the caption size from the shared
+  // scale, and the weight carried by the Inter face (a fontWeight would be inert
+  // against a pre-weighted family).
+  bannerText: { fontSize: typography.caption.fontSize, fontFamily: "Inter_500Medium" },
   banner: { position: "absolute", bottom: 12, alignSelf: "center", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth },
 });
