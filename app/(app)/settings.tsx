@@ -257,6 +257,26 @@ export default function SettingsScreen() {
                 type: "chevron" as const,
                 onPress: () => router.push("/(app)/voice-lab" as any),
               },
+              {
+                // The eigenpal docx-editor, hosted from the web app in a
+                // WebView. Needs EXPO_PUBLIC_WEB_URL pointing at a reachable
+                // `next dev` in ~/kwill-dashboard; the screen says so if not.
+                icon: FileText,
+                iconColor: colors.brandPrimary,
+                label: "Word Editor (trial)",
+                type: "chevron" as const,
+                onPress: () => router.push("/(app)/word-trial" as any),
+              },
+              {
+                // The same editor, but BUNDLED — an Expo DOM component instead
+                // of a WebView onto the web app. Needs a thesisId, so it is
+                // opened from a thesis rather than straight from here.
+                icon: FileText,
+                iconColor: colors.brandPrimary,
+                label: "Word Editor (native)",
+                type: "chevron" as const,
+                onPress: () => router.push("/(app)/word-native" as any),
+              },
             ],
           },
         ]
