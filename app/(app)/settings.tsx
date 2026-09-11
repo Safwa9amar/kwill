@@ -270,16 +270,6 @@ export default function SettingsScreen() {
                 onPress: () => router.push("/(app)/word-trial" as any),
               },
               {
-                // The same editor, but BUNDLED — an Expo DOM component instead
-                // of a WebView onto the web app. Needs a thesisId, so it is
-                // opened from a thesis rather than straight from here.
-                icon: FileText,
-                iconColor: colors.brandPrimary,
-                label: "Word Editor (native)",
-                type: "chevron" as const,
-                onPress: () => router.push("/(app)/word-native" as any),
-              },
-              {
                 // Spec D12: the docx-editor as THE Writer surface in the workspace,
                 // instead of the Lexical editor. Persisted; takes effect on the next
                 // workspace open.

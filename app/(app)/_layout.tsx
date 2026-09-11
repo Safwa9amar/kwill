@@ -51,7 +51,6 @@ export default function AppLayout() {
     <Stack.Screen name="lexical-writeback" />
     <Stack.Screen name="voice-lab" />
     <Stack.Screen name="word-trial" />
-    <Stack.Screen name="word-native" />
     <Stack.Screen name="news" />
     <Stack.Screen name="news-detail" />
     <Stack.Screen name="export" />

@@ -53,6 +53,7 @@ import { countWords } from "@/lib/word-count";
 import { MilestoneToast } from "@/components/workspace/MilestoneToast";
 import { OutlineReorderable } from "@/components/workspace/OutlineReorderable";
 import { WorkspaceLexicalView } from "@/components/workspace/WorkspaceLexicalView";
+import { WorkspaceDocxView } from "@/components/workspace/WorkspaceDocxView";
 import { NavOverlay } from "@/components/workspace/NavOverlay";
 import { SourcesSheet } from "@/components/workspace/SourcesSheet";
 import { HistorySheet } from "@/components/workspace/HistorySheet";
@@ -372,6 +373,7 @@ export default function ThesisWorkspaceScreen() {
   const lexActive = useLexicalEditorStore((s) => s.active);
   const lexCanUndo = useLexicalEditorStore((s) => s.canUndo);
   const lexCanRedo = useLexicalEditorStore((s) => s.canRedo);
+  const writerEngine = useSettingsStore((s) => s.writerEngine);
   const undoReady = !historyBusy && !isGenerating && ((lexActive && lexCanUndo) || localUndo > 0 || (canUndo && pendingOps === 0));
   const redoReady = !historyBusy && !isGenerating && ((lexActive && lexCanRedo) || localRedo > 0 || (canRedo && pendingOps === 0));
 
@@ -867,13 +869,19 @@ export default function ThesisWorkspaceScreen() {
                   tools (bubble/pill/outline/auto-scroll/inline-AI) are being
                   re-bridged onto Lexical one at a time — for now it carries its
                   own working formatting pill. */}
-              <WorkspaceLexicalView
-                thesisId={thesisId}
-                blocks={liveDoc.blocks}
-                rtl={docRtl}
-                active={previewMode === null}
-                deepLinkBlock={deepLinkBlock}
-              />
+              {writerEngine === "docx" ? (
+                // Spec D12: the docx-editor as the Writer, behind Settings → Developer
+                // until parity is verified. Same props as the Lexical surface.
+                <WorkspaceDocxView thesisId={thesisId} active={previewMode === null} deepLinkBlock={deepLinkBlock} />
+              ) : (
+                <WorkspaceLexicalView
+                  thesisId={thesisId}
+                  blocks={liveDoc.blocks}
+                  rtl={docRtl}
+                  active={previewMode === null}
+                  deepLinkBlock={deepLinkBlock}
+                />
+              )}
             </View>
 
             {/* PDF layer: the OnlyOffice-rendered PDF of the live .docx in a WebView
