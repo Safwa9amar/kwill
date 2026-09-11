@@ -9,38 +9,24 @@
 // else lives in ./bridge/. Gate: node scripts/verify-use-dom.mjs.
 //
 // Assets: harfbuzz.wasm is served from public/ (copied into the binary; not
-// OTA-updatable — Task 29 moves it to require()). Without it the shaper reports
-// `wasmUnavailable` and silently falls back to fixed-width measurement, which
-// would make nothing about pagination trustworthy. Fonts come from the package's
+// OTA-updatable — Task 29 moves it to require()) and handed to the shaper by
+// bridge/shaper.ts, because the CommonJS engine build refuses
+// setHarfBuzzWasmUrl. Without the shaper the engine reports `wasmUnavailable`
+// and falls back to fixed-width measurement, which would make nothing about
+// pagination trustworthy. Fonts come from the package's
 // Google resolver until Task 27 bundles Arabic faces; loadDefaultFonts() is never
 // used because its `new URL(…, import.meta.url)` cannot resolve under Metro.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DocxEditor } from "@docx-editor.dev/react";
 import type { DocxEditorRef, Editor, FontConfigurationFragment, FontResolver } from "@docx-editor.dev/react";
-import { setHarfBuzzWasmUrl } from "@docx-editor.dev/core/layout";
 import { googleFonts } from "@docx-editor.dev/fonts/google";
 import "@docx-editor.dev/core/styles/editor.css";
 import type { LexicalCommand, LexicalState } from "@/components/workspace/lexical/editor-components/types";
 import { Bridge, type BlockRef } from "./bridge/Bridge";
 import { fetchDocument } from "./bridge/load-document";
 import { createSaveLoop, type SaveState } from "./bridge/save-loop";
-
-let wasmConfigured = false;
-function ensureWasm(): void {
-  if (wasmConfigured) return;
-  // Resolved against the PAGE, never against EXPO_BASE_URL. A release build serves
-  // this document from `file:///android_asset/www.bundle/<hash>.html` (expo/src/dom/
-  // base.ts) and never consults EXPO_BASE_URL on native at all, so the old
-  // `${EXPO_BASE_URL ?? "/"}harfbuzz.wasm` resolved to `file:///harfbuzz.wasm` —
-  // and flipped behaviour on whether the bundler inlined "" (which `??` does not
-  // treat as nullish) or nothing. `document.baseURI` is the page's real origin in
-  // dev, in a release APK and under an OTA update alike.
-  // ⚠️ That the file is actually shipped NEXT TO the page in a release APK is
-  // unverified until Task 12 runs on a device / Task 29 moves it to require().
-  setHarfBuzzWasmUrl(new URL("harfbuzz.wasm", document.baseURI).href);
-  wasmConfigured = true;
-}
+import { ensureShaper } from "./bridge/shaper";
 
 /**
  * Amiri is the only Arabic family in the package's Google catalogue, and it is
@@ -116,10 +102,12 @@ export default function DocxEditorDom({
   useEffect(() => () => { void saveLoop.flush().catch(() => {}).finally(() => saveLoop.dispose()); }, [saveLoop]);
 
   useEffect(() => {
-    ensureWasm();
-    let alive = true;
+        let alive = true;
     void (async () => {
       try {
+        // The shaper must be ready BEFORE the editor opens the bytes (see
+        // bridge/shaper.ts); a failure here is the wasmUnavailable case.
+        await ensureShaper();
         const r = await fetchDocument({ apiBase, thesisId, token });
         if (!alive || r.status !== 200) return;
         saveLoop.setHash(r.docHash);

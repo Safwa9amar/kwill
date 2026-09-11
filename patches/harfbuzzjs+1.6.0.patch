@@ -1,0 +1,34 @@
+diff --git a/node_modules/harfbuzzjs/dist/index.d.mts b/node_modules/harfbuzzjs/dist/index.d.mts
+index cc73984..f402692 100644
+--- a/node_modules/harfbuzzjs/dist/index.d.mts
++++ b/node_modules/harfbuzzjs/dist/index.d.mts
+@@ -1674,4 +1674,6 @@ declare function otTagToScript(tag: string): string;
+  */
+ declare function otTagToLanguage(tag: string): string;
+ //#endregion
+-export { AxisFlags, AxisInfo, Blob, Buffer, BufferContentType, BufferFlag, BufferSerializeFlag, BufferSerializeFormat, ClusterLevel, Color, ColorLayer, ColorLine, ColorPalette, ColorPaletteFlags, ColorStop, Direction, DrawClosePathFunc, DrawCubicToFunc, DrawFuncs, DrawLineToFunc, DrawMoveToFunc, DrawQuadraticToFunc, Face, Feature, FeatureNameIds, Font, FontExtents, FontFuncs, GlyphClass, GlyphExtents, GlyphFlag, GlyphInfo, GlyphPosition, HarfBuzzModule, MetricsTag, NameEntry, PaintColorFunc, PaintColorGlyphFunc, PaintCompositeMode, PaintCustomPaletteColorFunc, PaintExtend, PaintFuncs, PaintImageFunc, PaintLinearGradientFunc, PaintPopClipFunc, PaintPopGroupFunc, PaintPopTransformFunc, PaintPushClipGlyphFunc, PaintPushClipRectangleFunc, PaintPushGroupFunc, PaintPushTransformFunc, PaintRadialGradientFunc, PaintSweepGradientFunc, PaletteColor, SvgPathCommand, TraceEntry, TracePhase, Variation, otTagToLanguage, otTagToScript, shape, shapeWithTrace, version, versionString };
+\ No newline at end of file
++/** kwill patch: initialise the shaper lazily (no top-level await under Metro). Memoised; `moduleArg` is Emscripten's module config (e.g. `locateFile`). */
++declare function load(moduleArg?: Record<string, unknown>): Promise<void>;
++export { load, AxisFlags, AxisInfo, Blob, Buffer, BufferContentType, BufferFlag, BufferSerializeFlag, BufferSerializeFormat, ClusterLevel, Color, ColorLayer, ColorLine, ColorPalette, ColorPaletteFlags, ColorStop, Direction, DrawClosePathFunc, DrawCubicToFunc, DrawFuncs, DrawLineToFunc, DrawMoveToFunc, DrawQuadraticToFunc, Face, Feature, FeatureNameIds, Font, FontExtents, FontFuncs, GlyphClass, GlyphExtents, GlyphFlag, GlyphInfo, GlyphPosition, HarfBuzzModule, MetricsTag, NameEntry, PaintColorFunc, PaintColorGlyphFunc, PaintCompositeMode, PaintCustomPaletteColorFunc, PaintExtend, PaintFuncs, PaintImageFunc, PaintLinearGradientFunc, PaintPopClipFunc, PaintPopGroupFunc, PaintPopTransformFunc, PaintPushClipGlyphFunc, PaintPushClipRectangleFunc, PaintPushGroupFunc, PaintPushTransformFunc, PaintRadialGradientFunc, PaintSweepGradientFunc, PaletteColor, SvgPathCommand, TraceEntry, TracePhase, Variation, otTagToLanguage, otTagToScript, shape, shapeWithTrace, version, versionString };
+\ No newline at end of file
+diff --git a/node_modules/harfbuzzjs/dist/index.mjs b/node_modules/harfbuzzjs/dist/index.mjs
+index 66db040..56af178 100644
+--- a/node_modules/harfbuzzjs/dist/index.mjs
++++ b/node_modules/harfbuzzjs/dist/index.mjs
+@@ -2317,6 +2317,13 @@ function otTagToLanguage(tag) {
+ }
+ //#endregion
+ //#region src/index.ts
+-init(await createHarfBuzz());
++// kwill patch: no top-level await (Metro wraps modules in a non-async function,
++// so `await` here is a ReferenceError in a WebView). The shaper is initialised
++// lazily through load(); the host awaits it before creating an editor, and can
++// pass Emscripten's `locateFile` to say where harfbuzz.wasm is served from.
++let ready;
++function load(moduleArg = {}) {
++	return (ready ??= createHarfBuzz(moduleArg).then(init));
++}
+ //#endregion
+-export { AxisFlags, Blob, Buffer, BufferContentType, BufferFlag, BufferSerializeFlag, BufferSerializeFormat, ClusterLevel, ColorPaletteFlags, Direction, DrawFuncs, Face, Feature, Font, FontFuncs, GlyphClass, GlyphFlag, MetricsTag, PaintCompositeMode, PaintExtend, PaintFuncs, TracePhase, Variation, otTagToLanguage, otTagToScript, shape, shapeWithTrace, version, versionString };
++export { load, AxisFlags, Blob, Buffer, BufferContentType, BufferFlag, BufferSerializeFlag, BufferSerializeFormat, ClusterLevel, ColorPaletteFlags, Direction, DrawFuncs, Face, Feature, Font, FontFuncs, GlyphClass, GlyphFlag, MetricsTag, PaintCompositeMode, PaintExtend, PaintFuncs, TracePhase, Variation, otTagToLanguage, otTagToScript, shape, shapeWithTrace, version, versionString };
