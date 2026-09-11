@@ -149,7 +149,14 @@ export default function DocxEditorDom({
         zoomMode="auto"
         chrome={false}
         onReady={handleReady}
-        onFontError={(e) => { console.warn("[docx] font error", e.code); void onError?.(`font/shaping error: ${e.code}`); }}
+        onFontError={(e) => {
+          // Only `wasmUnavailable` is a HOST fault (the engine's own words): no
+          // shaper means untrustworthy pagination, so the student must see it.
+          // Every other code is a font that failed to load — expected offline
+          // (Amiri comes from Google) and already logged by the resolver.
+          console.warn("[docx] font error", e.code);
+          if (e.code === "wasmUnavailable") void onError?.("font/shaping error: wasmUnavailable");
+        }}
         className="h-full"
       >
         <Bridge
