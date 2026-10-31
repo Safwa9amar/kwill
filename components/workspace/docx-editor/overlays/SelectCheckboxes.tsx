@@ -39,12 +39,17 @@ const CSS = (() => {
   return [
     // The engine's pages: no OS selection, no callout, and clickable (see ⚠️ above).
     "[data-page-index],[data-page-index] *{-webkit-user-select:none;user-select:none;",
-    "-webkit-touch-callout:none;cursor:pointer;-webkit-tap-highlight-color:transparent}",
-    // ⚠️ will-change: iOS WebKit repaints a position:fixed element on <body> LAZILY
-    // when only its style changes — measured on the simulator: React rendered the
-    // flip at once (next rAF 3ms) and the screen showed it 2–5s later. Its own
-    // compositing layer makes the flip land in the next frame. Same on every
-    // overlay root (overlay-css.ts, PendingLayer, ChartLayer).
+    // touch-action: WebKit otherwise holds every click ~350ms to see whether the tap
+    // becomes a double-tap zoom; select mode has no use for one, and the box must
+    // flip under the finger.
+    "-webkit-touch-callout:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}",
+    "html,body{touch-action:manipulation}",
+    // will-change: every fixed overlay root gets its own compositing layer, so a
+    // style-only change (a box flipping, a card resizing) is a cheap composite over
+    // the engine's pages rather than a repaint of them. Measured on the simulator
+    // with timestamps: click → flip on screen ≤170ms. (⚠️ Maestro returns ~3s
+    // BEFORE the simulator delivers the touch — time a tap from the DOM's own
+    // click timestamp, never from when the driver returned.)
     `.kws-box{position:fixed;z-index:47;width:${BOX}px;height:${BOX}px;box-sizing:border-box;`,
     "border:2px solid #b9bcc8;border-radius:6px;background:#fff center/14px 14px no-repeat;",
     "pointer-events:none;transition:background-color .12s ease,border-color .12s ease;will-change:transform;transform:translateZ(0)}",
