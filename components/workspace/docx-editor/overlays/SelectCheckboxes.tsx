@@ -29,7 +29,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from "react-dom"; // typed by ./react-dom.d.ts (no @types/react-dom)
 import { brand, rgbTriplet } from "@/constants/colors";
 import { blockIndexOfFragmentId, bodyFragmentOf, fragmentIdOf, type PaintedEl } from "../bridge/dom-selectors";
-import { BOX, blockTextAt, checkboxAt, readSelectRows, reconcileFlips, rowAt, sameRows, type SelectRow } from "./select-rows";
+import { BOX, blockTextAt, checkboxAt, drawnBoxes, readSelectRows, reconcileFlips, rowAt, sameRows, type SelectRow } from "./select-rows";
 import { OVERLAY_ATTR, subscribeLayout } from "./use-block-rect";
 
 const CHECK = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='M3.2 8.4l3.1 3.1 6.5-6.5'/%3E%3C/svg%3E";
@@ -127,6 +127,7 @@ export function SelectCheckboxes({ selected, onToggle }: {
   }, [toggle]);
 
   const vw = typeof window !== "undefined" ? window.innerWidth : 0;
+  const drawn = drawnBoxes(rows, vw);
   return createPortal(
     <>
       <style>{CSS}</style>
@@ -138,7 +139,7 @@ export function SelectCheckboxes({ selected, onToggle }: {
             {on ? r.boxes.map((b, k) => (
               <div key={k} className="kws-tint" style={{ left: b.left - 3, top: b.top - 2, width: b.width + 6, height: b.height + 4 }} />
             )) : null}
-            <div className={on ? "kws-box on" : "kws-box"} style={{ left: c.left, top: c.top }} />
+            {drawn.has(r.index) ? <div className={on ? "kws-box on" : "kws-box"} style={{ left: c.left, top: c.top }} /> : null}
           </div>
         );
       })}

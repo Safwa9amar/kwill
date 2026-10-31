@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { FRAGMENT_SELECTOR, type RectLike } from "./find-block-element";
-import { BOX, blockTextAt, checkboxAt, readSelectRows, reconcileFlips, rowAt, sameRows, type SelectRow } from "./select-rows";
+import { drawnBoxes, BOX, blockTextAt, checkboxAt, readSelectRows, reconcileFlips, rowAt, sameRows, type SelectRow } from "./select-rows";
 
 const rect = (left: number, top: number, width: number, height: number): RectLike =>
   ({ left, top, width, height, right: left + width, bottom: top + height });
@@ -130,5 +130,20 @@ describe("reconcileFlips", () => {
   it("returns the same map when nothing changed (no re-render)", () => {
     const flips = new Map([[3, true]]);
     expect(reconcileFlips(flips, new Set())).toBe(flips);
+  });
+});
+
+describe("drawnBoxes", () => {
+  const row = (index: number, top: number, height: number, rtl = false) => ({
+    index, rtl, boxes: [], anchor: { left: 60, right: 340, top, bottom: top + height, width: 280, height },
+  });
+  it("leaves out a box that would overlap the one above it on the same side", () => {
+    // A cover page: five 12px empty lines in a row, then a real paragraph.
+    const rows = [row(1, 100, 12), row(2, 112, 12), row(3, 124, 12), row(4, 136, 12), row(5, 148, 12), row(6, 200, 60)];
+    expect([...drawnBoxes(rows, 402)]).toEqual([1, 3, 5, 6]); // boxes at 96, 120, 144 — 4px apart, none overlapping
+  });
+  it("tracks each side on its own", () => {
+    const rows = [row(1, 100, 12), row(2, 104, 12, true)];
+    expect([...drawnBoxes(rows, 402)]).toEqual([1, 2]);
   });
 });

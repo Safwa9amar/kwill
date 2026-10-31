@@ -109,6 +109,26 @@ export function checkboxAt(row: SelectRow, viewportW: number): { left: number; t
 }
 
 /**
+ * Which rows get a DRAWN checkbox: in document order, a box that would overlap the
+ * one above it on the same side is left out. A cover page or a run of empty lines
+ * is many short blocks at nearly the same height, and their boxes stacked into an
+ * unreadable column (simulator, 10-31). A block without a drawn box is still
+ * picked by tapping it, and its tint still shows when it is.
+ */
+export function drawnBoxes(rows: readonly SelectRow[], viewportW: number): Set<number> {
+  const out = new Set<number>();
+  const lastBottom = { rtl: -Infinity, ltr: -Infinity };
+  for (const r of rows) {
+    const side = r.rtl ? "rtl" : "ltr";
+    const c = checkboxAt(r, viewportW);
+    if (c.top < lastBottom[side] + 2) continue;
+    out.add(r.index);
+    lastBottom[side] = c.top + BOX;
+  }
+  return out;
+}
+
+/**
  * The row a tap at (x, y) means, when the tap did not land on a block's own text:
  * its checkbox (with a fingertip's reach), else any of its painted boxes — a chart
  * drawn over its carrier paragraph, a figure.
