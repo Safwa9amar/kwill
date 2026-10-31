@@ -15,6 +15,7 @@ export default defineConfig({
       "lib/docx-block-id.test.ts",
       "components/workspace/docx-editor/bridge/**/*.test.ts",
       "components/workspace/docx-editor/features/scroll-anchor.test.ts",
+      "components/workspace/docx-editor/features/swipe.test.ts",
       "components/workspace/docx-editor/host/scroll-restore.test.ts",
     ],
     exclude: ["**/node_modules/**", "android/**", "ios/**", "dist/**"],

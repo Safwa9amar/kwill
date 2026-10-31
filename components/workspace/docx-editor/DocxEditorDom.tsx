@@ -29,6 +29,7 @@ import { createSaveLoop, type SaveState } from "./bridge/save-loop";
 import { ensureShaper } from "./bridge/shaper";
 import { PendingRecovery, type RecoveryAction } from "./features/PendingRecovery";
 import { ScrollAnchor } from "./features/ScrollAnchor";
+import { KeyboardAndSwipe } from "./features/KeyboardAndSwipe";
 import type { DocxScrollAnchor } from "./features/scroll-anchor";
 
 // The WebView gives the page no height of its own; the engine needs one. `.h-full`
@@ -49,6 +50,7 @@ export default function DocxEditorDom({
   apiBase, thesisId, token, command, scrollToIndex, reloadNonce, flushNonce, shaping = true,
   onState, onSave, onReady, onFlushed, onReloaded, onServerFormat, onError,
   recoveryAction, onRecovered, scrollRestore, onScroll, onScrollRestored,
+  keyboardActive = false, onSwipeOpenDrawer, appRtl = false,
   dom: _dom,
 }: {
   apiBase: string;
@@ -79,6 +81,11 @@ export default function DocxEditorDom({
   scrollRestore?: { anchor: DocxScrollAnchor; nonce: number } | null;
   onScroll?: (a: DocxScrollAnchor) => Promise<void>;
   onScrollRestored?: () => Promise<void>;
+  /** Task 26 (features/KeyboardAndSwipe): the workspace keyboard toggle, and the
+   *  structure drawer a sideways fling opens (its side follows the APP language). */
+  keyboardActive?: boolean;
+  onSwipeOpenDrawer?: () => Promise<void>;
+  appRtl?: boolean;
   dom?: import("expo/dom").DOMProps;
 }) {
   const ref = useRef<DocxEditorRef>(null);
@@ -253,6 +260,11 @@ export default function DocxEditorDom({
             onRestored={() => void onScrollRestored?.()}
             onBusy={(b) => { holdRef.current = b; if (!b) settle(); }}
             revealed={settled}
+          />
+          <KeyboardAndSwipe
+            keyboardActive={keyboardActive}
+            onSwipeOpenDrawer={onSwipeOpenDrawer ? () => void onSwipeOpenDrawer() : undefined}
+            appRtl={appRtl}
           />
           <PendingRecovery
             editorRef={ref}

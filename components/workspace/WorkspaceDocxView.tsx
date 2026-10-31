@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View, Text, StyleSheet, Platform, I18nManager } from "react-native";
 import * as Device from "expo-device";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { typography } from "@/constants/typography";
@@ -16,6 +16,7 @@ import { useThesisDocStore } from "@/stores/thesis-doc-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 import { useFloatingPillStore } from "@/stores/floating-pill-store";
 import { useLexicalEditorStore } from "@/stores/lexical-editor-store";
+import { useNavDrawerStore } from "@/stores/nav-drawer-store";
 
 // The docx-editor as the Writer (spec D12, behind settings.writerEngine). Phase 1
 // host: token, command/state bridge, flush + reload registration, doc-tick → reload,
@@ -73,6 +74,8 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   // is initialised before the first document opens), so a new value needs a new one.
   const [surfaceKey, setSurfaceKey] = useState(0);
   const scroll = useDocxScrollRestore({ thesisId, deepLinkBlock, surfaceKey });
+  const keyboardActive = useWorkspaceStore((s) => s.keyboardActive);
+  const onSwipeOpenDrawer = useCallback(async () => { useNavDrawerStore.getState().openDrawer(); }, []);
   const crashedRef = useRef(false);
   const editorHashRef = useRef<string | null>(null);
   // For anchoring the native pill/AI-dock over the WebView, exactly as
@@ -276,6 +279,9 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
         scrollRestore={scroll.scrollRestore}
         onScroll={scroll.onScroll}
         onScrollRestored={scroll.onScrollRestored}
+        keyboardActive={keyboardActive}
+        onSwipeOpenDrawer={onSwipeOpenDrawer}
+        appRtl={I18nManager.isRTL}
         dom={{
           style: { flex: 1 },
           scrollEnabled: true,
