@@ -238,6 +238,9 @@ function without(byIndex: Record<number, PendingSuggestion>, index: number): Rec
   return next;
 }
 
+// Guards approveRange against a double tap (module-level: the store holds JSON only).
+let rangeApplyInFlight = false;
+
 export const useSuggestionStore = create<SuggestionState>((set, get) => ({
   byIndex: {},
   range: null,
@@ -611,10 +614,25 @@ export const useSuggestionStore = create<SuggestionState>((set, get) => ({
   approveRange: async (thesisId, keptText) => {
     const r = get().range;
     if (!r || r.status !== "ready") return;
+    // One apply per proposal: a second tap while the first is in flight would
+    // replace the range twice (the second time over the first's result).
+    if (rangeApplyInFlight) return;
     // The kept paragraphs (blank-line separated) — dropped ones are already excluded
     // by the caller; fall back to the whole proposal when no explicit set is passed.
     const paragraphs = (keptText ?? r.proposed).split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
     if (!paragraphs.length) return;
+    rangeApplyInFlight = true;
+    // VISUAL FIRST: the docx Writer replaces the range in its own engine — the
+    // student sees the passage at once and the save loop carries the bytes — so
+    // there is nothing left for the server to do. Registered only by that surface;
+    // false means it was refused and NOTHING changed, so the server path below is
+    // still the right (and only) writer.
+    const local = useLexicalEditorStore.getState().applyRange;
+    if (local && (await local(thesisId, r.start, r.end, paragraphs).catch(() => false))) {
+      rangeApplyInFlight = false;
+      set({ range: null });
+      return;
+    }
     // Apply on the server FIRST — keep the proposal node up during the call so the
     // editor's auto-save stays suppressed and NOTHING settles in place (an in-place
     // settle fired a spurious save that raced the reseed and reverted the change).
@@ -636,6 +654,7 @@ export const useSuggestionStore = create<SuggestionState>((set, get) => ({
     } catch {
       set((s) => (s.range ? { range: { ...s.range, status: "error" } } : {}));
     }
+    rangeApplyInFlight = false;
   },
 
   rejectRange: () => set({ range: null }),

@@ -60,6 +60,12 @@ interface LexicalEditorState {
   // history undo — await it so the student sees the result. Conditional on the
   // document hash, so a no-op is one 304. Spec D3.
   reload: (() => Promise<void>) | null;
+  // Visual-first RANGE rewrite (registered by the docx Writer view; null under
+  // Lexical). Replaces blocks start..end with `paragraphs` IN THE ENGINE — the
+  // student sees it at once, the save loop persists the bytes — and resolves true;
+  // false means "not done, nothing changed": the caller applies it on the server.
+  // See components/workspace/docx-editor/overlays/apply-range.ts.
+  applyRange: ((thesisId: string, start: number, end: number, paragraphs: string[]) => Promise<boolean>) | null;
   // Consume-once flag: set right before a pill edit mutates the doc so the editor
   // view skips the reseed (it already applied the edit in place).
   skipReseed: boolean;
@@ -74,6 +80,7 @@ interface LexicalEditorState {
   setHistoryAvail: (canUndo: boolean, canRedo: boolean) => void;
   registerFlushEdits: (f: (() => Promise<void>) | null) => void;
   registerReload: (f: (() => Promise<void>) | null) => void;
+  registerApplyRange: (f: LexicalEditorState["applyRange"]) => void;
   requestSkipReseed: () => void;
   consumeSkipReseed: () => boolean;
   requestForceReseed: () => void;
@@ -102,6 +109,7 @@ export const useLexicalEditorStore = create<LexicalEditorState>((set, get) => ({
   canRedo: false,
   flushEdits: null,
   reload: null,
+  applyRange: null,
   skipReseed: false,
   forceReseed: false,
   dispatch: (type, value) => set({ command: { type, value, nonce: ++nonce } }),
@@ -115,6 +123,7 @@ export const useLexicalEditorStore = create<LexicalEditorState>((set, get) => ({
   },
   registerFlushEdits: (f) => set({ flushEdits: f }),
   registerReload: (f) => set({ reload: f }),
+  registerApplyRange: (f) => set({ applyRange: f }),
   requestSkipReseed: () => set({ skipReseed: true }),
   consumeSkipReseed: () => {
     if (!get().skipReseed) return false;
