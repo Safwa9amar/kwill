@@ -22,6 +22,7 @@ import type {
 import { ChartLayer } from "../overlays/ChartLayer";
 import { PendingLayer } from "../overlays/PendingLayer";
 import { useEquationTap } from "./use-equation-tap";
+import { useHeaderTap } from "./use-header-tap";
 import { useImageCommand } from "./use-image-command";
 import { usePasteImage } from "./use-paste-image";
 import { useSearchBridge } from "./use-search-bridge";
@@ -48,6 +49,7 @@ export type StructureLayerProps = {
 
 export function StructureLayer(p: StructureLayerProps) {
   useEquationTap(p.onEquationTap);
+  useHeaderTap();
   useSlashTrigger(p.onInsertTrigger);
   usePasteImage(p.onPasteImage);
   useImageCommand(p.editorRef, p.imageCommand, p.onImageRefused);
