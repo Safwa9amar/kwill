@@ -1924,6 +1924,23 @@ What the build taught that the plan did not know:
 - Server tsconfig is non-strict; a `{ stale: true as const }` / `{ stale: false as const }` union does not narrow at the return position, so the PUT's lock callback returns one shape.
 - Three server commits initially swept in the uncommitted `mdocxengine`→`@kwill/docx-engine` rename hunks of files they touched; each was split so HEAD stays consistent with the committed `package.json`. Check `git diff -- <file>` before editing a file in that tree.
 
+### Phases 2–4 built, and the first simulator drive (2026-10-31)
+
+Tasks 13–29 were built in one day by five parallel subagents in isolated worktrees (W1 local-first edits, W2 AI overlays, W3 structure & sheets, W4 parity extras, W5 select mode + fixes) and merged on `master`; 268 vitest tests, tsc and the use-dom gate green, `expo export --platform ios` green with the `.wasm` and all eight Arabic faces in the bundle. **Phase 5 (Tasks 30–33) is NOT started** — the default is still `lexical`; the Developer toggle is the way in.
+
+**Visual-first is the rule now (user requirement, 10-31):** every student edit changes the page before any server round-trip. `thesis-doc-store.mutate` asks `lexical-editor-store.applyOp` first; the docx surface executes what the engine can in the engine (the bytes then leave through the save loop, and the op is NOT also queued — D2) and answers `false` for the rest, which keep the server path with a pending shimmer from the tap. The local/server table is the header of `bridge/op-map.ts`. Range rewrite has its own `applyRange` (select-then-paste). Verified on the simulator: pill Bold, H2/H3, AI ✦ rewrite Approve, table add-row — all on screen in the first frame after the tap, then saved.
+
+What the build and the drive taught that the plan did not know:
+- **Declared ≠ implemented at 2.21.1.** `replaceMatch`, `replaceText`, `applyFormatting`, `splitParagraph`, `mergeParagraphs` are in the engine's `.d.ts` and have NO runtime handler ("not supported by the tree editor"); text commands also refuse a `DocTarget`. Everything textual is **select (`setSelection` with `{paragraphId, offset}`) then `pasteWithoutFormatting` / `deleteText`**. `findMatches` caps a query at 256 chars and is case-insensitive unless told. Search replace shipped on `replaceMatch` and did nothing until fixed (`fdfd226`).
+- **The engine paints the same block id on the paragraph fragment, every line and every run** — select by `[data-fragment-index][data-paragraph-id]` (fixed in `dom-selectors.ts`; the Phase-1 report gave duplicate indices and one run's text).
+- **CORS blocked the concurrency contract.** The server allowed neither `If-Match` nor `If-None-Match` and did not expose `ETag`: the GET's ETag read back `null`, so the FIRST save went out with no `If-Match` (unguarded) and every later save / conditional reload died in the preflight as "Load failed". Fixed server-side (`kwill-server` `2b29a3e`) — **must be deployed before the docx surface is used against prod.**
+- **Expo's DOM `#root` is a flex container** → the wrapper (flex item, `min-width:auto`) grew to the page's width and the engine's `pageWidth` fit chased its own output (zoom −0.06 per relayout, revealed cut-off). `width:100%; min-width:0` on the wrapper (`db73df6`).
+- **The WebView's token was never refreshed** → "save 401" after the hour. Host follows `onAuthStateChange` and a 401 refreshes + retries (`6846169`). Task 28's IndexedDB copy is what kept those edits.
+- **Uncommitted engine edits lived in `node_modules`** (a 09-25 `w:bidi` alignment fix: jc left/right are logical in an RTL paragraph) — captured into `patches/@docx-editor.dev+core+2.21.1.patch` and verified byte-identical against a pristine tarball. Diff `node_modules/@docx-editor.dev` against `npm pack` before trusting the patch file.
+- **`@docx-editor.dev/core` 2.21.1 pins `harfbuzzjs` 1.6.1**; npm nested it UNPATCHED, so the engine's own import hit the top-level await and shaping was off on devices. Top-level dep is now 1.6.1 (deduped), patch re-derived, `shaper.test.ts` reads the engine's expected HarfBuzz version from its bundle.
+- **Whole-bytes saves are slow server-side**: one PUT took ~6.5 min on a 75-page thesis (lock contention or the persist path — doctor + two storage uploads per save). Saves chain, so "Saving…" looks stuck. Under investigation.
+- Not yet driven on the simulator (they sit behind the ✦ drag-to-⋮⋮ gesture, or this thesis has none): select mode, search panel, `/` insert, keyboard mode, equations, header/footer, charts, pictures, paste image. The simulator runs without the shaper by design — pagination there is not evidence.
+
 ---
 
 ## Phase 2 — AI surfaces (overlays)
