@@ -14,6 +14,7 @@ export default defineConfig({
     include: [
       "lib/docx-block-id.test.ts",
       "components/workspace/docx-editor/bridge/**/*.test.ts",
+      "components/workspace/docx-editor/overlays/**/*.test.ts",
     ],
     exclude: ["**/node_modules/**", "android/**", "ios/**", "dist/**"],
     passWithNoTests: true,
