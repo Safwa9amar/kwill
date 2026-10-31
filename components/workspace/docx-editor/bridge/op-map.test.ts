@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { DocBlockDTO } from "@/lib/api";
 import type { ThesisOp } from "@/lib/thesis-ops";
-import { colorValue, diffSpan, paraFormatOf, planOp } from "./op-map";
+import { blocksOf, colorValue, diffSpan, paraFormatOf, planOp } from "./op-map";
 
 const para = (index: number, text: string, extra: Record<string, unknown> = {}): DocBlockDTO =>
   ({ index, kind: "paragraph", text, styleId: null, level: 0, alignment: null, direction: null, ...extra }) as DocBlockDTO;
@@ -137,6 +137,16 @@ describe("planOp — in-flight marks for server ops", () => {
     expect(plan({ type: "replaceImage", index: 3, data: "", format: "png" })).toMatchObject({
       pending: { look: "busy", at: [{ index: 3, text: "" }] },
     });
+  });
+});
+
+describe("blocksOf", () => {
+  it("lists every block a local plan touches, once", () => {
+    expect(blocksOf([
+      { k: "text", at: { index: 4, text: "a" }, next: "b" },
+      { k: "format", at: [{ index: 4, text: "a" }, { index: 5, text: "c" }], fmt: { clear: true } },
+      { k: "table", at: { index: 9, rows: [["x"]] }, cell: { row: 0, col: 0, text: "x" }, act: { do: "deleteRow" } },
+    ])).toEqual([4, 5, 9]);
   });
 });
 

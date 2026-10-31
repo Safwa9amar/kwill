@@ -37,7 +37,7 @@ import type { DocxEditorInstance, PaginatedSurface, SemanticSelection } from "@d
 import type { TextMatch } from "@docx-editor.dev/core/contracts/editor";
 import { blockIndexFromId, isBodyId } from "@/lib/docx-block-id";
 import { isBlockLevelId, nodeIdOf, spannedBlocks } from "./dom-selectors";
-import { diffSpan, type LocalStep, type Marks, type ParaFormat, type ParaRef, type PendingMark, type TableAct, type TableRef } from "./op-map";
+import { diffSpan, type LocalStep, type Marks, type ParaFormat, type ParaRef, type TableAct, type TableRef } from "./op-map";
 
 const QUERY_MAX = 256; // the engine refuses a longer findMatches query
 const PROBE = 120; // head/tail probe for a paragraph longer than QUERY_MAX
@@ -413,16 +413,4 @@ export function placeCaret(ed: Editor, m: TextMatch, caret: { anchor: number; he
   } catch {
     /* nothing more to do: the engine keeps whatever caret the load gave it */
   }
-}
-
-/** The in-flight mark to paint when a local plan could not run and the op goes to
- *  the server after all. */
-export function pendingOf(steps: readonly LocalStep[]): PendingMark {
-  const at: ParaRef[] = [];
-  for (const s of steps) {
-    if (s.k === "text") at.push(s.at);
-    else if (s.k === "table") at.push({ index: s.at.index, text: "" });
-    else at.push(...s.at);
-  }
-  return { look: "busy", at };
 }

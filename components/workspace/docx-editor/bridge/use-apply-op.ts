@@ -1,8 +1,8 @@
 // The DOM half of `applyOp` (stores/lexical-editor-store.ts): a student's edit,
 // planned by the host (bridge/op-map.ts), runs HERE in the engine so the page
 // changes under the student's finger, then leaves as bytes through the save loop.
-// Answers every envelope that carries steps with `onOpApplied(nonce, ok)`; the host
-// sends a `false` to the server path instead.
+// Answers every envelope with `onOpApplied(nonce, ok)`; on `false` the host sends
+// the op to the server and marks its blocks pending (stores/docx-surface-store).
 //
 // ⚠️ Call it from Bridge BEFORE the flush effect. React runs a component's effects
 // in declaration order, and an op and a flush that arrive in the same render (an
@@ -10,18 +10,17 @@
 // the AI turn starts on bytes without the edit and the next save is refused.
 
 import { useCallback, useEffect, useRef, type RefObject } from "react";
-import { useDocxEditor, useEditorEvent } from "@docx-editor.dev/react";
+import { useDocxEditor } from "@docx-editor.dev/react";
 import type { DocxEditorRef } from "@docx-editor.dev/react";
-import { applySteps, engineOf, pendingOf } from "./apply-op";
+import { applySteps, engineOf } from "./apply-op";
 import { runCommandAction } from "./command-actions";
 import type { EngineAction } from "./command-map";
 import type { OpEnvelope } from "./op-map";
-import { clearPending, markPending } from "./pending-marks";
 import type { SaveLoop } from "./save-loop";
 
-// Older than this and the host may already have given up waiting (it waits a
-// little longer, see use-docx-apply-op.ts) and sent the op to the server: running
-// it too would apply it twice. Refused, answered false — the server path stands.
+// Older than this and the host may already have given up waiting (it waits longer,
+// see ../use-surface-ops.ts) and sent the op to the server: running it too would
+// apply it twice. Refused, answered false — the server path stands.
 const MAX_AGE_MS = 1500;
 
 const topNonce = (ops: readonly OpEnvelope[] | null | undefined): number =>
@@ -53,10 +52,6 @@ export function useApplyOp(p: {
     for (const env of list) {
       seen.current = env.nonce;
       const e = engine();
-      if (!env.steps) {
-        if (env.pending) markPending(e, env.pending);
-        continue;
-      }
       if (!e || Date.now() - env.at > MAX_AGE_MS) {
         p.onOpApplied?.(env.nonce, false);
         continue;
@@ -68,17 +63,10 @@ export function useApplyOp(p: {
         if (env.steps.length) p.saveLoop.markDirty();
       } else {
         console.warn("[docx] local op refused → server:", r.reason);
-        markPending(e, pendingOf(env.steps));
       }
       p.onOpApplied?.(env.nonce, r.ok);
     }
   }, [top]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // A load emits a change that names no blocks: whatever was in flight has landed
-  // (or been abandoned), so its marks go.
-  useEditorEvent("change", (change) => {
-    if (!(change.created?.length || change.deleted?.length || change.dirty?.length)) clearPending();
-  });
 
   const runExtra = useCallback((a: EngineAction) => {
     if (a.kind === "list" || a.kind === "indent" || a.kind === "insert" || a.kind === "focus" || a.kind === "blur") {

@@ -121,21 +121,32 @@ export type LocalStep =
   // TEXT is how the engine finds it, its coordinates are how the find is verified.
   | { k: "table"; at: TableRef; cell: { row: number; col: number; text: string }; act: TableAct };
 
-/** Painted blocks to mark while a SERVER op is in flight, so the page answers the
- *  tap at once even when the edit itself has to round-trip. Cleared by the reload
- *  that follows (the engine repaints), or by a timeout. */
+/** Blocks a SERVER op will change, so the page answers the tap at once even when
+ *  the edit itself has to round-trip: the host marks them pending
+ *  (stores/docx-surface-store → overlays/PendingLayer) until the reload that
+ *  shows the result. `look` records the intent; the layer has one shimmer today. */
 export type PendingMark = { look: "busy" | "removing"; at: ParaRef[] };
 
 export type OpPlan =
   | { local: true; steps: LocalStep[] }
   | { local: false; reason: string; pending: PendingMark | null; direction?: "rtl" | "ltr" };
 
-/** The envelope the host hands the DOM. `steps` → run and answer through
- *  `onOpApplied(nonce, ok)`; `pending` alone → paint the in-flight mark, no answer.
- *  `at` is the host's Date.now() when it was issued: the DOM refuses a stale one,
- *  because the host has by then given up waiting and sent the op to the server —
- *  running it as well would apply it twice. */
-export type OpEnvelope = { nonce: number; at: number; steps?: LocalStep[]; pending?: PendingMark | null };
+/** The envelope the host hands the DOM: run `steps`, answer `onOpApplied(nonce,
+ *  ok)`. `at` is the host's Date.now() when it was issued: the DOM refuses a stale
+ *  one, because the host has by then given up waiting and sent the op to the
+ *  server — running it as well would apply it twice. */
+export type OpEnvelope = { nonce: number; at: number; steps: LocalStep[] };
+
+/** The blocks a local plan touches — marked pending when the DOM could not run it
+ *  after all and the op goes to the server. */
+export function blocksOf(steps: readonly LocalStep[]): number[] {
+  const out = new Set<number>();
+  for (const s of steps) {
+    if (s.k === "text" || s.k === "table") out.add(s.at.index);
+    else for (const r of s.at) out.add(r.index);
+  }
+  return [...out];
+}
 
 type Para = Extract<DocBlockDTO, { kind: "paragraph" }>;
 type Table = Extract<DocBlockDTO, { kind: "table" }>;

@@ -4,8 +4,10 @@
 // is planned here against the block model (bridge/op-map.ts) and, when the engine
 // can do it, run in the WebView FIRST (bridge/use-apply-op.ts). The page changes
 // under the finger; the bytes follow through the save loop (spec D2). What the
-// engine cannot do answers `false` at once and takes the server path, after
-// painting an in-flight mark on the blocks it will change.
+// engine cannot do answers `false` and takes the server path — its blocks marked
+// pending from the tap (stores/docx-surface-store → overlays/PendingLayer, the
+// same shimmer the sheets use) until the queue drains, then until the reload
+// that shows the result.
 //
 // Also owns the pill's whole-block format (`blockFormat`): it is exactly a
 // `format` op, so it goes through mutate like every other edit instead of being
@@ -16,17 +18,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormatChange, ThesisOp } from "@/lib/thesis-ops";
+import { useDocxSurfaceStore } from "@/stores/docx-surface-store";
 import { useLexicalEditorStore } from "@/stores/lexical-editor-store";
 import { useThesisDocStore } from "@/stores/thesis-doc-store";
-import { planOp, type OpEnvelope } from "./bridge/op-map";
+import { blocksOf, planOp, type OpEnvelope } from "./bridge/op-map";
 
 // How long mutate waits for the WebView's answer before it takes the server path.
 // The DOM refuses an envelope older than 1500ms (bridge/use-apply-op.ts), so a
 // late answer can never follow a timeout that already sent the op to the server.
 const OP_REPLY_MS = 4000;
 // Envelopes kept in the prop. Answered ones are dropped as they are answered; this
-// only bounds in-flight marks nobody answers.
+// only bounds what the WebView never answered (it was remounting).
 const KEEP = 24;
+// A pending mark whose server op never drained (offline, queued) still has to go:
+// after this it waits only for the next reload (the store caps that too).
+const PENDING_MAX_MS = 30000;
 
 export function useSurfaceOps({ thesisId, active }: { thesisId: string; active: boolean }) {
   const [ops, setOps] = useState<OpEnvelope[]>([]);
@@ -40,13 +46,33 @@ export function useSurfaceOps({ thesisId, active }: { thesisId: string; active: 
 
   const push = useCallback((env: OpEnvelope) => setOps((cur) => [...cur.slice(-(KEEP - 1)), env]), []);
 
+  // Pending marks opened for server-path ops; each is ended (kept until the reload
+  // that shows the result) once the op queue drains — see the effect below.
+  const openMarks = useRef<((keepUntilReload?: boolean) => void)[]>([]);
+  const markServer = useCallback((indices: readonly number[]) => {
+    for (const i of indices) {
+      const end = useDocxSurfaceStore.getState().beginPending(i);
+      openMarks.current.push(end);
+      setTimeout(() => end(true), PENDING_MAX_MS); // idempotent: a second end() is a noop
+    }
+  }, []);
+  useEffect(
+    () =>
+      useThesisDocStore.subscribe((s, prev) => {
+        if ((s.pending[thesisId] ?? 0) === 0 && (prev.pending[thesisId] ?? 0) > 0) {
+          for (const end of openMarks.current.splice(0)) end(true);
+        }
+      }),
+    [thesisId],
+  );
+
   const applyOp = useCallback((tid: string, op: ThesisOp): Promise<boolean> => {
     if (tid !== thesisId || !activeRef.current || !ready.current) return Promise.resolve(false);
     const d = useThesisDocStore.getState().byId[tid];
     if (!d?.available) return Promise.resolve(false);
     const plan = planOp(op, d.blocks);
     if (!plan.local) {
-      if (plan.pending?.at.length) push({ nonce: ++seq.current, at: Date.now(), pending: plan.pending });
+      if (plan.pending?.at.length) markServer(plan.pending.at.map((r) => r.index));
       // Paragraph direction cannot be written by the engine (op-map.ts), so the
       // pill shows the student's choice now; the reload after the server op paints
       // the page, and the next selection report confirms it.
@@ -59,9 +85,14 @@ export function useSurfaceOps({ thesisId, active }: { thesisId: string; active: 
     }
     if (!plan.steps.length) return Promise.resolve(true); // nothing to change
     const nonce = ++seq.current;
+    const steps = plan.steps;
     return new Promise<boolean>((resolve) => {
-      waiters.current.set(nonce, resolve);
-      push({ nonce, at: Date.now(), steps: plan.steps });
+      // The engine could not place it after all → the server path: mark it.
+      waiters.current.set(nonce, (ok) => {
+        if (!ok) markServer(blocksOf(steps));
+        resolve(ok);
+      });
+      push({ nonce, at: Date.now(), steps });
       setTimeout(() => {
         const w = waiters.current.get(nonce);
         if (!w) return;
@@ -69,7 +100,7 @@ export function useSurfaceOps({ thesisId, active }: { thesisId: string; active: 
         w(false);
       }, OP_REPLY_MS);
     });
-  }, [thesisId, push]);
+  }, [thesisId, push, markServer]);
 
   const onOpApplied = useCallback(async (nonce: number, ok: boolean) => {
     const w = waiters.current.get(nonce);
