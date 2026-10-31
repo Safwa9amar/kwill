@@ -8,6 +8,7 @@ import type { LexicalState } from "@/components/workspace/lexical/editor-compone
 import type { SaveState } from "@/components/workspace/docx-editor/bridge/save-loop";
 import { useDocxRecovery } from "@/components/workspace/docx-editor/host/useDocxRecovery";
 import { RecoveryBanner } from "@/components/workspace/docx-editor/host/RecoveryBanner";
+import { useDocxScrollRestore } from "@/components/workspace/docx-editor/host/useDocxScrollRestore";
 import type { DocBlockDTO } from "@/lib/api";
 import { resolveBlockIndexStrict } from "@/lib/block-links";
 import { supabase } from "@/lib/supabase";
@@ -71,6 +72,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   // Bumping this remounts the WebView. `shaping` is read once per mount (the shaper
   // is initialised before the first document opens), so a new value needs a new one.
   const [surfaceKey, setSurfaceKey] = useState(0);
+  const scroll = useDocxScrollRestore({ thesisId, deepLinkBlock, surfaceKey });
   const crashedRef = useRef(false);
   const editorHashRef = useRef<string | null>(null);
   // For anchoring the native pill/AI-dock over the WebView, exactly as
@@ -271,6 +273,9 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
         onError={async (m) => setBanner(m)}
         recoveryAction={recovery.action}
         onRecovered={recovery.onRecovered}
+        scrollRestore={scroll.scrollRestore}
+        onScroll={scroll.onScroll}
+        onScrollRestored={scroll.onScrollRestored}
         dom={{
           style: { flex: 1 },
           scrollEnabled: true,

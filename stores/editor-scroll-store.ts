@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Remembers WHERE in the Lexical Writer the user was, PER thesis, so re-entering
+// Remembers WHERE in the Writer (Lexical or docx) the user was, PER thesis, so re-entering
 // the editor lands there instead of at the top. The Writer scrolls inside its DOM
 // WebView; leaving the workspace (back) unmounts that WebView and a Preview
 // round-trip re-keys it — both reset it to the top.
@@ -17,9 +17,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // just a session). Kept OUTSIDE workspace-store on purpose: that store is reset()
 // on every workspace-leave, which would wipe the value we need on the next entry.
 export interface ScrollAnchor {
-  y: number; // raw window.scrollY (fallback if the anchor block can't be resolved)
-  index: number; // DOM child index of the first block at/under the viewport top (-1 = none)
-  delta: number; // px of that block scrolled above the viewport top (>= 0)
+  y: number; // raw scroll offset (fallback if the anchor block can't be resolved)
+  index: number; // block index of the first block at/under the viewport top (-1 = none)
+  // px of that block scrolled above the viewport top. Lexical: >= 0. The docx
+  // surface may store a NEGATIVE delta (it anchors on the first block with text,
+  // which can start below the top) and stores it unscaled by zoom.
+  delta: number;
+  // docx surface only: the first ≤80 chars of the anchor block's text. Indices
+  // shift (spec D7), so the block is re-found by TEXT, filtered by index. Absent
+  // on anchors the Lexical surface saved; the docx host fills it from the DTO.
+  text?: string;
 }
 
 // Cap the map so it can't grow unbounded across many theses over time. Records keep

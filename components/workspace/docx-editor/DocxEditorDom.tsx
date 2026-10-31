@@ -28,6 +28,8 @@ import { createPendingSave, openIdbPendingStore, openInitial, type RecoveredRef 
 import { createSaveLoop, type SaveState } from "./bridge/save-loop";
 import { ensureShaper } from "./bridge/shaper";
 import { PendingRecovery, type RecoveryAction } from "./features/PendingRecovery";
+import { ScrollAnchor } from "./features/ScrollAnchor";
+import type { DocxScrollAnchor } from "./features/scroll-anchor";
 
 // The WebView gives the page no height of its own; the engine needs one. `.h-full`
 // is spelled out here rather than left to Tailwind — nativewind does not process
@@ -46,7 +48,7 @@ const PAGE_CSS = [
 export default function DocxEditorDom({
   apiBase, thesisId, token, command, scrollToIndex, reloadNonce, flushNonce, shaping = true,
   onState, onSave, onReady, onFlushed, onReloaded, onServerFormat, onError,
-  recoveryAction, onRecovered,
+  recoveryAction, onRecovered, scrollRestore, onScroll, onScrollRestored,
   dom: _dom,
 }: {
   apiBase: string;
@@ -73,6 +75,10 @@ export default function DocxEditorDom({
   /** Restore / Discard a copy the server refused (Task 28, features/PendingRecovery). */
   recoveryAction?: RecoveryAction | null;
   onRecovered?: (r: RecoveredRef | null) => Promise<void>;
+  /** Reading position (Task 25, features/ScrollAnchor): land here; report as it moves. */
+  scrollRestore?: { anchor: DocxScrollAnchor; nonce: number } | null;
+  onScroll?: (a: DocxScrollAnchor) => Promise<void>;
+  onScrollRestored?: () => Promise<void>;
   dom?: import("expo/dom").DOMProps;
 }) {
   const ref = useRef<DocxEditorRef>(null);
@@ -89,8 +95,10 @@ export default function DocxEditorDom({
   const [settled, setSettled] = useState(false);
   const readyRef = useRef(false);
   const inFlightRef = useRef(0);
+  // A landing to make first (Task 25): revealed already scrolled there, not at the top.
+  const holdRef = useRef(!!scrollRestore);
   const settle = useCallback(() => {
-    if (readyRef.current && inFlightRef.current === 0) {
+    if (readyRef.current && inFlightRef.current === 0 && !holdRef.current) {
       // Two frames: the last face resolving is not the same tick as the relayout it
       // causes, and revealing between them would show the jump we are hiding.
       requestAnimationFrame(() => requestAnimationFrame(() => setSettled(true)));
@@ -237,6 +245,14 @@ export default function DocxEditorDom({
             onFlushed={(n) => void onFlushed?.(n)}
             onReloaded={(h) => void onReloaded?.(h)}
             onServerFormat={(t, c) => void onServerFormat?.(t, c)}
+          />
+          <ScrollAnchor
+            editorRef={ref}
+            restore={scrollRestore}
+            onScroll={(a) => void onScroll?.(a)}
+            onRestored={() => void onScrollRestored?.()}
+            onBusy={(b) => { holdRef.current = b; if (!b) settle(); }}
+            revealed={settled}
           />
           <PendingRecovery
             editorRef={ref}
