@@ -21,7 +21,10 @@ describe("harfbuzzjs patch", () => {
     const hb = await import("harfbuzzjs");
     expect(typeof hb.load).toBe("function");
     await hb.load();
-    expect(hb.versionString()).toBe("14.3.0");
+    // @docx-editor.dev/core 2.21.1 pins harfbuzzjs 1.6.1 = HarfBuzz 14.4.0 (the
+    // version string is baked into its chunk). A mismatch here means a nested,
+    // unpatched copy is what the engine actually imports.
+    expect(hb.versionString()).toBe("14.4.0");
   });
 });
 

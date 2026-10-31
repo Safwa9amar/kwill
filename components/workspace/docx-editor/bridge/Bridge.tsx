@@ -34,6 +34,8 @@ import { findBlockMatch } from "./find-block";
 import { spannedBlocks } from "./dom-selectors";
 import { fetchDocument } from "./load-document";
 import type { OpEnvelope } from "./op-map";
+import { classifyReport } from "./report-kind";
+import { readSelectionFacts } from "./selection-facts";
 import type { SaveLoop } from "./save-loop";
 import { useApplyOp } from "./use-apply-op";
 import { placeCaret } from "./apply-op";
@@ -106,6 +108,8 @@ export type BridgeProps = {
   // Student edits planned by the host, run here first (bridge/use-apply-op.ts).
   ops?: readonly OpEnvelope[] | null;
   onOpApplied?: (nonce: number, ok: boolean) => void;
+  /** First block index of each section (DTO order) — a header/footer report names its section by it. */
+  sectionStarts?: readonly number[];
 };
 
 export function Bridge(p: BridgeProps) {
@@ -177,7 +181,9 @@ export function Bridge(p: BridgeProps) {
       : styleId === "Quote" ? "quote"
       : "paragraph";
     if (focus) lastFocus.current = { index: focus.index, text: focus.text };
-    p.onState({
+    // Header/footer story, selected picture, caret in a table → the kind the native
+    // chrome expects (report-kind.ts); anything else passes through unchanged.
+    p.onState(classifyReport({
       bold: !!fmt?.bold, italic: !!fmt?.italic, underline: !!fmt?.underline,
       blockType,
       isRTL: focus ? getComputedStyle(focus.el).direction === "rtl" : false,
@@ -191,7 +197,7 @@ export function Bridge(p: BridgeProps) {
       canUndo: toolbarCommandState(editor, "history.undo").enabled,
       canRedo: toolbarCommandState(editor, "history.redo").enabled,
       userDriven: isUserDriven(),
-    });
+    }, readSelectionFacts(editor), { sectionStarts: p.sectionStarts ?? [] }));
   };
 
   // Put the caret back after a load(): the engine re-parses and every node id is

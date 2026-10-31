@@ -14,6 +14,8 @@ import { useThesisDocStore } from "@/stores/thesis-doc-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 import { useFloatingPillStore } from "@/stores/floating-pill-store";
 import { useLexicalEditorStore } from "@/stores/lexical-editor-store";
+import { isChromeReport, reportChrome } from "@/components/workspace/docx-editor/host/chrome-report";
+import { useDocxStructure } from "@/components/workspace/docx-editor/host/use-docx-structure";
 
 // The docx-editor as the Writer (spec D12, behind settings.writerEngine). Phase 1
 // host: token, command/state bridge, flush + reload registration, doc-tick → reload,
@@ -89,6 +91,8 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   const reloadWaiters = useRef<(() => void)[]>([]);
   // Student edits run in the engine first (registers applyOp; see use-surface-ops.ts).
   const { ops: surfaceOps, onOpApplied, markReady } = useSurfaceOps({ thesisId, active });
+  // Phase 3: equations, header/footer, charts, pictures, search, slash, paste.
+  const structure = useDocxStructure(thesisId, editorHashRef);
 
   // A fresh token on mount; the DOM side holds it for its own fetches. (A session
   // outliving the hour re-mounts on the next workspace open; Phase 4 refreshes it
@@ -127,10 +131,12 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
     useLexicalEditorStore.getState().registerReload(reload);
     return () => useLexicalEditorStore.getState().registerReload(null);
   }, [reload]);
+  const { onReloadSettled } = structure;
   const onReloaded = useCallback(async (h: string | null) => {
     editorHashRef.current = h;
     reloadWaiters.current.splice(0).forEach((r) => r());
-  }, []);
+    onReloadSettled();
+  }, [onReloadSettled]);
 
   // The doc changed on the server by something other than our save (an AI turn's
   // MODK_DOCCHANGES → revalidate, a sheet, history) → the DTO's hash moves away
@@ -211,6 +217,8 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
     // focus out of the WebView and the engine reports index -1, which would otherwise
     // reset the pill's Bold/H2/RTL indicators out from under the student.
     if (s.index < 0) return;
+    // A running header/footer story (Task 18) — the chrome selection, not a block.
+    if (isChromeReport(s)) { lastSelKeyRef.current = ""; reportChrome(thesisId, s, editorTopRef.current); return; }
     if (useWorkspaceStore.getState().selectMode) { lastSelKeyRef.current = ""; return; }
     if (s.userDriven === false && (s.blocks?.length ?? 1) <= 1 && useWorkspaceStore.getState().selectedBlocks.length > 1) return;
     useWorkspaceStore.getState().setChromeSelection(null);
@@ -227,7 +235,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
       else if (spanned[0].index >= 0) ws.selectBlock(spanned[0].index, spanned[0].text);
     }
     if (typeof s.y === "number" && s.y >= 0) useFloatingPillStore.getState().setAnchorY(editorTopRef.current + s.y);
-  }, []);
+  }, [thesisId]);
 
   // Expo's DOM wrapper answers a dead content process by silently reloading the
   // WebView, which turns a reproducible crash into an invisible reload loop — a
@@ -271,6 +279,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
         ops={surfaceOps}
         onOpApplied={onOpApplied}
         shaping={shaping}
+        {...structure.props}
         onError={async (m) => setBanner(m)}
         dom={{
           style: { flex: 1 },

@@ -28,6 +28,10 @@ import { fetchDocument } from "./bridge/load-document";
 import type { OpEnvelope } from "./bridge/op-map";
 import { createSaveLoop, type SaveState } from "./bridge/save-loop";
 import { ensureShaper } from "./bridge/shaper";
+import type {
+  ChartOverlayInput, ImageCommandInput, InsertTrigger, SearchFocusInput, SearchReplaceInput, SearchReplaceResult,
+} from "./bridge/surface-types";
+import { StructureLayer } from "./features/StructureLayer";
 
 /**
  * Amiri is the only Arabic family in the package's Google catalogue, and it is
@@ -69,6 +73,8 @@ export default function DocxEditorDom({
   apiBase, thesisId, token, command, scrollToIndex, reloadNonce, flushNonce, shaping = true,
   onState, onSave, onReady, onFlushed, onReloaded, onServerFormat, onError,
   ops, onOpApplied,
+  sectionStarts, charts, selectedChart, pending, pendingChrome, imageCommand, searchFocus, searchReplace,
+  onEquationTap, onInsertTrigger, onPasteImage, onSearchReplaced, onImageRefused,
   dom: _dom,
 }: {
   apiBase: string;
@@ -95,6 +101,20 @@ export default function DocxEditorDom({
   // Student edits run in the engine first (applyOp; bridge/use-apply-op.ts).
   ops?: OpEnvelope[] | null;
   onOpApplied?: (nonce: number, ok: boolean) => Promise<void>;
+  // ── Phase 3 (structure & sheets): see features/StructureLayer.tsx ──
+  sectionStarts?: number[];
+  charts?: ChartOverlayInput[];
+  selectedChart?: number;
+  pending?: number[];
+  pendingChrome?: string[];
+  imageCommand?: ImageCommandInput | null;
+  searchFocus?: SearchFocusInput | null;
+  searchReplace?: SearchReplaceInput | null;
+  onEquationTap?: (payload: string) => Promise<void>;
+  onInsertTrigger?: (t: InsertTrigger) => Promise<void>;
+  onPasteImage?: (index: number) => Promise<void>;
+  onSearchReplaced?: (r: SearchReplaceResult) => Promise<void>;
+  onImageRefused?: (index: number) => Promise<void>;
   dom?: import("expo/dom").DOMProps;
 }) {
   const ref = useRef<DocxEditorRef>(null);
@@ -213,6 +233,9 @@ export default function DocxEditorDom({
           colorMode="light"
           zoomMode="auto"
           chrome={false}
+          // A tapped equation opens the native EquationSheet (StructureLayer), not
+          // the engine's own linear-math popover.
+          popups={{ equation: false }}
           onReady={handleReady}
           onFontError={(e) => {
             // Only `wasmUnavailable` is a HOST fault (the engine's own words): no
@@ -242,6 +265,23 @@ export default function DocxEditorDom({
             onServerFormat={(t, c) => void onServerFormat?.(t, c)}
             ops={ops}
             onOpApplied={(n, ok) => void onOpApplied?.(n, ok)}
+            sectionStarts={sectionStarts}
+          />
+          <StructureLayer
+            editorRef={ref}
+            charts={charts}
+            selectedChart={selectedChart}
+            pending={pending}
+            pendingChrome={pendingChrome}
+            imageCommand={imageCommand}
+            searchFocus={searchFocus}
+            searchReplace={searchReplace}
+            onState={(s) => void onState(s)}
+            onEquationTap={onEquationTap ? (x) => void onEquationTap(x) : undefined}
+            onInsertTrigger={onInsertTrigger ? (t) => void onInsertTrigger(t) : undefined}
+            onPasteImage={onPasteImage ? (i) => void onPasteImage(i) : undefined}
+            onSearchReplaced={(r) => void onSearchReplaced?.(r)}
+            onImageRefused={(i) => void onImageRefused?.(i)}
           />
           </DocxEditor>
       </div>
