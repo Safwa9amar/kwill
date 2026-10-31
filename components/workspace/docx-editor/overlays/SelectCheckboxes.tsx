@@ -44,7 +44,8 @@ const CSS = (() => {
     "border:2px solid #b9bcc8;border-radius:6px;background:#fff center/14px 14px no-repeat;",
     "pointer-events:none;transition:background-color .12s ease,border-color .12s ease}",
     `.kws-box.on{border-color:${brand.primary};background-color:${brand.primary};background-image:url("${CHECK}")}`,
-    `.kws-tint{position:fixed;z-index:44;pointer-events:none;border-radius:4px;background:rgba(${rgb},.11)}`,
+    // Above the chart layer (45): a checked chart block is tinted like any other.
+    `.kws-tint{position:fixed;z-index:46;pointer-events:none;border-radius:4px;background:rgba(${rgb},.11)}`,
   ].join("");
 })();
 
