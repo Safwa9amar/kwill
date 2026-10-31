@@ -24,8 +24,10 @@ import type { LexicalCommand, LexicalState } from "@/components/workspace/lexica
 import { Bridge, type BlockRef } from "./bridge/Bridge";
 import { makeFontResolver } from "./bridge/fonts";
 import { fetchDocument } from "./bridge/load-document";
+import { createPendingSave, openIdbPendingStore, openInitial, type RecoveredRef } from "./bridge/pending-save";
 import { createSaveLoop, type SaveState } from "./bridge/save-loop";
 import { ensureShaper } from "./bridge/shaper";
+import { PendingRecovery, type RecoveryAction } from "./features/PendingRecovery";
 
 // The WebView gives the page no height of its own; the engine needs one. `.h-full`
 // is spelled out here rather than left to Tailwind — nativewind does not process
@@ -44,6 +46,7 @@ const PAGE_CSS = [
 export default function DocxEditorDom({
   apiBase, thesisId, token, command, scrollToIndex, reloadNonce, flushNonce, shaping = true,
   onState, onSave, onReady, onFlushed, onReloaded, onServerFormat, onError,
+  recoveryAction, onRecovered,
   dom: _dom,
 }: {
   apiBase: string;
@@ -67,6 +70,9 @@ export default function DocxEditorDom({
   // between the report and the op. See bridge/Bridge.tsx.
   onServerFormat?: (target: BlockRef, changes: { direction: "rtl" | "ltr" }) => Promise<void>;
   onError?: (message: string) => Promise<void>;
+  /** Restore / Discard a copy the server refused (Task 28, features/PendingRecovery). */
+  recoveryAction?: RecoveryAction | null;
+  onRecovered?: (r: RecoveredRef | null) => Promise<void>;
   dom?: import("expo/dom").DOMProps;
 }) {
   const ref = useRef<DocxEditorRef>(null);
@@ -104,6 +110,11 @@ export default function DocxEditorDom({
     };
   }, [settle]);
 
+  // The offline copy of every save (spec D6, bridge/pending-save.ts).
+  const pendingSave = useMemo(() => createPendingSave(openIdbPendingStore(), thesisId), [thesisId]);
+  // Opened from a pending copy → the save loop replays it once the editor is up.
+  const replayRef = useRef(false);
+
   // One save loop per mount; getBytes is bound to the ref so it always saves the
   // editor that is on screen.
   const saveLoop = useMemo(
@@ -111,7 +122,11 @@ export default function DocxEditorDom({
       apiBase, thesisId,
       token: () => tokenRef.current,
       getBytes: async () => (await ref.current?.save()) ?? null,
-      onState: (s) => void onSave?.(s),
+      onState: (s) => {
+        void onSave?.(s);
+        if (s.kind === "stale" && s.recovered) void onRecovered?.(s.recovered);
+      },
+      pending: pendingSave,
     }),
     [apiBase, thesisId], // eslint-disable-line react-hooks/exhaustive-deps
   );
@@ -138,8 +153,11 @@ export default function DocxEditorDom({
           // then reports `wasmUnavailable` and measures fixed-width.
           void onError?.("text shaping is off on this host, so page layout will differ from Word");
         }
-        const r = await fetchDocument({ apiBase, thesisId, token });
-        if (!alive || r.status !== 200) return;
+        // A copy the network never carried is the student's newest text: it goes
+        // on screen first, and the save loop replays it (bridge/pending-save.ts).
+        const r = await openInitial({ pending: pendingSave, fetchDoc: () => fetchDocument({ apiBase, thesisId, token }) });
+        if (!alive || !r) return;
+        replayRef.current = r.replay;
         saveLoop.setHash(r.docHash);
         setBytes(r.bytes);
       } catch (e) {
@@ -152,7 +170,16 @@ export default function DocxEditorDom({
   const handleReady = (editor: Editor) => {
     readyRef.current = true;
     settle();
-    void onReady?.({ pages: editor.snapshot().page.total, docHash: saveLoop.getHash() });
+    const replay = replayRef.current;
+    replayRef.current = false;
+    // A replayed copy is AHEAD of the server: until its save lands (which reports
+    // the new hash), the host must hold no hash to compare, or a doc-store tick
+    // would "catch up" by reloading the server's older bytes over it.
+    void onReady?.({ pages: editor.snapshot().page.total, docHash: replay ? null : saveLoop.getHash() });
+    if (replay) {
+      saveLoop.markDirty();
+      void saveLoop.flush().catch(() => {});
+    }
   };
 
   // A face the CDN never answers must not leave the student on a placeholder forever;
@@ -210,6 +237,13 @@ export default function DocxEditorDom({
             onFlushed={(n) => void onFlushed?.(n)}
             onReloaded={(h) => void onReloaded?.(h)}
             onServerFormat={(t, c) => void onServerFormat?.(t, c)}
+          />
+          <PendingRecovery
+            editorRef={ref}
+            saveLoop={saveLoop}
+            pending={pendingSave}
+            action={recoveryAction}
+            onRecovered={(r) => void onRecovered?.(r)}
           />
           </DocxEditor>
       </div>

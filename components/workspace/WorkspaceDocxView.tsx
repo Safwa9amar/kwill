@@ -6,6 +6,8 @@ import { typography } from "@/constants/typography";
 import DocxEditorDom from "@/components/workspace/docx-editor/DocxEditorDom";
 import type { LexicalState } from "@/components/workspace/lexical/editor-components/types";
 import type { SaveState } from "@/components/workspace/docx-editor/bridge/save-loop";
+import { useDocxRecovery } from "@/components/workspace/docx-editor/host/useDocxRecovery";
+import { RecoveryBanner } from "@/components/workspace/docx-editor/host/RecoveryBanner";
 import type { DocBlockDTO } from "@/lib/api";
 import { resolveBlockIndexStrict } from "@/lib/block-links";
 import { supabase } from "@/lib/supabase";
@@ -86,6 +88,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   // changes, and the Bridge's effect never fires for the second one either.
   const flushSeq = useRef(0);
   const reloadWaiters = useRef<(() => void)[]>([]);
+  const recovery = useDocxRecovery();
 
   // A fresh token on mount; the DOM side holds it for its own fetches. (A session
   // outliving the hour re-mounts on the next workspace open; Phase 4 refreshes it
@@ -154,8 +157,8 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
       // reconciles the doc when it lands.
       void useThesisDocStore.getState().revalidate(thesisId);
     } else if (s.kind === "stale") {
-      // Phase 1: reload the server's version and say so. Phase 4 (Task 28) keeps
-      // the refused bytes as a recovery copy and offers Restore.
+      // Reload the server's version and say so; the refused bytes were kept as a
+      // recovered copy, which the DOM offers through onRecovered (Task 28).
       setBanner("Changed elsewhere — reloaded");
       setReloadNonce((n) => n + 1);
     } else if (s.kind === "error") {
@@ -266,6 +269,8 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
         onServerFormat={onServerFormat}
         shaping={shaping}
         onError={async (m) => setBanner(m)}
+        recoveryAction={recovery.action}
+        onRecovered={recovery.onRecovered}
         dom={{
           style: { flex: 1 },
           scrollEnabled: true,
@@ -273,6 +278,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
           onRenderProcessGone: onWebContentCrash,
         }}
       />
+      {recovery.offer ? <RecoveryBanner onRestore={recovery.restore} onDiscard={recovery.discard} /> : null}
       {(crashNote ?? banner) ? (
         <View style={[styles.banner, { backgroundColor: colors.bgCard, borderColor: colors.borderDefault }]}>
           <Text style={[styles.bannerText, { color: colors.textSecondary }]}>{crashNote ?? banner}</Text>
