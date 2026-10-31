@@ -18,6 +18,7 @@ import {
 import { rotateFlipBlockImage, type RotateFlipOp } from "@/lib/thesis-image-edit";
 import { useCaptionSheetStore } from "@/stores/caption-sheet-store";
 import { useThesisDocStore } from "@/stores/thesis-doc-store";
+import { engineImageAction, useDocxSurfaceStore } from "@/stores/docx-surface-store";
 
 export interface DispatchDeps {
   thesisId: string;
@@ -132,10 +133,14 @@ export async function dispatchRibbonAction(
         // travel through the app; the server re-embeds a transparent PNG.
         if (!first) return;
         deps.onBusy?.("workspace.removingBg");
+        // The docx surface marks the picture as working until the reload shows it.
+        const settle = useDocxSurfaceStore.getState().beginPending(first.index);
         try {
           await removeThesisBlockBg(deps.thesisId, first.index);
           deps.onAfterEdit();
+          settle();
         } catch {
+          settle(false);
           Alert.alert(i18n.t("common.error", { defaultValue: "Error" }), i18n.t("workspace.bgError", { defaultValue: "Couldn't remove the background. Please try again." }));
         } finally {
           deps.onBusy?.(null);
@@ -171,6 +176,8 @@ export async function dispatchRibbonAction(
         if (!first) return;
         const op = optionValue as RotateFlipOp | undefined;
         if (op !== "rotateRight" && op !== "rotateLeft" && op !== "flipH" && op !== "flipV") return toAi();
+        // The docx surface turns it in the engine — instant; its save persists it.
+        if (useDocxSurfaceStore.getState().imageTransform?.(first.index, engineImageAction(op))) return;
         deps.onBusy?.("workspace.updatingImage");
         try {
           const edited = await rotateFlipBlockImage(deps.thesisId, first.index, op);

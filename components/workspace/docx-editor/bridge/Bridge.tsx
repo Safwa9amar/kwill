@@ -33,6 +33,8 @@ import { mapCommand } from "./command-map";
 import { findBlockMatch } from "./find-block";
 import { spannedBlocks } from "./dom-selectors";
 import { fetchDocument } from "./load-document";
+import { classifyReport } from "./report-kind";
+import { readSelectionFacts } from "./selection-facts";
 import type { SaveLoop } from "./save-loop";
 
 // A report counts as the student's own doing for this long after a touch/key.
@@ -100,6 +102,8 @@ export type BridgeProps = {
   // edit and the re-parse that follows the save, an index alone can name the
   // wrong paragraph, and the host re-resolves by text before it mutates.
   onServerFormat: ((target: BlockRef, changes: { direction: "rtl" | "ltr" }) => void) | undefined;
+  /** First block index of each section (DTO order) — a header/footer report names its section by it. */
+  sectionStarts?: readonly number[];
 };
 
 export function Bridge(p: BridgeProps) {
@@ -168,7 +172,9 @@ export function Bridge(p: BridgeProps) {
       : styleId === "Quote" ? "quote"
       : "paragraph";
     if (focus) lastFocus.current = { index: focus.index, text: focus.text };
-    p.onState({
+    // Header/footer story, selected picture, caret in a table → the kind the native
+    // chrome expects (report-kind.ts); anything else passes through unchanged.
+    p.onState(classifyReport({
       bold: !!fmt?.bold, italic: !!fmt?.italic, underline: !!fmt?.underline,
       blockType,
       isRTL: focus ? getComputedStyle(focus.el).direction === "rtl" : false,
@@ -182,7 +188,7 @@ export function Bridge(p: BridgeProps) {
       canUndo: toolbarCommandState(editor, "history.undo").enabled,
       canRedo: toolbarCommandState(editor, "history.redo").enabled,
       userDriven: isUserDriven(),
-    });
+    }, readSelectionFacts(editor), { sectionStarts: p.sectionStarts ?? [] }));
   };
 
   // Put the caret back after a load(): the engine re-parses and every node id is

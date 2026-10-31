@@ -13,6 +13,7 @@ import {
   WandSparkles,
 } from "lucide-react-native";
 import { useThesisDocStore } from "@/stores/thesis-doc-store";
+import { engineImageAction, useDocxSurfaceStore } from "@/stores/docx-surface-store";
 import { useToolbarStore } from "@/stores/toolbar-store";
 import { useCaptionSheetStore } from "@/stores/caption-sheet-store";
 import { removeThesisBlockBg } from "@/lib/api";
@@ -75,6 +76,9 @@ export function ImageTools({ full }: { full: boolean }) {
 
   const rotateFlip = async (op: RotateFlipOp) => {
     if (soleIndex == null || busy) return;
+    // The docx surface turns the picture in the engine — on the page at once, and
+    // its save persists it. Elsewhere: re-encode on device and swap the bytes.
+    if (useDocxSurfaceStore.getState().imageTransform?.(soleIndex, engineImageAction(op))) return;
     setBusy(true);
     try {
       const edited = await rotateFlipBlockImage(thesisId, soleIndex, op);
@@ -99,10 +103,14 @@ export function ImageTools({ full }: { full: boolean }) {
   const removeBg = async () => {
     if (soleIndex == null || busy) return;
     setBusy(true);
+    // Server-only (rembg): mark the picture as working on the page until the reload.
+    const settle = useDocxSurfaceStore.getState().beginPending(soleIndex);
     try {
       await removeThesisBlockBg(thesisId, soleIndex);
       await useThesisDocStore.getState().revalidate(thesisId);
+      settle();
     } catch {
+      settle(false);
       Alert.alert(
         t("common.error", { defaultValue: "Error" }),
         t("workspace.bgError", { defaultValue: "Couldn't remove the background. Please try again." }),

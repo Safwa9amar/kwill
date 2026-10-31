@@ -17,6 +17,7 @@ import {
   Type,
 } from "lucide-react-native";
 import { useThesisDocStore } from "@/stores/thesis-doc-store";
+import { useDocxSurfaceStore } from "@/stores/docx-surface-store";
 import { useToolbarStore } from "@/stores/toolbar-store";
 import { brand } from "@/constants/colors";
 import { useCaptionSheetStore } from "@/stores/caption-sheet-store";
@@ -83,13 +84,19 @@ function useChartEdit(thesisId: string, index: number | null) {
   const run = async (patch: ThesisChartPatch, onError: string) => {
     if (index == null || busy) return;
     setBusy(true);
+    // On the docx surface the chart shimmers from the tap until the echo lands — and
+    // the echo's SVG goes straight onto the chart overlay, so the mark drops then
+    // rather than waiting for the bytes to reload behind it.
+    const settle = useDocxSurfaceStore.getState().beginPending(index);
     try {
       const res = await updateThesisChart(thesisId, index, patch);
       // The echoed document is the source of truth: a chart's SVG is produced
       // server-side, so there is nothing the app could have guessed optimistically.
       if (res.document) useThesisDocStore.getState().setDoc(thesisId, res.document);
       else await useThesisDocStore.getState().revalidate(thesisId);
+      settle(false);
     } catch {
+      settle(false);
       Alert.alert(onError);
     } finally {
       setBusy(false);
