@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
+import * as Device from "expo-device";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { typography } from "@/constants/typography";
 import DocxEditorDom from "@/components/workspace/docx-editor/DocxEditorDom";
@@ -20,6 +21,22 @@ import { useLexicalEditorStore } from "@/stores/lexical-editor-store";
 // Lexical did.
 
 const API_BASE = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+
+// The iOS Simulator's WebKit segfaults inside JavaScriptCore's WebAssembly fault
+// handler (EXC_BAD_ACCESS at 0x8, reproduced 09-11 and 09-22 on an x86-64 runtime)
+// the moment the shaper instantiates its module — a WebContent-process crash, not
+// a JS error, and nothing this side can catch. HarfBuzz is the only wasm the engine
+// loads, so the simulator opens the document without it: pagination is then wrong,
+// but the surface is there to develop against. Real devices keep the shaper.
+// `EXPO_PUBLIC_DOCX_SHAPING=on|off` overrides that verdict, which is how the
+// simulator gets tested against a JSC that was told not to use its wasm fast
+// memory (`simctl spawn booted launchctl setenv JSC_useWebAssemblyFastMemory 0`,
+// then relaunch — the WebContent process reads it at launch). Unset = auto.
+const SHAPING_OVERRIDE = process.env.EXPO_PUBLIC_DOCX_SHAPING;
+const WASM_HOSTILE_WEBKIT = Platform.OS === "ios" && !Device.isDevice;
+const SHAPING_DEFAULT = SHAPING_OVERRIDE === "on" ? true
+  : SHAPING_OVERRIDE === "off" ? false
+  : !WASM_HOSTILE_WEBKIT;
 
 /** The text to search for when navigating to `index`: the block's own text for a
  *  paragraph, else the nearest paragraph ABOVE it (a table or figure has no
@@ -46,6 +63,13 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   const [flushNonce, setFlushNonce] = useState<number | undefined>(undefined);
   const [scrollTo, setScrollTo] = useState<{ index: number; text: string; nonce: number } | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  // Survives the auto-clear below, because a dead editor is not a transient event.
+  const [crashNote, setCrashNote] = useState<string | null>(null);
+  const [shaping, setShaping] = useState(SHAPING_DEFAULT);
+  // Bumping this remounts the WebView. `shaping` is read once per mount (the shaper
+  // is initialised before the first document opens), so a new value needs a new one.
+  const [surfaceKey, setSurfaceKey] = useState(0);
+  const crashedRef = useRef(false);
   const editorHashRef = useRef<string | null>(null);
   // For anchoring the native pill/AI-dock over the WebView, exactly as
   // WorkspaceLexicalView does it: the editor's ABSOLUTE SCREEN top (measureInWindow,
@@ -201,6 +225,22 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
     if (typeof s.y === "number" && s.y >= 0) useFloatingPillStore.getState().setAnchorY(editorTopRef.current + s.y);
   }, []);
 
+  // Expo's DOM wrapper answers a dead content process by silently reloading the
+  // WebView, which turns a reproducible crash into an invisible reload loop — a
+  // blank page and no error, which is exactly what a student would report. Taking
+  // the handler (it is spread after the wrapper's own) means we own the recovery:
+  // drop the wasm once, then stop and say so rather than loop.
+  const onWebContentCrash = useCallback(() => {
+    if (!crashedRef.current) {
+      crashedRef.current = true;
+      setShaping(false);
+      setCrashNote("The editor crashed — reopened without text shaping, so page layout will differ from Word");
+      setSurfaceKey((k) => k + 1);
+      return;
+    }
+    setCrashNote("The editor keeps crashing — close and reopen the thesis to try again");
+  }, []);
+
   if (!token) return <View style={styles.fill} />;
 
   return (
@@ -210,6 +250,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
       onLayout={() => wrapRef.current?.measureInWindow((_x, y) => { editorTopRef.current = y; })}
     >
       <DocxEditorDom
+        key={surfaceKey}
         apiBase={API_BASE}
         thesisId={thesisId}
         token={token}
@@ -223,12 +264,18 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
         onFlushed={onFlushed}
         onReloaded={onReloaded}
         onServerFormat={onServerFormat}
+        shaping={shaping}
         onError={async (m) => setBanner(m)}
-        dom={{ style: { flex: 1 }, scrollEnabled: true }}
+        dom={{
+          style: { flex: 1 },
+          scrollEnabled: true,
+          onContentProcessDidTerminate: onWebContentCrash,
+          onRenderProcessGone: onWebContentCrash,
+        }}
       />
-      {banner ? (
+      {(crashNote ?? banner) ? (
         <View style={[styles.banner, { backgroundColor: colors.bgCard, borderColor: colors.borderDefault }]}>
-          <Text style={[styles.bannerText, { color: colors.textSecondary }]}>{banner}</Text>
+          <Text style={[styles.bannerText, { color: colors.textSecondary }]}>{crashNote ?? banner}</Text>
         </View>
       ) : null}
     </View>
