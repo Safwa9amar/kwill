@@ -185,14 +185,23 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   // MODK_DOCCHANGES → revalidate, a sheet, history) → the DTO's hash moves away
   // from the one the editor holds → reload. A conditional GET, so a false alarm
   // is one 304.
+  //
+  // ⚠️ A NULL editor hash reloads too, once the surface is up. The editor holds
+  // null after opening on a pending offline copy, until that copy's save lands —
+  // and when it never did (expired token, network), this effect used to ignore
+  // EVERY later server change: a range rewrite applied on the server stayed
+  // invisible (seen on the simulator, 10-31). Safe now because the reload flushes
+  // first and keeps the page when that flush failed (Bridge.tsx).
+  const surfaceReadyRef = useRef(false);
   useEffect(() => {
     const d = useThesisDocStore.getState().byId[thesisId];
     const h = d?.available ? d.docHash ?? null : null;
-    if (h && editorHashRef.current && h !== editorHashRef.current) setReloadNonce((n) => n + 1);
+    if (h && surfaceReadyRef.current && h !== editorHashRef.current) setReloadNonce((n) => n + 1);
   }, [docTick, thesisId]);
 
   const onReady = useCallback(async (info: { pages: number; docHash: string | null }) => {
     editorHashRef.current = info.docHash;
+    surfaceReadyRef.current = true;
     markReady();
   }, [markReady]);
 
@@ -291,6 +300,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   // the handler (it is spread after the wrapper's own) means we own the recovery:
   // drop the wasm once, then stop and say so rather than loop.
   const onWebContentCrash = useCallback(() => {
+    surfaceReadyRef.current = false;
     if (!crashedRef.current) {
       crashedRef.current = true;
       setShaping(false);

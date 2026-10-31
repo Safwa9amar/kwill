@@ -156,6 +156,24 @@ describe("createSaveLoop", () => {
     expect(f).toHaveBeenCalledTimes(2);
   });
 
+  it("lastSaveFailed: set by a network error, cleared by a landing save, NOT set by a 412", async () => {
+    const f = vi.fn()
+      .mockImplementationOnce(async () => { throw new TypeError("Load failed"); })
+      .mockImplementationOnce(async () => ({ status: 412, ok: false, json: async () => ({ docHash: "hX" }) }))
+      .mockImplementationOnce(async () => ({ status: 200, ok: true, json: async () => ({ docHash: "h2" }) })) as unknown as typeof fetch;
+    const { loop } = make(f);
+    loop.setHash("h1");
+    loop.markDirty();
+    await loop.flush();
+    expect(loop.lastSaveFailed()).toBe(true);
+    await loop.flush();
+    expect(loop.lastSaveFailed()).toBe(false);
+    expect(loop.isDirty()).toBe(true);
+    await loop.flush();
+    expect(loop.lastSaveFailed()).toBe(false);
+    expect(loop.isDirty()).toBe(false);
+  });
+
   it("isDirty tracks unsaved edits: set by markDirty, cleared once a save is committed to, back on a refusal", async () => {
     const ok = mockPut(200, { docHash: "h2" });
     const { loop } = make(ok);

@@ -308,6 +308,14 @@ export function Bridge(p: BridgeProps) {
         // gone. Flushed, they either land (the hash moves to ours → 304 below) or are
         // refused because the server moved (412 → the host's "changed elsewhere").
         await p.saveLoop.flush().catch(() => {});
+        // ⚠️ …and if they could NOT leave (offline, expired token), the page stays.
+        // Loading over them would take the student's text off the screen; it would
+        // survive only as an IndexedDB copy. The next tick, or the next save that
+        // lands, brings the reload back round.
+        if (p.saveLoop.isDirty() && p.saveLoop.lastSaveFailed()) {
+          p.onReloaded?.(p.saveLoop.getHash());
+          return;
+        }
         const r = await fetchDocument({ apiBase: p.apiBase, thesisId: p.thesisId, token: p.token, ifNoneMatch: p.saveLoop.getHash() });
         if (r.status === 304) { p.onReloaded?.(p.saveLoop.getHash()); return; }
         loadDocument(r.bytes);

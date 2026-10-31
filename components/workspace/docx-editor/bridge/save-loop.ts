@@ -51,6 +51,12 @@ export interface SaveLoop {
   /** The engine's bytes were REPLACED (a reload): what was dirty described the old
    *  ones. Drops the flag and the armed debounce without saving. */
   discard(): void;
+  /** The last save attempt FAILED (network, expired token, 5xx) — as opposed to
+   *  landing, or being refused as stale (412). A reload must not replace the page
+   *  then: the student's unsaved text would leave the screen with nowhere to go but
+   *  IndexedDB. A 412 is different — the server moved and the refused bytes were
+   *  kept as a recovery copy, so reloading is the right answer. */
+  lastSaveFailed(): boolean;
 }
 
 export function createSaveLoop(o: {
@@ -70,12 +76,13 @@ export function createSaveLoop(o: {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let chain: Promise<void> = Promise.resolve();
   let disposed = false;
+  let failed = false;
   const savedListeners = new Set<(bytes: ArrayBuffer) => void>();
 
   async function saveOnce(): Promise<void> {
     if (disposed) return;
     const token = o.token();
-    if (!token) { dirty = true; o.onState({ kind: "error", message: "no token" }); return; }
+    if (!token) { dirty = true; failed = true; o.onState({ kind: "error", message: "no token" }); return; }
     o.onState({ kind: "saving" });
     try {
       const bytes = await o.getBytes();
@@ -92,6 +99,7 @@ export function createSaveLoop(o: {
       const body = (await res.json().catch(() => ({}))) as { docHash?: string | null; error?: string };
       if (res.status === 412) {
         dirty = true; // the bytes are still the student's; the host decides
+        failed = false;
         // Set aside as a recovered copy, so the reload the host answers with
         // cannot take the student's text with it.
         const recovered = await settleWithin(o.pending?.keep(), PENDING_MS);
@@ -100,6 +108,7 @@ export function createSaveLoop(o: {
       }
       if (!res.ok) throw new Error(`save ${res.status}`);
       if (typeof body.docHash === "string") hash = body.docHash;
+      failed = false;
       // Awaited, not fire-and-forget: the next chained save writes the same key,
       // and a late delete would erase the copy that save depends on.
       await settleWithin(o.pending?.clear(), PENDING_MS);
@@ -107,6 +116,7 @@ export function createSaveLoop(o: {
       for (const l of savedListeners) l(bytes);
     } catch (e) {
       dirty = true;
+      failed = true;
       o.onState({ kind: "error", message: String((e as Error)?.message ?? e) });
     }
   }
@@ -167,6 +177,7 @@ export function createSaveLoop(o: {
       if (timer) clearTimeout(timer);
     },
     isDirty() { return dirty; },
+    lastSaveFailed() { return failed; },
     discard() {
       if (timer) { clearTimeout(timer); timer = null; }
       dirty = false;
