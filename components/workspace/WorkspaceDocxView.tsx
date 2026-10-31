@@ -352,6 +352,11 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
         dom={{
           style: { flex: 1 },
           scrollEnabled: true,
+          // Same as the Lexical host: no iOS "˄ ˅ ✓" form bar over the page whenever the
+          // engine holds focus (it showed with the keyboard OFF, simulator 10-31), and
+          // focus() from the keyboard toggle may raise the keyboard without a tap.
+          hideKeyboardAccessoryView: true,
+          keyboardDisplayRequiresUserAction: false,
           onContentProcessDidTerminate: onWebContentCrash,
           onRenderProcessGone: onWebContentCrash,
         }}
