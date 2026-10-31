@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { downloadBlockImage, cropLocalImage } from "@/lib/thesis-image-edit";
 import { replaceThesisBlockImage } from "@/lib/api";
+import { useDocxSurfaceStore } from "@/stores/docx-surface-store";
 
 const HANDLE = 28; // corner hit target
 const MIN = 48; // min crop size (display px)
@@ -135,6 +136,8 @@ export function PictureCropModal({
   const apply = async () => {
     if (!nat || !disp || blockIndex == null) return;
     setSaving(true);
+    // The docx surface marks the picture as working until the reload shows the crop.
+    const settle = useDocxSurfaceStore.getState().beginPending(blockIndex);
     try {
       const scale = nat.w / disp.w; // display px → natural px
       const rect = {
@@ -146,9 +149,11 @@ export function PictureCropModal({
       const edited = await cropLocalImage(uri!, rect);
       if (!edited.data) throw new Error("empty");
       await replaceThesisBlockImage(thesisId, blockIndex, edited);
+      settle();
       onDone();
       onClose();
     } catch {
+      settle(false);
       setError(true);
     } finally {
       setSaving(false);

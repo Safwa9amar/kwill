@@ -20,6 +20,9 @@ import { computeMatches, type SearchMatch } from "@/lib/search-match";
 import { normalize } from "@/lib/text-normalize";
 import { searchThesisSemantic, type DocBlockDTO } from "@/lib/api";
 import { hSelection } from "@/lib/haptics";
+import { useDocxSurfaceStore } from "@/stores/docx-surface-store";
+import { targetFor } from "@/components/workspace/docx-editor/bridge/search-resolve";
+import type { SearchTarget } from "@/components/workspace/docx-editor/bridge/surface-types";
 
 /**
  * Top-pinned document search (find & replace + semantic), rendered directly
@@ -108,6 +111,11 @@ export function SearchPanel({ thesisId, blocks }: { thesisId: string; blocks: Do
     // hasn't re-matched yet), applying a stale span would corrupt the text —
     // bail until the recompute catches up.
     if (normalize(curBlock.text.slice(m.start, m.end)) !== normalize(query)) return;
+    // The docx surface replaces in the engine — on the page at once; its save
+    // persists it, and it moves the panel to the next hit itself.
+    const docx = useDocxSurfaceStore.getState().searchReplace;
+    const target = docx ? targetFor(m.blockIndex, curBlock.text, m.start, m.end) : null;
+    if (docx && target && docx([target], s.replaceText)) return;
     const text = curBlock.text.slice(0, m.start) + s.replaceText + curBlock.text.slice(m.end);
     void useThesisDocStore.getState().mutate(thesisId, { type: "editText", index: m.blockIndex, text });
     // Matches recompute from the fresh blocks; `current` stays put, so the
@@ -127,6 +135,9 @@ export function SearchPanel({ thesisId, blocks }: { thesisId: string; blocks: Do
     let replaced = 0;
     let blocksTouched = 0;
     let skipped = 0;
+    // The docx surface takes the whole batch in the engine, as one undo step.
+    const docx = useDocxSurfaceStore.getState().searchReplace;
+    const targets: SearchTarget[] = [];
     for (const [indexStr, ms] of Object.entries(byBlock)) {
       const index = Number(indexStr);
       const block = blocks.find((b) => b.index === index);
@@ -134,15 +145,23 @@ export function SearchPanel({ thesisId, blocks }: { thesisId: string; blocks: Do
         skipped += ms.length;
         continue;
       }
-      // Splice right-to-left so earlier spans stay valid.
-      let text = block.text;
-      for (const m of [...ms].sort((a, b) => b.start - a.start)) {
-        text = text.slice(0, m.start) + s.replaceText + text.slice(m.end);
+      if (docx) {
+        for (const m of ms) {
+          const target = targetFor(index, block.text, m.start, m.end);
+          if (target) targets.push(target);
+        }
+      } else {
+        // Splice right-to-left so earlier spans stay valid.
+        let text = block.text;
+        for (const m of [...ms].sort((a, b) => b.start - a.start)) {
+          text = text.slice(0, m.start) + s.replaceText + text.slice(m.end);
+        }
+        void useThesisDocStore.getState().mutate(thesisId, { type: "editText", index, text });
       }
-      void useThesisDocStore.getState().mutate(thesisId, { type: "editText", index, text });
       blocksTouched += 1;
       replaced += ms.length;
     }
+    if (docx && targets.length) docx(targets, s.replaceText);
     Alert.alert(
       t("workspace.replaceDoneTitle", { defaultValue: "Replace all" }),
       t("workspace.replaceDone", {
