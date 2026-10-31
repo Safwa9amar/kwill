@@ -78,19 +78,54 @@ describe("createSaveLoop", () => {
     loop.setHash("h1");
     loop.markDirty();
     const first = loop.flush();
-    loop.markDirty();
-    const second = loop.flush();
     // `getBytes` is itself async, so the first save's fetch call is at least
     // one microtask tick away even though nothing else is queued ahead of it;
     // drain the microtask queue (no real time passes) before asserting on it.
     await vi.advanceTimersByTimeAsync(0);
     expect(f).toHaveBeenCalledTimes(1);
+    loop.markDirty();
+    const second = loop.flush();
     resolveFirst();
     await first;
     await second;
     expect(f).toHaveBeenCalledTimes(2);
     expect((f as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[1][1].headers).toMatchObject({ "If-Match": '"h2"' });
     expect(loop.getHash()).toBe("h3");
+  });
+
+  it("a flush before the queued save starts joins it: one PUT carries both edits", async () => {
+    const f = vi.fn(async () => ({ status: 200, ok: true, json: async () => ({ docHash: "h2" }) })) as unknown as typeof fetch;
+    const { loop } = make(f);
+    loop.setHash("h1");
+    loop.markDirty();
+    const first = loop.flush();
+    loop.markDirty();
+    const second = loop.flush();
+    expect(second).toBe(first);
+    await first;
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+
+  it("while a save is in flight, any number of flushes queue exactly ONE more", async () => {
+    let resolveFirst!: () => void;
+    const f = vi.fn()
+      .mockImplementationOnce(() => new Promise((r) => { resolveFirst = () => r({ status: 200, ok: true, json: async () => ({ docHash: "h2" }) }); }))
+      .mockImplementation(async () => ({ status: 200, ok: true, json: async () => ({ docHash: "h3" }) })) as unknown as typeof fetch;
+    const { loop } = make(f);
+    loop.setHash("h1");
+    loop.markDirty();
+    const first = loop.flush();
+    await vi.advanceTimersByTimeAsync(0);
+    const waits: Promise<void>[] = [];
+    for (let i = 0; i < 4; i++) {
+      loop.markDirty();
+      waits.push(loop.flush());
+    }
+    resolveFirst();
+    await first;
+    await Promise.all(waits);
+    expect(f).toHaveBeenCalledTimes(2);
+    expect(loop.isDirty()).toBe(false);
   });
 
   it("onSaved fires with the saved bytes on success only", async () => {

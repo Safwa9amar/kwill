@@ -111,8 +111,21 @@ export function createSaveLoop(o: {
     }
   }
 
+  // At most ONE save waits behind the one in flight. A queued save reads the
+  // editor's bytes only when it starts, so a second queued save would carry the
+  // very same bytes — and every typing pause during a slow PUT used to add one:
+  // a whole .docx (3.8MB on a 75-page thesis, ~70s on a slow uplink) per pause,
+  // each holding the next. Joining the waiting save loses nothing: whatever it
+  // reads when it starts includes every edit made up to then.
+  let queued: Promise<void> | null = null;
+
   function enqueue(): Promise<void> {
-    const run = chain.then(saveOnce);
+    if (queued) return queued;
+    const run = chain.then(() => {
+      queued = null; // from here on it is reading bytes; a later edit needs a new save
+      return saveOnce();
+    });
+    queued = run;
     chain = run.catch(() => {});
     return run;
   }
