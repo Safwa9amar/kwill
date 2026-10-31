@@ -19,6 +19,7 @@ import { useLexicalEditorStore } from "@/stores/lexical-editor-store";
 import { isChromeReport, reportChrome } from "@/components/workspace/docx-editor/host/chrome-report";
 import { useDocxStructure } from "@/components/workspace/docx-editor/host/use-docx-structure";
 import { useSuggestionOverlays } from "@/components/workspace/docx-editor/host/useSuggestionOverlays";
+import { useDocxSelectMode } from "@/components/workspace/docx-editor/host/useDocxSelectMode";
 import { useNavDrawerStore } from "@/stores/nav-drawer-store";
 
 // The docx-editor as the Writer (spec D12, behind settings.writerEngine). Phase 1
@@ -102,6 +103,9 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   // Phase 3: equations, header/footer, charts, pictures, search, slash, paste.
   const structure = useDocxStructure(thesisId, editorHashRef);
   const recovery = useDocxRecovery();
+  // Task 24: checkbox select mode (engine read-only, a checkbox per block).
+  const select = useDocxSelectMode(lastSelKeyRef);
+  const { swallowsReport } = select;
 
   // A fresh token on mount; the DOM side holds it for its own fetches. (A session
   // outliving the hour re-mounts on the next workspace open; Phase 4 refreshes it
@@ -227,7 +231,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
     if (s.index < 0) return;
     // A running header/footer story (Task 18) — the chrome selection, not a block.
     if (isChromeReport(s)) { lastSelKeyRef.current = ""; reportChrome(thesisId, s, editorTopRef.current); return; }
-    if (useWorkspaceStore.getState().selectMode) { lastSelKeyRef.current = ""; return; }
+    if (swallowsReport()) { lastSelKeyRef.current = ""; return; }
     if (s.userDriven === false && (s.blocks?.length ?? 1) <= 1 && useWorkspaceStore.getState().selectedBlocks.length > 1) return;
     useWorkspaceStore.getState().setChromeSelection(null);
     useLexicalEditorStore.getState().setFormat({
@@ -243,7 +247,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
       else if (spanned[0].index >= 0) ws.selectBlock(spanned[0].index, spanned[0].text);
     }
     if (typeof s.y === "number" && s.y >= 0) useFloatingPillStore.getState().setAnchorY(editorTopRef.current + s.y);
-  }, [thesisId]);
+  }, [thesisId, swallowsReport]);
 
   // Expo's DOM wrapper answers a dead content process by silently reloading the
   // WebView, which turns a reproducible crash into an invisible reload loop — a
@@ -296,6 +300,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
         keyboardActive={keyboardActive}
         onSwipeOpenDrawer={onSwipeOpenDrawer}
         appRtl={I18nManager.isRTL}
+        {...select.props}
         dom={{
           style: { flex: 1 },
           scrollEnabled: true,
