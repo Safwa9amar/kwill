@@ -63,14 +63,16 @@ describe("mapCommand — the Insert drawer", () => {
     expect(ins("intenseQuote")).toEqual([{ kind: "insert", then: { style: "IntenseQuote" } }]);
     expect(ins("normal")).toEqual([{ kind: "insert", then: { style: "Normal" } }]);
   });
-  it("lists, page break and table run in the engine", () => {
+  it("lists, page break, table, TOC and footnote run in the engine", () => {
     expect(ins("bullet")).toEqual([{ kind: "insert", then: { list: "bullet" } }]);
     expect(ins("number")).toEqual([{ kind: "insert", then: { list: "number" } }]);
     expect(ins("pageBreak")).toEqual([{ kind: "insert", then: { pageBreak: true } }]);
     expect(ins("table")).toEqual([{ kind: "insert", then: { table: { rows: 3, cols: 3 } } }]);
+    expect(ins("toc")).toEqual([{ kind: "insert", then: { toc: true } }]);
+    expect(ins("footnote")).toEqual([{ kind: "insert", then: { footnote: true } }]);
   });
   it("clearSlash and the drawer's native kinds only clear the /query", () => {
-    for (const k of ["clearSlash", "figure", "pasteImage", "equation", "toc", "footnote", "divider"]) {
+    for (const k of ["clearSlash", "figure", "pasteImage", "equation", "divider"]) {
       expect(ins(k)).toEqual([{ kind: "insert", then: null }]);
     }
   });

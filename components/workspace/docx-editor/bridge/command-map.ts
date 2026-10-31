@@ -31,9 +31,11 @@
 //   insert  {kind} from the Insert drawer: the "/query" before the caret goes
 //           first (the drawer's clearSlash), then text kinds restyle the paragraph
 //           (a new paragraph after it when text remains — Lexical's rule),
-//           pageBreak → insertBreak, table → insertTable. figure / pasteImage /
-//           equation / toc / footnote / divider are the drawer's own native paths
-//           (it dispatches clearSlash, then runs them), so here they only clear.
+//           pageBreak → insertBreak, table → insertTable, toc → insertToc (a
+//           generated, linked TOC of heading levels 1–3), footnote → insertNote —
+//           all in the engine, so they land on the page at once. figure /
+//           pasteImage / equation / divider are the drawer's own native paths (it
+//           dispatches clearSlash, then runs them), so here they only clear.
 //   focus / blur  open / close the keyboard (keyboard toggle, the pill, the drawer).
 //   serialize / patchBlocks  Lexical-only: WorkspaceLexicalView is their only
 //           sender, nothing dispatches them to this surface — noop.
@@ -61,6 +63,8 @@ export type InsertThen =
   | { list: "bullet" | "number" }
   | { pageBreak: true }
   | { table: { rows: number; cols: number } }
+  | { toc: true }
+  | { footnote: true }
   | null;
 
 // Word's built-in style ids for the drawer's text kinds. A thesis that does not
@@ -71,8 +75,9 @@ const INSERT_STYLE: Record<string, string> = {
   intenseQuote: "IntenseQuote", noSpacing: "NoSpacing",
 };
 
-// The drawer's "table" tile has no size picker (and is still "soon" — Lexical never
-// inserted one either): a small grid the student grows from the table bubble.
+// The drawer's "table" tile has no size picker (Lexical never inserted one; the
+// tile is live on the docx surface only): a small grid the student grows from the
+// table bubble.
 const INSERT_TABLE = { rows: 3, cols: 3 };
 
 function insertThen(kind: string): InsertThen {
@@ -80,6 +85,8 @@ function insertThen(kind: string): InsertThen {
   if (kind === "bullet" || kind === "number") return { list: kind };
   if (kind === "pageBreak") return { pageBreak: true };
   if (kind === "table") return { table: INSERT_TABLE };
+  if (kind === "toc") return { toc: true };
+  if (kind === "footnote") return { footnote: true };
   return null;
 }
 

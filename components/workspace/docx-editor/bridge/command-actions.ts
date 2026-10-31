@@ -60,6 +60,8 @@ function insert(e: Engine, then: InsertThen): void {
   if (!then) return;
   if ("pageBreak" in then) { run(e, cmd({ type: "insertBreak", kind: "page" })); return; }
   if ("table" in then) { run(e, cmd({ type: "insertTable", rows: then.table.rows, cols: then.table.cols })); return; }
+  if ("toc" in then) { run(e, cmd({ type: "insertToc" })); return; }
+  if ("footnote" in then) { run(e, cmd({ type: "insertNote", noteKind: "footnote" })); return; }
   // A text kind restyles the paragraph the slash was typed in when nothing else is
   // left in it, else a NEW paragraph after the caret (Enter, Word's follower style
   // then overwritten). Without the surface there is no Enter to press — restyle.

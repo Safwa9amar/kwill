@@ -23,6 +23,10 @@ import { visualRow, visualTextAlign } from "@/lib/rtl-layout";
 const DRAWER_FRACTION = 0.64;
 const SPRING = { damping: 22, stiffness: 240, mass: 0.7 } as const;
 const TEXT_KINDS = ["h1", "h2", "h3", "h4", "h5", "h6", "quote", "bullet", "number"];
+// What the docx-editor surface does IN THE ENGINE, on the page at once (bridge/
+// command-map.ts): live there even where the Lexical surface shows "soon", and the
+// page break is a real break at the caret instead of a server round-trip.
+const DOCX_ENGINE_KINDS = new Set(["table", "toc", "footnote", "pageBreak"]);
 const PAD = 16;
 
 // Per-category accent — solid foreground + low-alpha background so the tint reads
@@ -149,6 +153,8 @@ function InsertPanel({ dragPan, bottomInset }: { dragPan: ReturnType<typeof Gest
   const { width } = useWindowDimensions();
 
   const open = useInsertMenuStore((s) => s.open);
+  const docxSurface = useSettingsStore((s) => s.writerEngine === "docx");
+  const isReady = (d: InsertBlockDef) => d.status === "ready" || (docxSurface && DOCX_ENGINE_KINDS.has(d.kind));
   const query = useInsertMenuStore((s) => s.query);
   const recents = useInsertMenuStore((s) => s.recents);
   const aiEnabled = useAutocompleteAllowed();
@@ -213,7 +219,7 @@ function InsertPanel({ dragPan, bottomInset }: { dragPan: ReturnType<typeof Gest
   const tileW = Math.floor((width - StyleSheet.hairlineWidth * 2 - PAD * 2 - 16) / 3);
 
   const pick = async (d: InsertBlockDef) => {
-    if (d.status !== "ready") return;
+    if (!isReady(d)) return;
     const a = useInsertMenuStore.getState().anchor;
     useInsertMenuStore.getState().pushRecent(d.kind);
     useInsertMenuStore.getState().close();
@@ -226,7 +232,7 @@ function InsertPanel({ dragPan, bottomInset }: { dragPan: ReturnType<typeof Gest
       if (a && thesisId) await useThesisDocStore.getState().mutate(thesisId, { type: "format", indices: [a.index], changes: { styleId: d.styleId } });
       return;
     }
-    if (TEXT_KINDS.includes(d.kind)) {
+    if (TEXT_KINDS.includes(d.kind) || (docxSurface && DOCX_ENGINE_KINDS.has(d.kind))) {
       lex.dispatch("insert", JSON.stringify({ kind: d.kind }));
       return;
     }
@@ -304,7 +310,7 @@ function InsertPanel({ dragPan, bottomInset }: { dragPan: ReturnType<typeof Gest
         <View style={styles.tilesWrap}>
           {items.map((d) => {
             const col = CAT_COLOR[d.category];
-            return <Tile key={d.kind} Icon={d.Icon} text={label(d)} fg={col.fg} bg={col.bg} ready={d.status === "ready"} onPress={() => void pick(d)} />;
+            return <Tile key={d.kind} Icon={d.Icon} text={label(d)} fg={col.fg} bg={col.bg} ready={isReady(d)} onPress={() => void pick(d)} />;
           })}
         </View>
       </View>
@@ -403,7 +409,7 @@ function InsertPanel({ dragPan, bottomInset }: { dragPan: ReturnType<typeof Gest
                   const isPara = s.type === "paragraph";
                   return <Tile key={s.id} Icon={isPara ? Pilcrow : TypeIcon} text={s.name} fg={col.fg} bg={col.bg} ready={isPara} onPress={isPara ? () => void applyStyleId(s.id) : undefined} />;
                 })
-              : fallback.map((d) => <Tile key={d.kind} Icon={d.Icon} text={label(d)} fg={col.fg} bg={col.bg} ready={d.status === "ready"} onPress={() => void pick(d)} />)}
+              : fallback.map((d) => <Tile key={d.kind} Icon={d.Icon} text={label(d)} fg={col.fg} bg={col.bg} ready={isReady(d)} onPress={() => void pick(d)} />)}
           </View>
         )}
       </View>
