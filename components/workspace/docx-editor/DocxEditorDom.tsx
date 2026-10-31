@@ -31,6 +31,8 @@ import type {
   ChartOverlayInput, ImageCommandInput, InsertTrigger, SearchFocusInput, SearchReplaceInput, SearchReplaceResult,
 } from "./bridge/surface-types";
 import { StructureLayer } from "./features/StructureLayer";
+import { OverlayLayer } from "./overlays/OverlayLayer";
+import type { OverlayProps } from "./overlays/types";
 
 /**
  * Amiri is the only Arabic family in the package's Google catalogue, and it is
@@ -74,7 +76,10 @@ export default function DocxEditorDom({
   sectionStarts, charts, selectedChart, pending, pendingChrome, imageCommand, searchFocus, searchReplace,
   onEquationTap, onInsertTrigger, onPasteImage, onSearchReplaced, onImageRefused,
   dom: _dom,
-}: {
+  // The AI cards (suggestion / range / table / completion) — forwarded whole to
+  // the overlay layer; see overlays/types.ts.
+  ...overlay
+}: OverlayProps & {
   apiBase: string;
   thesisId: string;
   token: string;
@@ -276,6 +281,7 @@ export default function DocxEditorDom({
             onSearchReplaced={(r) => void onSearchReplaced?.(r)}
             onImageRefused={(i) => void onImageRefused?.(i)}
           />
+          <OverlayLayer editorRef={ref} {...overlay} />
           </DocxEditor>
       </div>
       {settled ? null : waiting}

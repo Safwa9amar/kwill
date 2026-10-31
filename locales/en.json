@@ -1567,7 +1567,14 @@
     "showOriginal": "Show original text",
     "hideOriginal": "Hide original text",
     "done": "Done",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "reasoning": "Reasoning",
+    "keepParagraph": "Keep this paragraph",
+    "dropParagraph": "Drop this paragraph",
+    "applying": "Applying…",
+    "imageFromSource": "Image from your attached file",
+    "showCurrentChart": "Tap to see the current chart",
+    "hideCurrentChart": "Showing the current chart — tap to see the proposal"
   },
   "errors": {
     "crashTitle": "Something went wrong",
