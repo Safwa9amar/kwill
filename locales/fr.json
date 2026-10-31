@@ -1567,7 +1567,14 @@
     "showOriginal": "Afficher le texte original",
     "hideOriginal": "Masquer le texte original",
     "done": "Terminé",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "reasoning": "Raisonnement",
+    "keepParagraph": "Garder ce paragraphe",
+    "dropParagraph": "Retirer ce paragraphe",
+    "applying": "Application…",
+    "imageFromSource": "Image de votre fichier joint",
+    "showCurrentChart": "Touchez pour voir le graphique actuel",
+    "hideCurrentChart": "Graphique actuel affiché — touchez pour voir la proposition"
   },
   "errors": {
     "crashTitle": "Une erreur est survenue",

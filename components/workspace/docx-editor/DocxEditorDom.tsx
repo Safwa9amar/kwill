@@ -27,6 +27,8 @@ import { Bridge, type BlockRef } from "./bridge/Bridge";
 import { fetchDocument } from "./bridge/load-document";
 import { createSaveLoop, type SaveState } from "./bridge/save-loop";
 import { ensureShaper } from "./bridge/shaper";
+import { OverlayLayer } from "./overlays/OverlayLayer";
+import type { OverlayProps } from "./overlays/types";
 
 /**
  * Amiri is the only Arabic family in the package's Google catalogue, and it is
@@ -68,7 +70,10 @@ export default function DocxEditorDom({
   apiBase, thesisId, token, command, scrollToIndex, reloadNonce, flushNonce, shaping = true,
   onState, onSave, onReady, onFlushed, onReloaded, onServerFormat, onError,
   dom: _dom,
-}: {
+  // The AI cards (suggestion / range / table / completion) — forwarded whole to
+  // the overlay layer; see overlays/types.ts.
+  ...overlay
+}: OverlayProps & {
   apiBase: string;
   thesisId: string;
   token: string;
@@ -236,6 +241,7 @@ export default function DocxEditorDom({
             onReloaded={(h) => void onReloaded?.(h)}
             onServerFormat={(t, c) => void onServerFormat?.(t, c)}
           />
+          <OverlayLayer editorRef={ref} {...overlay} />
           </DocxEditor>
       </div>
       {settled ? null : waiting}

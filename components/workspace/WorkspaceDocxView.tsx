@@ -13,6 +13,7 @@ import { useThesisDocStore } from "@/stores/thesis-doc-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 import { useFloatingPillStore } from "@/stores/floating-pill-store";
 import { useLexicalEditorStore } from "@/stores/lexical-editor-store";
+import { useSuggestionOverlays } from "@/components/workspace/docx-editor/host/useSuggestionOverlays";
 
 // The docx-editor as the Writer (spec D12, behind settings.writerEngine). Phase 1
 // host: token, command/state bridge, flush + reload registration, doc-tick → reload,
@@ -63,6 +64,9 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   const [flushNonce, setFlushNonce] = useState<number | undefined>(undefined);
   const [scrollTo, setScrollTo] = useState<{ index: number; text: string; nonce: number } | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  // The AI cards (inline suggestion, range rewrite, table proposal, completion) —
+  // store state in, actions out; drawn by docx-editor/overlays/ (Phase 2).
+  const overlays = useSuggestionOverlays({ thesisId, active, onNotice: setBanner });
   // Survives the auto-clear below, because a dead editor is not a transient event.
   const [crashNote, setCrashNote] = useState<string | null>(null);
   const [shaping, setShaping] = useState(SHAPING_DEFAULT);
@@ -266,6 +270,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
         onServerFormat={onServerFormat}
         shaping={shaping}
         onError={async (m) => setBanner(m)}
+        {...overlays}
         dom={{
           style: { flex: 1 },
           scrollEnabled: true,

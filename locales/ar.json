@@ -1567,7 +1567,14 @@
     "showOriginal": "عرض النص الأصلي",
     "hideOriginal": "إخفاء النص الأصلي",
     "done": "تم",
-    "cancel": "إلغاء"
+    "cancel": "إلغاء",
+    "reasoning": "التفكير",
+    "keepParagraph": "الإبقاء على هذه الفقرة",
+    "dropParagraph": "حذف هذه الفقرة",
+    "applying": "جارٍ التطبيق…",
+    "imageFromSource": "صورة من ملفك المرفق",
+    "showCurrentChart": "اضغط لعرض الرسم البياني الحالي",
+    "hideCurrentChart": "يُعرض الرسم البياني الحالي — اضغط لعرض الاقتراح"
   },
   "errors": {
     "crashTitle": "حدث خطأ ما",

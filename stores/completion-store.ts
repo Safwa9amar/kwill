@@ -21,7 +21,10 @@ interface CompletionState {
   nonce: number;     // bumped per request; the editor keys the ghost on it
   controller: AbortController | null;
   request: (thesisId: string, index: number, text: string) => Promise<void>;
-  accept: (thesisId: string, index: number, fullText: string) => void;
+  // `appliedLocally`: the editor already inserted the continuation itself (the docx
+  // surface inserts at the caret and saves the bytes) — only reset; writing it again
+  // as an editText op would put it in twice.
+  accept: (thesisId: string, index: number, fullText: string, opts?: { appliedLocally?: boolean }) => void;
   cancel: () => void;
 }
 
@@ -112,9 +115,9 @@ export const useCompletionStore = create<CompletionState>((set, get) => ({
     }
   },
 
-  accept: (thesisId, index, fullText) => {
-    console.log(`[autocomplete] accept index=${index} len=${fullText.length}`);
-    void useThesisDocStore.getState().mutate(thesisId, { type: "editText", index, text: fullText });
+  accept: (thesisId, index, fullText, opts) => {
+    console.log(`[autocomplete] accept index=${index} len=${fullText.length} local=${!!opts?.appliedLocally}`);
+    if (!opts?.appliedLocally) void useThesisDocStore.getState().mutate(thesisId, { type: "editText", index, text: fullText });
     get().controller?.abort();
     set({ index: -1, text: "", status: "idle", controller: null });
   },
