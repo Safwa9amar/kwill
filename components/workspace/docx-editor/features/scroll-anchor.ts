@@ -77,3 +77,10 @@ export const anchorKey = (a: DocxScrollAnchor) => `${a.index}:${a.delta}:${a.tex
 export function correction(blockTop: number, vpTop: number, delta: number, zoom: number): number {
   return blockTop - vpTop + delta * (zoom > 0 ? zoom : 1);
 }
+
+/** Dispatched on window by the Bridge right BEFORE it hands the engine new bytes
+ *  (a reload, a D7 re-parse). The old pages are still painted at that moment, so
+ *  the reading position can be read off them — and restored once the new layout
+ *  grows back into it, with the same machinery as the open-time restore. Without
+ *  it every load() started the student at the cover page (simulator, 10-31). */
+export const WILL_LOAD_EVENT = "kw:docx-will-load";

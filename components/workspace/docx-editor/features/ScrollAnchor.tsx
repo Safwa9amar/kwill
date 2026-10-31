@@ -16,11 +16,11 @@
 // so the student sees the sheet appear where they left it — not appear at the
 // top and jump.
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type { DocxEditorRef } from "@docx-editor.dev/react";
 import type { TextMatch } from "@docx-editor.dev/core/contracts/editor";
 import { findBlockMatch } from "../bridge/find-block";
-import { anchorKey, anchorQueries, correction, pickAnchor, type DocxScrollAnchor, type PaintedPiece } from "./scroll-anchor";
+import { WILL_LOAD_EVENT, anchorKey, anchorQueries, correction, pickAnchor, type DocxScrollAnchor, type PaintedPiece } from "./scroll-anchor";
 
 const POLL_MS = 700;
 const THROTTLE_MS = 200;
@@ -38,6 +38,7 @@ const SETTLED_TO_SHOW = 3;
 const SETTLED_TO_FINISH = 8;
 
 const VIEWPORT = ".docx-editor-one-surface__viewport";
+
 
 function scrollParent(el: Element | null): HTMLElement | null {
   for (let e = el?.parentElement ?? null; e; e = e.parentElement) {
@@ -92,7 +93,14 @@ export function ScrollAnchor(p: {
   // Off until the first restore settles — or immediately, when there is none.
   const armed = useRef(!p.restore);
   // A restore present at mount is meant for THIS page, so nothing is "seen" yet.
-  const seen = useRef(-1);
+  // NaN: a host nonce is a number ≥ 0 and a reload's is negative — neither equals it.
+  const seen = useRef(Number.NaN);
+  // The restore to run: the host's (open time), or the one a load() asked for.
+  const [active, setActive] = useState(p.restore ?? null);
+  useEffect(() => {
+    if (p.restore && p.restore.nonce !== active?.nonce) setActive(p.restore);
+  }, [p.restore?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
+  const localSeq = useRef(0);
   const cancel = useRef<(() => void) | null>(null);
   const forceMeasure = useRef(false);
 
@@ -140,9 +148,21 @@ export function ScrollAnchor(p: {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── a load() is coming: remember where the student is reading ──
+  useEffect(() => {
+    const onWillLoad = () => {
+      const vp = viewportEl();
+      if (!vp || vp.scrollTop <= 0) return;
+      const a = pickAnchor(collectPieces(vp), vp.getBoundingClientRect().top, zoom(), vp.scrollTop);
+      if (a) setActive({ anchor: a, nonce: -(++localSeq.current) });
+    };
+    window.addEventListener(WILL_LOAD_EVENT, onWillLoad);
+    return () => window.removeEventListener(WILL_LOAD_EVENT, onWillLoad);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── restore ──
   useEffect(() => {
-    const r = p.restore;
+    const r = active;
     if (!r || r.nonce === seen.current) return;
     seen.current = r.nonce;
     cancel.current?.();
@@ -219,7 +239,7 @@ export function ScrollAnchor(p: {
     const hard = setTimeout(() => finish(true), HARD_STOP_MS);
     const busyCap = setTimeout(release, BUSY_CAP_MS);
     return () => finish(false);
-  }, [p.restore?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return null;
 }

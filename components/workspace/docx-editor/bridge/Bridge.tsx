@@ -33,6 +33,7 @@ import { mapCommand } from "./command-map";
 import { findBlockMatch } from "./find-block";
 import { spannedBlocks } from "./dom-selectors";
 import { fetchDocument } from "./load-document";
+import { WILL_LOAD_EVENT } from "../features/scroll-anchor";
 import type { OpEnvelope } from "./op-map";
 import { classifyReport } from "./report-kind";
 import { readSelectionFacts } from "./selection-facts";
@@ -51,10 +52,9 @@ const DRIVING_EVENTS = ["pointerdown", "touchstart", "mousedown", "keydown", "be
 // old (or no) document; each one retries, and this bounds it.
 const RESTORE_WINDOW_MS = 8000;
 
-// The engine's scroll container (also used by features/ScrollAnchor.tsx).
-const VIEWPORT = ".docx-editor-one-surface__viewport";
-// How long a load() may take to grow back into the old scroll offset.
-const SCROLL_HOLD_MS = 5000;
+// How long after a load() the reading-position restore (ScrollAnchor) owns the
+// scroll; its own hard stop is 9s.
+const ANCHOR_RESTORE_MS = 9000;
 
 // The twelve slots the native chrome can reach, as a runtime guard: mapCommand
 // hands back a plain string and ChromeSlotId is a compile-time union.
@@ -220,9 +220,9 @@ export function Bridge(p: BridgeProps) {
     // ⚠️ A CARET, never selectMatch(m): that SELECTS the matched prefix (up to 120
     // chars), and the student's next keystroke replaced it. See placeCaret.
     placeCaret(editor, m, keep.caret ?? null);
-    // The viewport is held where the student was (holdScroll below); jumping to the
-    // caret's block would undo exactly that. Only without a hold does the caret lead.
-    if (!scrollHold.current) editor.scrollToBlock(m.blockId);
+    // ScrollAnchor is putting the student back where they were reading (see
+    // loadDocument); jumping to the caret's block would undo exactly that.
+    if (Date.now() > anchorRestoreUntil.current) editor.scrollToBlock(m.blockId);
   };
 
   /** Hand the engine bytes WE produced: the caret is remembered and the change it
@@ -231,40 +231,14 @@ export function Bridge(p: BridgeProps) {
     const keep = lastFocus.current;
     if (keep) restore.current = { ...keep, until: Date.now() + RESTORE_WINDOW_MS, caret: caret() };
     programmatic.current = true;
-    const vp = document.querySelector<HTMLElement>(VIEWPORT);
+    // Where the student is reading goes with the load: ScrollAnchor reads it off the
+    // still-painted pages and lands there again once the new layout has grown into
+    // it — a load() otherwise starts at the cover page.
+    window.dispatchEvent(new Event(WILL_LOAD_EVENT));
+    anchorRestoreUntil.current = Date.now() + ANCHOR_RESTORE_MS;
     p.editorRef.current?.load(bytes);
-    if (vp && vp.scrollTop > 0) holdScroll(vp.scrollTop);
   };
-
-  // ⚠️ A load() starts the engine at the top of the document. After a structural
-  // save's re-parse (D7) or a reload, the student is thrown to the cover page —
-  // seen on the simulator after a range rewrite applied mid-chapter. The edit was
-  // where they were looking, so the page above it is unchanged and the old scroll
-  // offset IS their place: re-apply it every frame while the new layout grows into
-  // it, until it holds still — and let go the moment they touch the screen.
-  const scrollHold = useRef<{ top: number; until: number } | null>(null);
-  const holdScroll = (top: number) => {
-    scrollHold.current = { top, until: Date.now() + SCROLL_HOLD_MS };
-    let still = 0;
-    const release = () => {
-      scrollHold.current = null;
-      window.removeEventListener("touchstart", release, true);
-      window.removeEventListener("wheel", release, true);
-    };
-    window.addEventListener("touchstart", release, true);
-    window.addEventListener("wheel", release, true);
-    const tick = () => {
-      const h = scrollHold.current;
-      const vp = document.querySelector<HTMLElement>(VIEWPORT);
-      if (!h || !vp || Date.now() > h.until) { release(); return; }
-      if (vp.scrollHeight >= h.top + vp.clientHeight) {
-        if (Math.abs(vp.scrollTop - h.top) > 1) { vp.scrollTop = h.top; still = 0; }
-        else if (++still > 30) { release(); return; }
-      }
-      requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  };
+  const anchorRestoreUntil = useRef(0);
 
   useEditorEvent("selectionChange", () => {
     const editor = editorOf();
