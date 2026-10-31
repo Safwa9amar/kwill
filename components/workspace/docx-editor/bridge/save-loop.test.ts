@@ -120,4 +120,30 @@ describe("createSaveLoop", () => {
     await loop.flush();
     expect(f).toHaveBeenCalledTimes(2);
   });
+
+  it("isDirty tracks unsaved edits: set by markDirty, cleared once a save is committed to, back on a refusal", async () => {
+    const ok = mockPut(200, { docHash: "h2" });
+    const { loop } = make(ok);
+    expect(loop.isDirty()).toBe(false);
+    loop.markDirty();
+    expect(loop.isDirty()).toBe(true);
+    await loop.flush();
+    expect(loop.isDirty()).toBe(false);
+
+    const refused = make(mockPut(412, { docHash: "srv" })).loop;
+    refused.markDirty();
+    await refused.flush();
+    expect(refused.isDirty()).toBe(true);
+  });
+
+  it("discard drops the flag AND the armed debounce: a reload's bytes are never PUT back", async () => {
+    const f = mockPut(200, { docHash: "h2" });
+    const { loop } = make(f);
+    loop.markDirty();
+    loop.discard();
+    expect(loop.isDirty()).toBe(false);
+    await vi.advanceTimersByTimeAsync(5000);
+    await loop.flush();
+    expect(f).not.toHaveBeenCalled();
+  });
 });

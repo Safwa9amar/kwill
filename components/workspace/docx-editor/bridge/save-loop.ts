@@ -45,6 +45,12 @@ export interface SaveLoop {
    *  a structural edit (spec D7). Returns the unsubscribe. */
   onSaved(fn: (bytes: ArrayBuffer) => void): () => void;
   dispose(): void;
+  /** Whether there are edits no successful PUT has carried yet (pending debounce,
+   *  or a save that failed / was refused). */
+  isDirty(): boolean;
+  /** The engine's bytes were REPLACED (a reload): what was dirty described the old
+   *  ones. Drops the flag and the armed debounce without saving. */
+  discard(): void;
 }
 
 export function createSaveLoop(o: {
@@ -146,6 +152,11 @@ export function createSaveLoop(o: {
     dispose() {
       disposed = true;
       if (timer) clearTimeout(timer);
+    },
+    isDirty() { return dirty; },
+    discard() {
+      if (timer) { clearTimeout(timer); timer = null; }
+      dirty = false;
     },
   };
 }

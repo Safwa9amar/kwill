@@ -25,6 +25,7 @@ import { Bridge, type BlockRef } from "./bridge/Bridge";
 import { makeFontResolver } from "./bridge/fonts";
 import { fetchDocument } from "./bridge/load-document";
 import { createPendingSave, openIdbPendingStore, openInitial, type RecoveredRef } from "./bridge/pending-save";
+import type { OpEnvelope } from "./bridge/op-map";
 import { createSaveLoop, type SaveState } from "./bridge/save-loop";
 import { ensureShaper } from "./bridge/shaper";
 import type {
@@ -55,6 +56,7 @@ const PAGE_CSS = [
 export default function DocxEditorDom({
   apiBase, thesisId, token, command, scrollToIndex, reloadNonce, flushNonce, shaping = true,
   onState, onSave, onReady, onFlushed, onReloaded, onServerFormat, onError,
+  ops, onOpApplied,
   sectionStarts, charts, selectedChart, pending, pendingChrome, imageCommand, searchFocus, searchReplace,
   onEquationTap, onInsertTrigger, onPasteImage, onSearchReplaced, onImageRefused,
   recoveryAction, onRecovered, scrollRestore, onScroll, onScrollRestored,
@@ -85,6 +87,9 @@ export default function DocxEditorDom({
   // between the report and the op. See bridge/Bridge.tsx.
   onServerFormat?: (target: BlockRef, changes: { direction: "rtl" | "ltr" }) => Promise<void>;
   onError?: (message: string) => Promise<void>;
+  // Student edits run in the engine first (applyOp; bridge/use-apply-op.ts).
+  ops?: OpEnvelope[] | null;
+  onOpApplied?: (nonce: number, ok: boolean) => Promise<void>;
   // ── Phase 3 (structure & sheets): see features/StructureLayer.tsx ──
   sectionStarts?: number[];
   charts?: ChartOverlayInput[];
@@ -280,6 +285,8 @@ export default function DocxEditorDom({
             onFlushed={(n) => void onFlushed?.(n)}
             onReloaded={(h) => void onReloaded?.(h)}
             onServerFormat={(t, c) => void onServerFormat?.(t, c)}
+            ops={ops}
+            onOpApplied={(n, ok) => void onOpApplied?.(n, ok)}
             sectionStarts={sectionStarts}
           />
           <StructureLayer
