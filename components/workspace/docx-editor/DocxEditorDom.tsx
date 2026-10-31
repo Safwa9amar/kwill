@@ -8,47 +8,24 @@
 // ⚠️ babel-preset-expo allows this module ONE export, the default. Everything
 // else lives in ./bridge/. Gate: node scripts/verify-use-dom.mjs.
 //
-// Assets: harfbuzz.wasm is served from public/ (copied into the binary; not
-// OTA-updatable — Task 29 moves it to require()) and handed to the shaper by
+// Assets: harfbuzz.wasm and the Arabic faces are require()d (bridge/assets.ts),
+// so they travel with an EAS Update. The wasm is handed to the shaper by
 // bridge/shaper.ts, because the CommonJS engine build refuses
 // setHarfBuzzWasmUrl. Without the shaper the engine reports `wasmUnavailable`
 // and falls back to fixed-width measurement, which would make nothing about
-// pagination trustworthy. Fonts come from the package's
-// Google resolver until Task 27 bundles Arabic faces; loadDefaultFonts() is never
-// used because its `new URL(…, import.meta.url)` cannot resolve under Metro.
+// pagination trustworthy. Fonts: bundled Arabic faces, then the package's Google
+// resolver for the rest (bridge/fonts.ts).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DocxEditor } from "@docx-editor.dev/react";
-import type { DocxEditorRef, Editor, FontConfigurationFragment, FontResolver } from "@docx-editor.dev/react";
-import { googleFonts } from "@docx-editor.dev/fonts/google";
+import type { DocxEditorRef, Editor, FontResolver } from "@docx-editor.dev/react";
 import "@docx-editor.dev/core/styles/editor.css";
 import type { LexicalCommand, LexicalState } from "@/components/workspace/lexical/editor-components/types";
 import { Bridge, type BlockRef } from "./bridge/Bridge";
+import { makeFontResolver } from "./bridge/fonts";
 import { fetchDocument } from "./bridge/load-document";
 import { createSaveLoop, type SaveState } from "./bridge/save-loop";
 import { ensureShaper } from "./bridge/shaper";
-
-/**
- * Amiri is the only Arabic family in the package's Google catalogue, and it is
- * NOT metric-compatible with Traditional Arabic or Sakkal Majalla — so an Arabic
- * thesis paginates like Amiri rather than like Word. Same known limit as the web
- * trial; not a bug to chase here.
- */
-function makeFontResolver(): FontResolver {
-  const google = googleFonts({
-    substitute: {
-      "Traditional Arabic": "Amiri",
-      "Simplified Arabic": "Amiri",
-      "Arabic Typesetting": "Amiri",
-      "Sakkal Majalla": "Amiri",
-    },
-  });
-  return async (request): Promise<FontConfigurationFragment> => {
-    const fragment = await google(request);
-    if (fragment.failures.length) console.warn("[docx] font faces that failed to load:", fragment.failures);
-    return { sources: fragment.sources, substitutions: fragment.substitutions };
-  };
-}
 
 // The WebView gives the page no height of its own; the engine needs one. `.h-full`
 // is spelled out here rather than left to Tailwind — nativewind does not process
@@ -97,13 +74,12 @@ export default function DocxEditorDom({
   const tokenRef = useRef(token);
   tokenRef.current = token;
 
-  // Every face the document asks for is fetched from a CDN (the Google catalogue is
-  // a URL list, ~825KB for Amiri regular+bold alone), and the page cannot be shaped,
-  // paginated or FITTED until they land — so `zoomMode="auto"` visibly rescales the
-  // sheet two or three times on a cold cache. The student should not watch that
-  // happen: the surface stays laid out but hidden behind a page-shaped placeholder
-  // until the engine has mounted AND no face is still in flight. Task 27 (bundled
-  // Arabic bytes, D9) is what actually makes it fast; this only stops it looking broken.
+  // The page cannot be shaped, paginated or FITTED until every face the document
+  // asks for has bytes — so `zoomMode="auto"` visibly rescales the sheet while they
+  // land. The student should not watch that happen: the surface stays laid out but
+  // hidden behind a page-shaped placeholder until the engine has mounted AND no
+  // face is still in flight. Arabic faces are bundled (D9, a local read); Latin ones
+  // still come from the Google catalogue, so a cold cache can still hold this up.
   const [settled, setSettled] = useState(false);
   const readyRef = useRef(false);
   const inFlightRef = useRef(0);
@@ -151,8 +127,7 @@ export default function DocxEditorDom({
         // The shaper must be ready BEFORE the editor opens the bytes (see
         // bridge/shaper.ts). A failure is REPORTED, not fatal: the document
         // still opens with fixed-width metrics (pagination then differs from
-        // Word) rather than leaving the student a blank screen — the case an
-        // OTA update hits today, since public/ does not travel with updates.
+        // Word) rather than leaving the student a blank screen.
         if (shaping) {
           await ensureShaper().catch((e) => {
             void onError?.(`text shaping is unavailable, so page layout will differ from Word: ${String((e as Error)?.message ?? e)}`);
@@ -213,7 +188,7 @@ export default function DocxEditorDom({
             // Only `wasmUnavailable` is a HOST fault (the engine's own words): no
             // shaper means untrustworthy pagination, so the student must see it.
             // Every other code is a font that failed to load — expected offline
-            // (Amiri comes from Google) and already logged by the resolver.
+            // (Latin faces come from Google) and already logged by the resolver.
             console.warn("[docx] font error", e.code);
             // When shaping was switched off deliberately this code is the expected
             // consequence, and the host has already been told once.

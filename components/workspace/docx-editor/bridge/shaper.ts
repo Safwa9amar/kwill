@@ -7,35 +7,42 @@
 //  • harfbuzzjs initialises with a top-level await, which Metro wraps in a plain
 //    function → `ReferenceError: await is not defined` → the engine reports
 //    `wasmUnavailable` and paginates with fixed-width metrics.
-//  patches/harfbuzzjs+1.6.0.patch replaces that await with an exported, memoised
+//  patches/harfbuzzjs+1.6.1.patch replaces that await with an exported, memoised
 //  `load(moduleArg)`. The engine's own loader runs when a document opens and
 //  calls `versionString()` right after the import resolves, so the host must
 //  have awaited `load()` BEFORE creating the editor — that is ensureShaper().
 //
-// The binary is a public asset. Expo copies `public/` into the binary for DOM
-// components and documents `${process.env.EXPO_BASE_URL}file` as the reference
-// form (docs.expo.dev/guides/dom-components). Not EAS-Update-safe — Task 29
-// moves it to require().
+// The binary is `require("harfbuzzjs/dist/harfbuzz.wasm")` (bridge/assets.ts),
+// which travels with an EAS Update; it used to be public/harfbuzz.wasm, which
+// only a binary build carries.
+//
+// ⚠️ The patched `load()` memoises its FIRST promise, rejected ones included, so
+// within one WebView a failed load is final whatever ensureShaper does — only a
+// remount of the surface (a new page) gets a second attempt.
 
 import { load } from "harfbuzzjs";
+import { absoluteUrl, assetUrl, pageBase } from "./asset-url";
+import { HARFBUZZ_WASM } from "./assets";
 
-// EXPO_BASE_URL is inlined at build time: "/" in dev (Metro serves public/ from
-// its root) and "./" in a release build (expo embeds public/ INTO www.bundle,
-// next to the DOM page). It is undefined only under vitest.
-export function wasmUrl(baseUrl: string | undefined = process.env.EXPO_BASE_URL): string {
-  return `${baseUrl ?? ""}harfbuzz.wasm`;
+/** Where the wasm is served, ABSOLUTE — see asset-url.ts for why a relative path
+ *  breaks a release (file://) page. `base` is undefined only under vitest. */
+export function wasmUrl(asset: unknown = HARFBUZZ_WASM, base: string | undefined = pageBase()): string {
+  return absoluteUrl(assetUrl(asset), base);
 }
 
 let pending: Promise<void> | null = null;
+let logged = false;
 
 /** Resolves once the shaper is initialised; memoised on success, forgotten on
- *  failure so a remount can retry (a transient 404 must not disable shaping
- *  for the life of the WebView). `locateFile` is the ONLY working path: the
- *  factory's own fallback is `new URL(…, import.meta.url)`, and Expo's
- *  import.meta registry answers null in a DOM bundle. */
-export function ensureShaper(o: { load?: typeof load; baseUrl?: string } = {}): Promise<void> {
+ *  failure. `locateFile` is the ONLY working path: the factory's own fallback is
+ *  `new URL(…, import.meta.url)`, and Expo's import.meta registry answers null
+ *  in a DOM bundle. */
+export function ensureShaper(o: { load?: typeof load; url?: string } = {}): Promise<void> {
   if (!pending) {
-    const url = wasmUrl(o.baseUrl);
+    const url = o.url ?? wasmUrl();
+    // Development only: the one place to see what the asset resolved to on a
+    // device (the plan's "log it on first run").
+    if (!logged && process.env.NODE_ENV !== "production") { logged = true; console.info("[docx] harfbuzz.wasm →", url); }
     pending = (o.load ?? load)({ locateFile: () => url }).catch((e) => {
       pending = null;
       throw e;
