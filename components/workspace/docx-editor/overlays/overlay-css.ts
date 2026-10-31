@@ -12,7 +12,7 @@
 
 export const OVERLAY_CSS = `
 .kwo-layer { font-family: sans-serif; }
-.kwo-card { position: fixed; z-index: 1000; box-sizing: border-box; background: #fff; border: 1px solid #E8ECEF;
+.kwo-card { position: fixed; will-change: transform; z-index: 1000; box-sizing: border-box; background: #fff; border: 1px solid #E8ECEF;
   border-radius: 16px; box-shadow: 0 10px 28px -8px rgba(10,30,20,.28); padding: 10px 12px 4px; overflow-y: auto;
   -webkit-overflow-scrolling: touch; color: #16171d; font-family: sans-serif; font-size: 15px; line-height: 1.7;
   text-align: start; animation: kwo-in 240ms cubic-bezier(0.33, 1, 0.68, 1) both; }
@@ -78,13 +78,13 @@ export const OVERLAY_CSS = `
 .kwo-tblscroll::-webkit-scrollbar-thumb { background: #33D6A6; border-radius: 999px; }
 .kwo-tbl-loading { pointer-events: none; animation: kwo-tblpulse 1.1s ease-in-out infinite alternate; }
 /* a pending table request: the real table dims under a white veil */
-.kwo-veil { position: fixed; z-index: 999; background: rgba(255,255,255,.55); border-radius: 6px; pointer-events: none; animation: kwo-tblpulse 1.1s ease-in-out infinite alternate; }
-.kwo-strip { position: fixed; z-index: 1000; box-sizing: border-box; display: flex; align-items: center; gap: 8px; border: 1px solid #fca5a5; background: #fff1f1; border-radius: 10px; padding: 6px 10px; font-family: sans-serif; }
+.kwo-veil { position: fixed; will-change: transform; z-index: 999; background: rgba(255,255,255,.55); border-radius: 6px; pointer-events: none; animation: kwo-tblpulse 1.1s ease-in-out infinite alternate; }
+.kwo-strip { position: fixed; will-change: transform; z-index: 1000; box-sizing: border-box; display: flex; align-items: center; gap: 8px; border: 1px solid #fca5a5; background: #fff1f1; border-radius: 10px; padding: 6px 10px; font-family: sans-serif; }
 /* what the student approved, painted over its place while the server applies it */
 .kwo-applying-label { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: #0E5C36; margin-bottom: 2px; }
 .kwo-applying-label svg { animation: kwo-spin 1s linear infinite; }
 /* the completion chip (D11: a floating "continue…" under the caret) */
-.kwo-chip { position: fixed; z-index: 1000; box-sizing: border-box; display: flex; align-items: flex-start; gap: 6px; max-width: calc(100vw - 16px); background: #fff; border: 1px solid #E8ECEF; border-radius: 14px; box-shadow: 0 6px 18px -6px rgba(10,30,20,.25); padding: 6px 6px 6px 10px; font-family: sans-serif; animation: kwo-in 200ms cubic-bezier(0.33, 1, 0.68, 1) both; }
+.kwo-chip { position: fixed; will-change: transform; z-index: 1000; box-sizing: border-box; display: flex; align-items: flex-start; gap: 6px; max-width: calc(100vw - 16px); background: #fff; border: 1px solid #E8ECEF; border-radius: 14px; box-shadow: 0 6px 18px -6px rgba(10,30,20,.25); padding: 6px 6px 6px 10px; font-family: sans-serif; animation: kwo-in 200ms cubic-bezier(0.33, 1, 0.68, 1) both; }
 .kwo-chip-text { flex: 1 1 auto; min-width: 0; color: #6b7280; font-size: 14px; line-height: 1.5; cursor: pointer; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .kwo-chip-text b { color: var(--kwo-accent, #F59433); font-weight: 700; margin-inline-end: 4px; }
 .kwo-chip .kwo-sug-icon { padding: 6px 8px; }

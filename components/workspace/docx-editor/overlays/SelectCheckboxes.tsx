@@ -40,12 +40,17 @@ const CSS = (() => {
     // The engine's pages: no OS selection, no callout, and clickable (see ⚠️ above).
     "[data-page-index],[data-page-index] *{-webkit-user-select:none;user-select:none;",
     "-webkit-touch-callout:none;cursor:pointer;-webkit-tap-highlight-color:transparent}",
+    // ⚠️ will-change: iOS WebKit repaints a position:fixed element on <body> LAZILY
+    // when only its style changes — measured on the simulator: React rendered the
+    // flip at once (next rAF 3ms) and the screen showed it 2–5s later. Its own
+    // compositing layer makes the flip land in the next frame. Same on every
+    // overlay root (overlay-css.ts, PendingLayer, ChartLayer).
     `.kws-box{position:fixed;z-index:47;width:${BOX}px;height:${BOX}px;box-sizing:border-box;`,
     "border:2px solid #b9bcc8;border-radius:6px;background:#fff center/14px 14px no-repeat;",
-    "pointer-events:none;transition:background-color .12s ease,border-color .12s ease}",
+    "pointer-events:none;transition:background-color .12s ease,border-color .12s ease;will-change:transform;transform:translateZ(0)}",
     `.kws-box.on{border-color:${brand.primary};background-color:${brand.primary};background-image:url("${CHECK}")}`,
     // Above the chart layer (45): a checked chart block is tinted like any other.
-    `.kws-tint{position:fixed;z-index:46;pointer-events:none;border-radius:4px;background:rgba(${rgb},.11)}`,
+    `.kws-tint{position:fixed;z-index:46;pointer-events:none;border-radius:4px;background:rgba(${rgb},.11);will-change:transform;transform:translateZ(0)}`,
   ].join("");
 })();
 

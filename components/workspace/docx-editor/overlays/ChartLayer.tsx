@@ -78,7 +78,7 @@ export function ChartLayer({
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => onSelect(h.index, { left: h.left, top: h.top, width: h.width, height: h.height })}
           style={{
-            position: "fixed", left: h.left, top: h.top, width: h.width, height: h.height, zIndex: 45,
+            position: "fixed", left: h.left, top: h.top, width: h.width, height: h.height, zIndex: 45, willChange: "transform",
             overflow: "hidden", borderRadius: 2, background: "#fff", cursor: "pointer",
             boxShadow: selectedIndex === h.index ? `0 0 0 2px ${brand.primary}` : "none",
           }}

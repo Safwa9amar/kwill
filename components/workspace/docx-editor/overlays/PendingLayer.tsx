@@ -35,7 +35,7 @@ const CSS = (() => {
   const rgb = rgbTriplet(brand.primary);
   return [
     "@keyframes docx-pending-sweep{0%{background-position:-160% 0}100%{background-position:260% 0}}",
-    ".docx-pending{position:fixed;pointer-events:none;z-index:46;border-radius:3px;",
+    ".docx-pending{position:fixed;pointer-events:none;z-index:46;border-radius:3px;will-change:transform;",
     `background:linear-gradient(100deg,rgba(${rgb},.06) 30%,rgba(${rgb},.22) 50%,rgba(${rgb},.06) 70%);`,
     "background-size:200% 100%;animation:docx-pending-sweep 1.3s linear infinite;",
     `box-shadow:inset 0 0 0 1px rgba(${rgb},.35)}`,
