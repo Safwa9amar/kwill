@@ -13,6 +13,7 @@ import {
   clearQueuedOps,
 } from "@/lib/thesis-op-queue";
 import i18n from "@/lib/i18n";
+import { useLexicalEditorStore } from "@/stores/lexical-editor-store";
 
 // Owns the live-.docx block model per thesis so editing feels instant AND survives
 // failure:
@@ -104,6 +105,19 @@ function histFor(thesisId: string): { undo: UndoEntry[]; redo: ThesisOp[] } {
   }
   return h;
 }
+// ── The docx Writer applies edits LOCALLY first (lexical-editor-store.applyOp) ──
+// Its verdict is async (a bridge round-trip into the WebView), so an op it does
+// not take is enqueued only once the verdict is in. Verdicts are taken strictly in
+// call order per thesis — the chain below — so the queue keeps call order, and a
+// drain (flushOps, an AI turn) waits for any edit still being decided. While a
+// verdict is pending nothing is queued yet, so `routing` stands in for `pending`
+// in revalidate's guard: a fetch must not clobber that edit's optimistic patch.
+// A LOCAL op is never queued and never gets a local-undo entry here: it is in the
+// engine's own history, which the history buttons step first (canUndo/canRedo).
+const surfaceRoutes = new Map<string, Promise<unknown>>();
+const routing = new Map<string, number>();
+const isRouting = (thesisId: string): boolean => (routing.get(thesisId) ?? 0) > 0;
+
 // One-shot restore of the disk queue per thesis per session (memoized promise).
 // Pump starts are gated on it so a restore can never splice older disk ops into
 // a queue whose head is already in flight (which would misorder the replay).
@@ -244,6 +258,13 @@ export const useThesisDocStore = create<ThesisDocState>((set, get) => {
           // Never send an op whose durable row is still being written — the
           // confirm-time DELETE must always run after the INSERT.
           if (item.persisted) await item.persisted;
+          // ⚠️ The docx Writer's unsaved BYTES reach the server before any op does.
+          // Ops are positional against the server's copy, and one that lands first
+          // moves the hash under those bytes: their save is refused (412) and the
+          // student's typing is gone. Under Lexical (no applyOp) nothing changes —
+          // its flushEdits enqueues ops into THIS queue and must not run from here.
+          const surface = useLexicalEditorStore.getState();
+          if (surface.applyOp && surface.flushEdits) await surface.flushEdits().catch(() => {});
           const res = await executeOp(thesisId, item.op);
           await confirmOp(item.id);
           // Remove by identity (not blind shift) — belt-and-braces against any
@@ -354,6 +375,110 @@ export const useThesisDocStore = create<ThesisDocState>((set, get) => {
     return pr;
   };
 
+  // Queue `op` durably and flush it in order. `cur` is the document as it was
+  // BEFORE the op (its local-undo snapshot). Moved verbatim out of mutate so the
+  // docx surface's server verdicts take exactly the same path.
+  const enqueue = (thesisId: string, op: ThesisOp, cur: DocumentDTO | undefined): Promise<void> => {
+    const hist = histFor(thesisId);
+    const p = pumpFor(thesisId);
+
+    // Coalesce rapid same-block typing: if the pending TAIL is an editText for
+    // the same index as this one, replace its op in place (latest text wins)
+    // instead of appending a second round-trip. The pump only ever executes
+    // p.queue[0]; while it's running that head op is IN FLIGHT (being sent) and
+    // must not be mutated, so we refuse to fold onto it. Any op after the head
+    // is pending-not-started and safe. Reusing the tail's durable row (same id)
+    // + promise slot keeps SQLite and the pending count consistent — the
+    // optimistic patch above already painted the newest text.
+    const tail = p.queue[p.queue.length - 1];
+    const tailInFlight = p.running && tail === p.queue[0];
+    if (tail && !tailInFlight && editTextCoalesces(tail.op, op)) {
+      // Folded typing burst = ONE undo step: the tail's existing entry keeps
+      // its pre-burst snapshot; only the op it re-applies on redo updates.
+      // (No entry exists only if the doc wasn't loaded at the first fold —
+      // then seed one from the current snapshot, still newest-in-queue.)
+      const tailEntry = hist.undo.find((e) => e.opId === tail.id);
+      if (tailEntry) tailEntry.op = op;
+      else if (cur?.available) hist.undo.push({ opId: tail.id, op, before: cur });
+      syncHistCounts(thesisId);
+      tail.op = op;
+      tail.attempts = 0; // pending-not-started; discarded text was never sent
+      const prevResolve = tail.resolve;
+      const prevReject = tail.reject;
+      const promise = new Promise<void>((resolve, reject) => {
+        tail.resolve = () => {
+          prevResolve?.();
+          resolve();
+        };
+        tail.reject = (e) => {
+          prevReject?.(e);
+          reject(e);
+        };
+      });
+      promise.catch(() => {});
+      // Persist the replacement (INSERT OR REPLACE on the same id) then flush.
+      const persisted = enqueueOp(tail.id, thesisId, op);
+      tail.persisted = persisted;
+      void Promise.all([persisted, ensureRestored(thesisId)]).finally(() => {
+        if (p.wake) p.wake();
+        void runPump(thesisId);
+      });
+      return promise;
+    }
+
+    const id = newOpId();
+    const persisted = enqueueOp(id, thesisId, op);
+    const promise = new Promise<void>((resolve, reject) => {
+      p.queue.push({ id, op, attempts: 0, persisted, resolve, reject });
+    });
+    if (cur?.available) {
+      hist.undo.push({ opId: id, op, before: cur });
+      if (hist.undo.length > MAX_LOCAL_HISTORY) hist.undo.shift();
+    }
+    syncHistCounts(thesisId);
+    // Fire-and-forget callers must not trip "unhandled rejection" when a
+    // permanent failure is already surfaced via the Alert in the pump.
+    promise.catch(() => {});
+    setPending(thesisId, p.queue.length);
+
+    // Durably persist BEFORE flushing, then flush (or cut a backoff short).
+    // Gated on the one-shot disk restore so older queued ops always execute
+    // before this one — the pump replays strictly in order.
+    void Promise.all([persisted, ensureRestored(thesisId)]).finally(() => {
+      if (p.wake) p.wake();
+      void runPump(thesisId);
+    });
+
+    return promise;
+  };
+
+  // The docx surface's verdict decides between "done" (the engine applied it; its
+  // bytes carry it) and the queue. See surfaceRoutes above.
+  const routeViaSurface = (thesisId: string, op: ThesisOp, cur: DocumentDTO | undefined, verdict: Promise<boolean>): Promise<void> => {
+    routing.set(thesisId, (routing.get(thesisId) ?? 0) + 1);
+    const prev = surfaceRoutes.get(thesisId) ?? Promise.resolve();
+    // Only the DECISION is chained (wrapped, so the queue promise is not adopted):
+    // the next edit waits for this one's verdict, never for its server confirm.
+    const decided = prev
+      .then(() => verdict.catch(() => false))
+      .then((local) => {
+        if (local) {
+          syncHistCounts(thesisId); // mutate may have dropped the redo stack
+          return { done: Promise.resolve() };
+        }
+        return { done: enqueue(thesisId, op, cur) };
+      })
+      .finally(() => {
+        const n = (routing.get(thesisId) ?? 1) - 1;
+        if (n > 0) routing.set(thesisId, n);
+        else routing.delete(thesisId);
+      });
+    surfaceRoutes.set(thesisId, decided.catch(() => {}));
+    const result = decided.then((d) => d.done);
+    result.catch(() => {});
+    return result;
+  };
+
   return {
     byId: {},
     tick: {},
@@ -435,6 +560,11 @@ export const useThesisDocStore = create<ThesisDocState>((set, get) => {
     },
 
     flushOps: async (thesisId, opts) => {
+      // An edit still waiting on the docx surface's verdict may yet become a queued
+      // op: let it be decided first, or this drain misses it (and an AI turn starts
+      // before it lands).
+      const deciding = surfaceRoutes.get(thesisId);
+      if (deciding) await deciding;
       const p = pumpFor(thesisId);
       if (p.queue.length === 0) return true;
       forcedFlushes.set(thesisId, (forcedFlushes.get(thesisId) ?? 0) + 1);
@@ -471,13 +601,13 @@ export const useThesisDocStore = create<ThesisDocState>((set, get) => {
       // Unflushed local ops → the flush is the authoritative reconcile and the
       // fetched doc would be discarded below anyway. Skip the network round-trip
       // entirely (matters while composing holds the queue for long stretches).
-      if ((get().pending[thesisId] ?? 0) > 0 && get().byId[thesisId]?.available) return;
+      if (((get().pending[thesisId] ?? 0) > 0 || isRouting(thesisId)) && get().byId[thesisId]?.available) return;
       set((s) => ({ revalidating: { ...s.revalidating, [thesisId]: true } }));
       try {
         const doc = await getThesisDocument(thesisId);
         // Ops are mid-flight → their flush is the authoritative reconcile; a doc
         // fetched before they landed would be stale. Skip.
-        if ((get().pending[thesisId] ?? 0) > 0) return;
+        if ((get().pending[thesisId] ?? 0) > 0 || isRouting(thesisId)) return;
         get().setDoc(thesisId, doc);
       } catch {
         // Keep whatever we last showed; only fall back to a legacy marker if we've
@@ -524,6 +654,13 @@ export const useThesisDocStore = create<ThesisDocState>((set, get) => {
     },
 
     applyTableOpSilent: async (thesisId, op) => {
+      // The docx Writer runs a table edit in its engine first; what it cannot do
+      // takes the ordered queue (whose pump saves its bytes before the op). The
+      // "silent" shortcut below exists to spare LEXICAL a reseed — no such thing here.
+      if (useLexicalEditorStore.getState().applyOp) {
+        void get().mutate(thesisId, op);
+        return;
+      }
       // Ordered queue when other ops are still in flight — table ops are
       // positional and must land after them.
       if ((get().pending[thesisId] ?? 0) > 0) {
@@ -567,6 +704,14 @@ export const useThesisDocStore = create<ThesisDocState>((set, get) => {
     },
 
     mutate: (thesisId, op) => {
+      // The docx Writer applies the edit in its ENGINE first, so the page changes
+      // without waiting for the server (lexical-editor-store.applyOp). ⚠️ Asked
+      // BEFORE the optimistic patch below: the host plans against the pre-op model,
+      // synchronously, inside this call. Under Lexical it is null and nothing below
+      // changes.
+      const surfaceApply = useLexicalEditorStore.getState().applyOp;
+      const verdict = surfaceApply ? surfaceApply(thesisId, op) : null;
+
       // Optimistic: patch the live blocks now so the outline view updates
       // instantly. We do NOT bump `tick` — the server bytes haven't changed yet,
       // so the Word/PDF WebViews must not reload to still-stale bytes mid-edit.
@@ -583,76 +728,8 @@ export const useThesisDocStore = create<ThesisDocState>((set, get) => {
       const hist = histFor(thesisId);
       if (!redoApplying && hist.redo.length > 0) hist.redo = [];
 
-      const p = pumpFor(thesisId);
-
-      // Coalesce rapid same-block typing: if the pending TAIL is an editText for
-      // the same index as this one, replace its op in place (latest text wins)
-      // instead of appending a second round-trip. The pump only ever executes
-      // p.queue[0]; while it's running that head op is IN FLIGHT (being sent) and
-      // must not be mutated, so we refuse to fold onto it. Any op after the head
-      // is pending-not-started and safe. Reusing the tail's durable row (same id)
-      // + promise slot keeps SQLite and the pending count consistent — the
-      // optimistic patch above already painted the newest text.
-      const tail = p.queue[p.queue.length - 1];
-      const tailInFlight = p.running && tail === p.queue[0];
-      if (tail && !tailInFlight && editTextCoalesces(tail.op, op)) {
-        // Folded typing burst = ONE undo step: the tail's existing entry keeps
-        // its pre-burst snapshot; only the op it re-applies on redo updates.
-        // (No entry exists only if the doc wasn't loaded at the first fold —
-        // then seed one from the current snapshot, still newest-in-queue.)
-        const tailEntry = hist.undo.find((e) => e.opId === tail.id);
-        if (tailEntry) tailEntry.op = op;
-        else if (cur?.available) hist.undo.push({ opId: tail.id, op, before: cur });
-        syncHistCounts(thesisId);
-        tail.op = op;
-        tail.attempts = 0; // pending-not-started; discarded text was never sent
-        const prevResolve = tail.resolve;
-        const prevReject = tail.reject;
-        const promise = new Promise<void>((resolve, reject) => {
-          tail.resolve = () => {
-            prevResolve?.();
-            resolve();
-          };
-          tail.reject = (e) => {
-            prevReject?.(e);
-            reject(e);
-          };
-        });
-        promise.catch(() => {});
-        // Persist the replacement (INSERT OR REPLACE on the same id) then flush.
-        const persisted = enqueueOp(tail.id, thesisId, op);
-        tail.persisted = persisted;
-        void Promise.all([persisted, ensureRestored(thesisId)]).finally(() => {
-          if (p.wake) p.wake();
-          void runPump(thesisId);
-        });
-        return promise;
-      }
-
-      const id = newOpId();
-      const persisted = enqueueOp(id, thesisId, op);
-      const promise = new Promise<void>((resolve, reject) => {
-        p.queue.push({ id, op, attempts: 0, persisted, resolve, reject });
-      });
-      if (cur?.available) {
-        hist.undo.push({ opId: id, op, before: cur });
-        if (hist.undo.length > MAX_LOCAL_HISTORY) hist.undo.shift();
-      }
-      syncHistCounts(thesisId);
-      // Fire-and-forget callers must not trip "unhandled rejection" when a
-      // permanent failure is already surfaced via the Alert in the pump.
-      promise.catch(() => {});
-      setPending(thesisId, p.queue.length);
-
-      // Durably persist BEFORE flushing, then flush (or cut a backoff short).
-      // Gated on the one-shot disk restore so older queued ops always execute
-      // before this one — the pump replays strictly in order.
-      void Promise.all([persisted, ensureRestored(thesisId)]).finally(() => {
-        if (p.wake) p.wake();
-        void runPump(thesisId);
-      });
-
-      return promise;
+      if (!verdict) return enqueue(thesisId, op, cur);
+      return routeViaSurface(thesisId, op, cur, verdict);
     },
   };
 });

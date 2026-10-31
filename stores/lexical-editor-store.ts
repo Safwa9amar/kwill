@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { ThesisOp } from "@/lib/thesis-ops";
 
 // Bridges the NATIVE formatting tools (BlockContextBar / bubble) to the Lexical
 // Writer surface (WorkspaceLexicalView → LexicalDomEditor). The pill can't reach
@@ -60,6 +61,16 @@ interface LexicalEditorState {
   // history undo — await it so the student sees the result. Conditional on the
   // document hash, so a no-op is one 304. Spec D3.
   reload: (() => Promise<void>) | null;
+  // The docx Writer applying a student's edit IN THE ENGINE first, so the page
+  // changes under the finger instead of after a server round-trip (registered by
+  // the docx Writer view; null under Lexical). `thesis-doc-store.mutate` asks it
+  // before it enqueues: `true` = the surface for that thesis executed the op
+  // locally — the bytes leave through its save loop, so the op itself must NOT be
+  // sent too (it would apply twice and 412 the next save, spec D2); `false` = not
+  // handled (inactive, not loaded, an op the engine cannot do, a target it could
+  // not prove) → the ordinary server path. ⚠️ Called BEFORE the store's optimistic
+  // patch: the host reads the PRE-op block model synchronously to plan the edit.
+  applyOp: ((thesisId: string, op: ThesisOp) => Promise<boolean>) | null;
   // Consume-once flag: set right before a pill edit mutates the doc so the editor
   // view skips the reseed (it already applied the edit in place).
   skipReseed: boolean;
@@ -74,6 +85,7 @@ interface LexicalEditorState {
   setHistoryAvail: (canUndo: boolean, canRedo: boolean) => void;
   registerFlushEdits: (f: (() => Promise<void>) | null) => void;
   registerReload: (f: (() => Promise<void>) | null) => void;
+  registerApplyOp: (fn: ((thesisId: string, op: ThesisOp) => Promise<boolean>) | null) => void;
   requestSkipReseed: () => void;
   consumeSkipReseed: () => boolean;
   requestForceReseed: () => void;
@@ -102,6 +114,7 @@ export const useLexicalEditorStore = create<LexicalEditorState>((set, get) => ({
   canRedo: false,
   flushEdits: null,
   reload: null,
+  applyOp: null,
   skipReseed: false,
   forceReseed: false,
   dispatch: (type, value) => set({ command: { type, value, nonce: ++nonce } }),
@@ -115,6 +128,7 @@ export const useLexicalEditorStore = create<LexicalEditorState>((set, get) => ({
   },
   registerFlushEdits: (f) => set({ flushEdits: f }),
   registerReload: (f) => set({ reload: f }),
+  registerApplyOp: (fn) => set({ applyOp: fn }),
   requestSkipReseed: () => set({ skipReseed: true }),
   consumeSkipReseed: () => {
     if (!get().skipReseed) return false;
