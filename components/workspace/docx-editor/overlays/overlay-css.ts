@@ -50,7 +50,11 @@ export const OVERLAY_CSS = `
 /* edit-in-place textarea */
 .kwo-sug-edit { width: 100%; box-sizing: border-box; font-size: 15px; line-height: 1.7; color: #16171d; border: 1px solid #D4DAE1; border-radius: 8px; padding: 8px 10px; resize: vertical; min-height: 96px; background: #fff; }
 /* the floating action pill */
-.kwo-sug-pill { display: flex; justify-content: center; margin: 10px 0 6px; animation: kwo-in 300ms cubic-bezier(0.33, 1, 0.68, 1) both; }
+/* The actions are a STICKY FOOTER: a long proposal scrolls inside the card and
+   Apply/Again/Reject stay in reach instead of waiting at the end of it (user,
+   10-31). Bleeds over the card's side/bottom padding (12px / 4px) so the white
+   fade covers the text scrolling under it. */
+.kwo-sug-pill { display: flex; justify-content: center; position: sticky; bottom: -4px; z-index: 2; margin: 4px -12px -4px; padding: 16px 12px 10px; background: linear-gradient(to bottom, rgba(255,255,255,0), #fff 45%); animation: kwo-in 300ms cubic-bezier(0.33, 1, 0.68, 1) both; }
 .kwo-sug-pillrow { display: inline-flex; align-items: center; gap: 2px; background: #fff; border: 1px solid #E8ECEF; border-radius: 999px; padding: 4px; box-shadow: 0 5px 12px -2px rgba(10,30,20,.16); }
 .kwo-sug-approve { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 96px; padding: 8px 16px; border: 1px solid rgba(14,122,70,.18); border-radius: 999px; background: rgba(14,122,70,.12); color: #0E5C36; font-size: 12.5px; font-weight: 600; cursor: pointer; line-height: 1.2; }
 .kwo-sug-approve:active { background: rgba(14,122,70,.24); }
