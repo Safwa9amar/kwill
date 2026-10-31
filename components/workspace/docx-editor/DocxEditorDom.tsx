@@ -54,6 +54,15 @@ const PAGE_CSS = [
   "@keyframes sheet-pulse{0%,100%{opacity:1}50%{opacity:.6}}",
 ].join("");
 
+// Expo's DOM root (#root) is a flex container, which makes this wrapper a flex
+// item — and a flex item's default `min-width: auto` will not shrink below its
+// content. The content is the page, so the wrapper grew to the PAGE's width (767px
+// on a 402px phone), the engine's pageWidth fit measured that, shrank the page by
+// its gutter, the wrapper followed… a feedback loop of one 0.06 zoom step per
+// relayout (~2s each without the shaper) that only stopped at minZoom — revealed
+// mid-way as a cut-off page. Pinning the wrapper to the window breaks the loop.
+const ROOT_STYLE = { height: "100%", width: "100%", minWidth: 0, position: "relative" } as const;
+
 export default function DocxEditorDom({
   apiBase, thesisId, token, command, scrollToIndex, reloadNonce, flushNonce, shaping = true,
   onState, onSave, onReady, onFlushed, onReloaded, onServerFormat, onError,
@@ -250,12 +259,12 @@ export default function DocxEditorDom({
     <div className="sheet-wait"><div /></div>
   );
 
-  if (!bytes) return <div style={{ height: "100%", position: "relative" }}><style>{PAGE_CSS}</style>{waiting}</div>;
+  if (!bytes) return <div style={ROOT_STYLE}><style>{PAGE_CSS}</style>{waiting}</div>;
 
   return (
     // `visibility`, never `display:none` — a surface with no layout box cannot be
     // measured, and measurement is exactly what it is busy doing back there.
-    <div style={{ height: "100%", position: "relative" }}>
+    <div style={ROOT_STYLE}>
       <style>{PAGE_CSS}</style>
       <div style={{ height: "100%", visibility: settled ? "visible" : "hidden" }}>
         <DocxEditor
