@@ -12,11 +12,12 @@
 // Positioned like ChartLayer (fixed, from live rects); pointer-events none, so it
 // never eats a tap.
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { brand, rgbTriplet } from "@/constants/colors";
 import { blockIndexFromId, isBodyId } from "@/lib/docx-block-id";
 import { isBlockLevelId } from "../bridge/dom-selectors";
+import { deferToPreview, usePreviewCover } from "./preview-cover";
 import { sameBoxes, useAnchored, type Box } from "./use-anchored";
 
 type Mark = Box & { key: string };
@@ -41,7 +42,16 @@ const CSS = (() => {
   ].join("");
 })();
 
-export function PendingLayer({ pending, pendingChrome }: { pending: readonly number[]; pendingChrome: readonly string[] }) {
+export function PendingLayer({ pending: marked, pendingChrome }: { pending: readonly number[]; pendingChrome: readonly string[] }) {
+  // A block the "applying" preview is painted over already shows the result; a
+  // shimmer on top would be a second overlay on it (preview-cover.ts).
+  const cover = usePreviewCover();
+  const absorbed = useRef<ReadonlySet<number>>(new Set());
+  const pending = useMemo(() => {
+    const r = deferToPreview(marked, cover, absorbed.current);
+    absorbed.current = r.absorbed;
+    return r.shown;
+  }, [marked.join(","), cover]); // eslint-disable-line react-hooks/exhaustive-deps
   const sig = `${pending.join(",")}|${pendingChrome.join(",")}`;
   const wanted = useMemo(() => new Set(pending), [sig]); // eslint-disable-line react-hooks/exhaustive-deps
   const sides = useMemo(() => new Set(pendingChrome), [sig]); // eslint-disable-line react-hooks/exhaustive-deps

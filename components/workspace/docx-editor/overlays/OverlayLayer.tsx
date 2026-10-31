@@ -26,6 +26,7 @@ import { applyRangeLocally } from "./apply-range";
 import { FloatingCard, ICON_SPARK, Icon, LABELS_EN, contentDir } from "./card-ui";
 import { CompletionLayer } from "./CompletionChip";
 import { OVERLAY_CSS } from "./overlay-css";
+import { previewIndices, setPreviewCover } from "./preview-cover";
 import { ApplyingBody, RangeCard } from "./RangeCard";
 import { SuggestionCard, TablePreview } from "./SuggestionCard";
 import { TableErrorStrip, TableLoadingOverlay, TableProposalCard } from "./TableProposalCard";
@@ -135,6 +136,12 @@ export function OverlayLayer({ editorRef, ...p }: OverlayProps & { editorRef: Re
     // Two frames: the load is parsed before it is painted.
     requestAnimationFrame(() => requestAnimationFrame(() => setSettled(n)));
   });
+
+  // The blocks the preview is painted over, while it is up (the range card's own
+  // "Applying…" counts too) — the pending shimmer stays off them (preview-cover.ts).
+  const coverKey = p.applying && settled !== p.applying.nonce ? previewIndices(p.applying).join(",") : "";
+  useEffect(() => { setPreviewCover(coverKey ? coverKey.split(",").map(Number) : []); }, [coverKey]);
+  useEffect(() => () => setPreviewCover([]), []);
 
   const sug = p.suggestion;
   const range = p.rangeSuggestion;

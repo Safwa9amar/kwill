@@ -27,11 +27,14 @@
 // DOM-walking helpers take their root as an argument, so find-block-element.test.ts
 // drives them with plain objects.
 
-import { blockIndexFromId } from "@/lib/docx-block-id";
-import { isBlockLevelId } from "../bridge/dom-selectors";
+import { FRAGMENT_SELECTOR, blockIndexOfFragmentId, fragmentIdOf } from "../bridge/dom-selectors";
 
-/** Fragment containers only — see the ⚠️ above for why `data-fragment-index` is in it. */
-export const FRAGMENT_SELECTOR = "[data-fragment-index][data-paragraph-id],[data-fragment-index][data-table-id]";
+// The fragment primitives (the selector — see the ⚠️ above for why
+// `data-fragment-index` is in it — the id a fragment carries, and the body index it
+// names) live in bridge/dom-selectors.ts: the Bridge's selection report resolves
+// blocks with the very same selector, and bridge/ importing overlays/ would close a
+// require cycle. Re-exported here for the overlays.
+export { FRAGMENT_SELECTOR, blockIndexOfFragmentId, fragmentIdOf };
 
 /** The minimum an element has to offer for the walk below (a real Element qualifies). */
 export type FragmentLike = {
@@ -42,19 +45,6 @@ export type FragmentRoot = { querySelectorAll(selector: string): ArrayLike<Fragm
 
 /** A viewport rect without the DOMRect class, so the arithmetic stays testable. */
 export type RectLike = { left: number; top: number; right: number; bottom: number; width: number; height: number };
-
-/** The id a fragment container carries: a paragraph's or a table's. */
-export function fragmentIdOf(el: { getAttribute(name: string): string | null }): string | null {
-  return el.getAttribute("data-paragraph-id") ?? el.getAttribute("data-table-id");
-}
-
-/**
- * The body block index a fragment id names, or null when it is not a BODY BLOCK
- * (a header/footnote story, a paragraph inside a table cell, a run).
- */
-export function blockIndexOfFragmentId(id: string | null | undefined): number | null {
-  return isBlockLevelId(id) ? blockIndexFromId(id) : null;
-}
 
 /** Every index from `start` to `end` inclusive (either order); empty for nonsense. */
 export function rangeIndices(start: number, end: number): number[] {

@@ -33,6 +33,7 @@ import type {
 } from "./bridge/surface-types";
 import { StructureLayer } from "./features/StructureLayer";
 import { OverlayLayer } from "./overlays/OverlayLayer";
+import { SelectCheckboxes } from "./overlays/SelectCheckboxes";
 import type { OverlayProps } from "./overlays/types";
 import { PendingRecovery, type RecoveryAction } from "./features/PendingRecovery";
 import { ScrollAnchor } from "./features/ScrollAnchor";
@@ -61,6 +62,7 @@ export default function DocxEditorDom({
   onEquationTap, onInsertTrigger, onPasteImage, onSearchReplaced, onImageRefused,
   recoveryAction, onRecovered, scrollRestore, onScroll, onScrollRestored,
   keyboardActive = false, onSwipeOpenDrawer, appRtl = false,
+  selectActive = false, selectedForCheck, onToggleSelect,
   dom: _dom,
   // The AI cards (suggestion / range / table / completion) — forwarded whole to
   // the overlay layer; see overlays/types.ts.
@@ -116,6 +118,10 @@ export default function DocxEditorDom({
   keyboardActive?: boolean;
   onSwipeOpenDrawer?: () => Promise<void>;
   appRtl?: boolean;
+  /** Task 24 (overlays/SelectCheckboxes): checkbox select mode, the picked blocks, a tap. */
+  selectActive?: boolean;
+  selectedForCheck?: number[];
+  onToggleSelect?: (index: number, text: string) => Promise<void>;
   dom?: import("expo/dom").DOMProps;
 }) {
   const ref = useRef<DocxEditorRef>(null);
@@ -235,6 +241,11 @@ export default function DocxEditorDom({
     return () => clearTimeout(t);
   }, [bytes, settled]);
 
+  // Select mode makes the engine read-only through `mode` — the prop applies in place
+  // (no remount, no reload; a setMode on the live editor). An AI card hands the page
+  // back, as Lexical's SelectPlugin did.
+  const selecting = selectActive && !overlay.suggestion && !overlay.rangeSuggestion && !overlay.tableProposal;
+
   const waiting = (
     <div className="sheet-wait"><div /></div>
   );
@@ -250,7 +261,7 @@ export default function DocxEditorDom({
         <DocxEditor
           ref={ref}
           document={bytes}
-          mode="edit"
+          mode={selecting ? "view" : "edit"}
           fonts={fonts}
           colorMode="light"
           zoomMode="auto"
@@ -306,6 +317,7 @@ export default function DocxEditorDom({
             onImageRefused={(i) => void onImageRefused?.(i)}
           />
           <OverlayLayer editorRef={ref} {...overlay} />
+          {selecting ? <SelectCheckboxes selected={selectedForCheck ?? []} onToggle={(i, t) => void onToggleSelect?.(i, t)} /> : null}
           <ScrollAnchor
             editorRef={ref}
             restore={scrollRestore}
