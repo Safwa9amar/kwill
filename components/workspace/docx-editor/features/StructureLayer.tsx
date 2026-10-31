@@ -49,7 +49,7 @@ export type StructureLayerProps = {
 
 export function StructureLayer(p: StructureLayerProps) {
   useEquationTap(p.onEquationTap);
-  useHeaderTap();
+  useHeaderTap(p.editorRef);
   useSlashTrigger(p.onInsertTrigger);
   usePasteImage(p.onPasteImage);
   useImageCommand(p.editorRef, p.imageCommand, p.onImageRefused);
