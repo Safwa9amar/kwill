@@ -8,23 +8,23 @@
 // ⚠️ babel-preset-expo allows this module ONE export, the default. Everything
 // else lives in ./bridge/. Gate: node scripts/verify-use-dom.mjs.
 //
-// Assets: harfbuzz.wasm is served from public/ (copied into the binary; not
-// OTA-updatable — Task 29 moves it to require()) and handed to the shaper by
+// Assets: harfbuzz.wasm and the Arabic faces are require()d (bridge/assets.ts),
+// so they travel with an EAS Update. The wasm is handed to the shaper by
 // bridge/shaper.ts, because the CommonJS engine build refuses
 // setHarfBuzzWasmUrl. Without the shaper the engine reports `wasmUnavailable`
 // and falls back to fixed-width measurement, which would make nothing about
-// pagination trustworthy. Fonts come from the package's
-// Google resolver until Task 27 bundles Arabic faces; loadDefaultFonts() is never
-// used because its `new URL(…, import.meta.url)` cannot resolve under Metro.
+// pagination trustworthy. Fonts: bundled Arabic faces, then the package's Google
+// resolver for the rest (bridge/fonts.ts).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DocxEditor } from "@docx-editor.dev/react";
-import type { DocxEditorRef, Editor, FontConfigurationFragment, FontResolver } from "@docx-editor.dev/react";
-import { googleFonts } from "@docx-editor.dev/fonts/google";
+import type { DocxEditorRef, Editor, FontResolver } from "@docx-editor.dev/react";
 import "@docx-editor.dev/core/styles/editor.css";
 import type { LexicalCommand, LexicalState } from "@/components/workspace/lexical/editor-components/types";
 import { Bridge, type BlockRef } from "./bridge/Bridge";
+import { makeFontResolver } from "./bridge/fonts";
 import { fetchDocument } from "./bridge/load-document";
+import { createPendingSave, openIdbPendingStore, openInitial, type RecoveredRef } from "./bridge/pending-save";
 import { createSaveLoop, type SaveState } from "./bridge/save-loop";
 import { ensureShaper } from "./bridge/shaper";
 import type {
@@ -33,28 +33,10 @@ import type {
 import { StructureLayer } from "./features/StructureLayer";
 import { OverlayLayer } from "./overlays/OverlayLayer";
 import type { OverlayProps } from "./overlays/types";
-
-/**
- * Amiri is the only Arabic family in the package's Google catalogue, and it is
- * NOT metric-compatible with Traditional Arabic or Sakkal Majalla — so an Arabic
- * thesis paginates like Amiri rather than like Word. Same known limit as the web
- * trial; not a bug to chase here.
- */
-function makeFontResolver(): FontResolver {
-  const google = googleFonts({
-    substitute: {
-      "Traditional Arabic": "Amiri",
-      "Simplified Arabic": "Amiri",
-      "Arabic Typesetting": "Amiri",
-      "Sakkal Majalla": "Amiri",
-    },
-  });
-  return async (request): Promise<FontConfigurationFragment> => {
-    const fragment = await google(request);
-    if (fragment.failures.length) console.warn("[docx] font faces that failed to load:", fragment.failures);
-    return { sources: fragment.sources, substitutions: fragment.substitutions };
-  };
-}
+import { PendingRecovery, type RecoveryAction } from "./features/PendingRecovery";
+import { ScrollAnchor } from "./features/ScrollAnchor";
+import { KeyboardAndSwipe } from "./features/KeyboardAndSwipe";
+import type { DocxScrollAnchor } from "./features/scroll-anchor";
 
 // The WebView gives the page no height of its own; the engine needs one. `.h-full`
 // is spelled out here rather than left to Tailwind — nativewind does not process
@@ -75,6 +57,8 @@ export default function DocxEditorDom({
   onState, onSave, onReady, onFlushed, onReloaded, onServerFormat, onError,
   sectionStarts, charts, selectedChart, pending, pendingChrome, imageCommand, searchFocus, searchReplace,
   onEquationTap, onInsertTrigger, onPasteImage, onSearchReplaced, onImageRefused,
+  recoveryAction, onRecovered, scrollRestore, onScroll, onScrollRestored,
+  keyboardActive = false, onSwipeOpenDrawer, appRtl = false,
   dom: _dom,
   // The AI cards (suggestion / range / table / completion) — forwarded whole to
   // the overlay layer; see overlays/types.ts.
@@ -115,6 +99,18 @@ export default function DocxEditorDom({
   onPasteImage?: (index: number) => Promise<void>;
   onSearchReplaced?: (r: SearchReplaceResult) => Promise<void>;
   onImageRefused?: (index: number) => Promise<void>;
+  /** Restore / Discard a copy the server refused (Task 28, features/PendingRecovery). */
+  recoveryAction?: RecoveryAction | null;
+  onRecovered?: (r: RecoveredRef | null) => Promise<void>;
+  /** Reading position (Task 25, features/ScrollAnchor): land here; report as it moves. */
+  scrollRestore?: { anchor: DocxScrollAnchor; nonce: number } | null;
+  onScroll?: (a: DocxScrollAnchor) => Promise<void>;
+  onScrollRestored?: () => Promise<void>;
+  /** Task 26 (features/KeyboardAndSwipe): the workspace keyboard toggle, and the
+   *  structure drawer a sideways fling opens (its side follows the APP language). */
+  keyboardActive?: boolean;
+  onSwipeOpenDrawer?: () => Promise<void>;
+  appRtl?: boolean;
   dom?: import("expo/dom").DOMProps;
 }) {
   const ref = useRef<DocxEditorRef>(null);
@@ -122,18 +118,19 @@ export default function DocxEditorDom({
   const tokenRef = useRef(token);
   tokenRef.current = token;
 
-  // Every face the document asks for is fetched from a CDN (the Google catalogue is
-  // a URL list, ~825KB for Amiri regular+bold alone), and the page cannot be shaped,
-  // paginated or FITTED until they land — so `zoomMode="auto"` visibly rescales the
-  // sheet two or three times on a cold cache. The student should not watch that
-  // happen: the surface stays laid out but hidden behind a page-shaped placeholder
-  // until the engine has mounted AND no face is still in flight. Task 27 (bundled
-  // Arabic bytes, D9) is what actually makes it fast; this only stops it looking broken.
+  // The page cannot be shaped, paginated or FITTED until every face the document
+  // asks for has bytes — so `zoomMode="auto"` visibly rescales the sheet while they
+  // land. The student should not watch that happen: the surface stays laid out but
+  // hidden behind a page-shaped placeholder until the engine has mounted AND no
+  // face is still in flight. Arabic faces are bundled (D9, a local read); Latin ones
+  // still come from the Google catalogue, so a cold cache can still hold this up.
   const [settled, setSettled] = useState(false);
   const readyRef = useRef(false);
   const inFlightRef = useRef(0);
+  // A landing to make first (Task 25): revealed already scrolled there, not at the top.
+  const holdRef = useRef(!!scrollRestore);
   const settle = useCallback(() => {
-    if (readyRef.current && inFlightRef.current === 0) {
+    if (readyRef.current && inFlightRef.current === 0 && !holdRef.current) {
       // Two frames: the last face resolving is not the same tick as the relayout it
       // causes, and revealing between them would show the jump we are hiding.
       requestAnimationFrame(() => requestAnimationFrame(() => setSettled(true)));
@@ -153,6 +150,11 @@ export default function DocxEditorDom({
     };
   }, [settle]);
 
+  // The offline copy of every save (spec D6, bridge/pending-save.ts).
+  const pendingSave = useMemo(() => createPendingSave(openIdbPendingStore(), thesisId), [thesisId]);
+  // Opened from a pending copy → the save loop replays it once the editor is up.
+  const replayRef = useRef(false);
+
   // One save loop per mount; getBytes is bound to the ref so it always saves the
   // editor that is on screen.
   const saveLoop = useMemo(
@@ -160,7 +162,11 @@ export default function DocxEditorDom({
       apiBase, thesisId,
       token: () => tokenRef.current,
       getBytes: async () => (await ref.current?.save()) ?? null,
-      onState: (s) => void onSave?.(s),
+      onState: (s) => {
+        void onSave?.(s);
+        if (s.kind === "stale" && s.recovered) void onRecovered?.(s.recovered);
+      },
+      pending: pendingSave,
     }),
     [apiBase, thesisId], // eslint-disable-line react-hooks/exhaustive-deps
   );
@@ -176,8 +182,7 @@ export default function DocxEditorDom({
         // The shaper must be ready BEFORE the editor opens the bytes (see
         // bridge/shaper.ts). A failure is REPORTED, not fatal: the document
         // still opens with fixed-width metrics (pagination then differs from
-        // Word) rather than leaving the student a blank screen — the case an
-        // OTA update hits today, since public/ does not travel with updates.
+        // Word) rather than leaving the student a blank screen.
         if (shaping) {
           await ensureShaper().catch((e) => {
             void onError?.(`text shaping is unavailable, so page layout will differ from Word: ${String((e as Error)?.message ?? e)}`);
@@ -188,8 +193,11 @@ export default function DocxEditorDom({
           // then reports `wasmUnavailable` and measures fixed-width.
           void onError?.("text shaping is off on this host, so page layout will differ from Word");
         }
-        const r = await fetchDocument({ apiBase, thesisId, token });
-        if (!alive || r.status !== 200) return;
+        // A copy the network never carried is the student's newest text: it goes
+        // on screen first, and the save loop replays it (bridge/pending-save.ts).
+        const r = await openInitial({ pending: pendingSave, fetchDoc: () => fetchDocument({ apiBase, thesisId, token }) });
+        if (!alive || !r) return;
+        replayRef.current = r.replay;
         saveLoop.setHash(r.docHash);
         setBytes(r.bytes);
       } catch (e) {
@@ -202,7 +210,16 @@ export default function DocxEditorDom({
   const handleReady = (editor: Editor) => {
     readyRef.current = true;
     settle();
-    void onReady?.({ pages: editor.snapshot().page.total, docHash: saveLoop.getHash() });
+    const replay = replayRef.current;
+    replayRef.current = false;
+    // A replayed copy is AHEAD of the server: until its save lands (which reports
+    // the new hash), the host must hold no hash to compare, or a doc-store tick
+    // would "catch up" by reloading the server's older bytes over it.
+    void onReady?.({ pages: editor.snapshot().page.total, docHash: replay ? null : saveLoop.getHash() });
+    if (replay) {
+      saveLoop.markDirty();
+      void saveLoop.flush().catch(() => {});
+    }
   };
 
   // A face the CDN never answers must not leave the student on a placeholder forever;
@@ -241,7 +258,7 @@ export default function DocxEditorDom({
             // Only `wasmUnavailable` is a HOST fault (the engine's own words): no
             // shaper means untrustworthy pagination, so the student must see it.
             // Every other code is a font that failed to load — expected offline
-            // (Amiri comes from Google) and already logged by the resolver.
+            // (Latin faces come from Google) and already logged by the resolver.
             console.warn("[docx] font error", e.code);
             // When shaping was switched off deliberately this code is the expected
             // consequence, and the host has already been told once.
@@ -282,6 +299,26 @@ export default function DocxEditorDom({
             onImageRefused={(i) => void onImageRefused?.(i)}
           />
           <OverlayLayer editorRef={ref} {...overlay} />
+          <ScrollAnchor
+            editorRef={ref}
+            restore={scrollRestore}
+            onScroll={(a) => void onScroll?.(a)}
+            onRestored={() => void onScrollRestored?.()}
+            onBusy={(b) => { holdRef.current = b; if (!b) settle(); }}
+            revealed={settled}
+          />
+          <KeyboardAndSwipe
+            keyboardActive={keyboardActive}
+            onSwipeOpenDrawer={onSwipeOpenDrawer ? () => void onSwipeOpenDrawer() : undefined}
+            appRtl={appRtl}
+          />
+          <PendingRecovery
+            editorRef={ref}
+            saveLoop={saveLoop}
+            pending={pendingSave}
+            action={recoveryAction}
+            onRecovered={(r) => void onRecovered?.(r)}
+          />
           </DocxEditor>
       </div>
       {settled ? null : waiting}

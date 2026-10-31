@@ -5,6 +5,12 @@ const { withNativeWind } = require("nativewind/metro");
 
 const config = getDefaultConfig(__dirname);
 
+// The docx surface require()s harfbuzz.wasm (components/workspace/docx-editor/
+// bridge/assets.ts) so the shaper's binary travels with an EAS Update; Metro only
+// treats a require as an asset when its extension is listed here. `ttf` is a
+// default already.
+if (!config.resolver.assetExts.includes("wasm")) config.resolver.assetExts.push("wasm");
+
 // @docx-editor.dev/core: resolve its CommonJS build, not its ESM one.
 //
 // Metro wraps every module in a NON-ASYNC function, so it cannot bundle a

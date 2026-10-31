@@ -12,13 +12,28 @@
 // No React, no engine: `getBytes` is injected (the DOM component binds it to
 // `ref.save()`), which is what makes this testable under node.
 
+import { settleWithin } from "./pending-save";
+
 export type SaveState =
   | { kind: "idle" }
   | { kind: "dirty" }
   | { kind: "saving" }
   | { kind: "saved"; at: number; docHash: string | null }
-  | { kind: "stale"; serverHash: string | null }
+  // `recovered`: where the refused bytes were kept (pending-save.ts), when they were.
+  | { kind: "stale"; serverHash: string | null; recovered?: { key: string; at: number } | null }
   | { kind: "error"; message: string };
+
+/** The offline copy (spec D6, bridge/pending-save.ts) as the loop sees it. Every
+ *  call is bounded and best-effort: a broken store must never cost the save. */
+export type PendingPort = {
+  put(bytes: ArrayBuffer, baseHash: string | null): Promise<void>;
+  clear(): Promise<void>;
+  keep(): Promise<{ key: string; at: number } | null>;
+};
+
+// Long enough for IndexedDB to commit a few MB; short enough that a hung store is
+// a pause, not a save that never leaves.
+const PENDING_MS = 2000;
 
 export interface SaveLoop {
   markDirty(): void;
@@ -40,6 +55,7 @@ export function createSaveLoop(o: {
   onState: (s: SaveState) => void;
   debounceMs?: number;
   fetchImpl?: typeof fetch;
+  pending?: PendingPort;
 }): SaveLoop {
   const f = o.fetchImpl ?? fetch;
   const debounceMs = o.debounceMs ?? 1500;
@@ -58,6 +74,9 @@ export function createSaveLoop(o: {
     try {
       const bytes = await o.getBytes();
       if (!bytes) throw new Error("editor returned no bytes");
+      // Durable BEFORE the request leaves: a kill mid-PUT, or no network at all,
+      // leaves these bytes for the next open to show and replay (spec D6).
+      await settleWithin(o.pending?.put(bytes, hash), PENDING_MS);
       const headers: Record<string, string> = {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         Authorization: `Bearer ${token}`,
@@ -67,11 +86,17 @@ export function createSaveLoop(o: {
       const body = (await res.json().catch(() => ({}))) as { docHash?: string | null; error?: string };
       if (res.status === 412) {
         dirty = true; // the bytes are still the student's; the host decides
-        o.onState({ kind: "stale", serverHash: body.docHash ?? null });
+        // Set aside as a recovered copy, so the reload the host answers with
+        // cannot take the student's text with it.
+        const recovered = await settleWithin(o.pending?.keep(), PENDING_MS);
+        o.onState({ kind: "stale", serverHash: body.docHash ?? null, ...(recovered ? { recovered } : {}) });
         return;
       }
       if (!res.ok) throw new Error(`save ${res.status}`);
       if (typeof body.docHash === "string") hash = body.docHash;
+      // Awaited, not fire-and-forget: the next chained save writes the same key,
+      // and a late delete would erase the copy that save depends on.
+      await settleWithin(o.pending?.clear(), PENDING_MS);
       o.onState({ kind: "saved", at: Date.now(), docHash: hash });
       for (const l of savedListeners) l(bytes);
     } catch (e) {

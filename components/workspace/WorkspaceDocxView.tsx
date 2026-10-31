@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View, Text, StyleSheet, Platform, I18nManager } from "react-native";
 import * as Device from "expo-device";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { typography } from "@/constants/typography";
 import DocxEditorDom from "@/components/workspace/docx-editor/DocxEditorDom";
 import type { LexicalState } from "@/components/workspace/lexical/editor-components/types";
 import type { SaveState } from "@/components/workspace/docx-editor/bridge/save-loop";
+import { useDocxRecovery } from "@/components/workspace/docx-editor/host/useDocxRecovery";
+import { RecoveryBanner } from "@/components/workspace/docx-editor/host/RecoveryBanner";
+import { useDocxScrollRestore } from "@/components/workspace/docx-editor/host/useDocxScrollRestore";
 import type { DocBlockDTO } from "@/lib/api";
 import { resolveBlockIndexStrict } from "@/lib/block-links";
 import { supabase } from "@/lib/supabase";
@@ -16,6 +19,7 @@ import { useLexicalEditorStore } from "@/stores/lexical-editor-store";
 import { isChromeReport, reportChrome } from "@/components/workspace/docx-editor/host/chrome-report";
 import { useDocxStructure } from "@/components/workspace/docx-editor/host/use-docx-structure";
 import { useSuggestionOverlays } from "@/components/workspace/docx-editor/host/useSuggestionOverlays";
+import { useNavDrawerStore } from "@/stores/nav-drawer-store";
 
 // The docx-editor as the Writer (spec D12, behind settings.writerEngine). Phase 1
 // host: token, command/state bridge, flush + reload registration, doc-tick → reload,
@@ -75,6 +79,9 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   // Bumping this remounts the WebView. `shaping` is read once per mount (the shaper
   // is initialised before the first document opens), so a new value needs a new one.
   const [surfaceKey, setSurfaceKey] = useState(0);
+  const scroll = useDocxScrollRestore({ thesisId, deepLinkBlock, surfaceKey });
+  const keyboardActive = useWorkspaceStore((s) => s.keyboardActive);
+  const onSwipeOpenDrawer = useCallback(async () => { useNavDrawerStore.getState().openDrawer(); }, []);
   const crashedRef = useRef(false);
   const editorHashRef = useRef<string | null>(null);
   // For anchoring the native pill/AI-dock over the WebView, exactly as
@@ -94,6 +101,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   const reloadWaiters = useRef<(() => void)[]>([]);
   // Phase 3: equations, header/footer, charts, pictures, search, slash, paste.
   const structure = useDocxStructure(thesisId, editorHashRef);
+  const recovery = useDocxRecovery();
 
   // A fresh token on mount; the DOM side holds it for its own fetches. (A session
   // outliving the hour re-mounts on the next workspace open; Phase 4 refreshes it
@@ -164,8 +172,8 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
       // reconciles the doc when it lands.
       void useThesisDocStore.getState().revalidate(thesisId);
     } else if (s.kind === "stale") {
-      // Phase 1: reload the server's version and say so. Phase 4 (Task 28) keeps
-      // the refused bytes as a recovery copy and offers Restore.
+      // Reload the server's version and say so; the refused bytes were kept as a
+      // recovered copy, which the DOM offers through onRecovered (Task 28).
       setBanner("Changed elsewhere — reloaded");
       setReloadNonce((n) => n + 1);
     } else if (s.kind === "error") {
@@ -280,6 +288,14 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
         {...structure.props}
         onError={async (m) => setBanner(m)}
         {...overlays}
+        recoveryAction={recovery.action}
+        onRecovered={recovery.onRecovered}
+        scrollRestore={scroll.scrollRestore}
+        onScroll={scroll.onScroll}
+        onScrollRestored={scroll.onScrollRestored}
+        keyboardActive={keyboardActive}
+        onSwipeOpenDrawer={onSwipeOpenDrawer}
+        appRtl={I18nManager.isRTL}
         dom={{
           style: { flex: 1 },
           scrollEnabled: true,
@@ -287,6 +303,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
           onRenderProcessGone: onWebContentCrash,
         }}
       />
+      {recovery.offer ? <RecoveryBanner onRestore={recovery.restore} onDiscard={recovery.discard} /> : null}
       {(crashNote ?? banner) ? (
         <View style={[styles.banner, { backgroundColor: colors.bgCard, borderColor: colors.borderDefault }]}>
           <Text style={[styles.bannerText, { color: colors.textSecondary }]}>{crashNote ?? banner}</Text>

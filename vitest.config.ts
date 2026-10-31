@@ -16,6 +16,8 @@ export default defineConfig({
       "components/workspace/docx-editor/bridge/**/*.test.ts",
       "components/workspace/docx-editor/overlays/**/*.test.ts",
       "components/workspace/docx-editor/host/**/*.test.ts",
+      "components/workspace/docx-editor/features/scroll-anchor.test.ts",
+      "components/workspace/docx-editor/features/swipe.test.ts",
     ],
     exclude: ["**/node_modules/**", "android/**", "ios/**", "dist/**"],
     passWithNoTests: true,
