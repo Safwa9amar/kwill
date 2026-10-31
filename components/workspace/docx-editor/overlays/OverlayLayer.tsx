@@ -18,6 +18,7 @@
 //     watches the old text come back in between.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { createPortal } from "react-dom"; // typed by ./react-dom.d.ts (no @types/react-dom)
 import { useEditorEvent } from "@docx-editor.dev/react";
 import type { DocxEditorRef } from "@docx-editor.dev/react";
 import { brand } from "@/constants/colors";
@@ -25,7 +26,6 @@ import { applyRangeLocally } from "./apply-range";
 import { FloatingCard, ICON_SPARK, Icon, LABELS_EN, contentDir } from "./card-ui";
 import { CompletionLayer } from "./CompletionChip";
 import { OVERLAY_CSS } from "./overlay-css";
-import { createPortal } from "./portal";
 import { ApplyingBody, RangeCard } from "./RangeCard";
 import { SuggestionCard, TablePreview } from "./SuggestionCard";
 import { TableErrorStrip, TableLoadingOverlay, TableProposalCard } from "./TableProposalCard";
