@@ -17,7 +17,7 @@ import { useThesisDocStore } from "@/stores/thesis-doc-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 import { useFloatingPillStore } from "@/stores/floating-pill-store";
 import { useLexicalEditorStore } from "@/stores/lexical-editor-store";
-import { isChromeReport, reportChrome } from "@/components/workspace/docx-editor/host/chrome-report";
+import { isChromeReport, leftChrome, reportChrome } from "@/components/workspace/docx-editor/host/chrome-report";
 import { useDocxStructure } from "@/components/workspace/docx-editor/host/use-docx-structure";
 import { useSuggestionOverlays } from "@/components/workspace/docx-editor/host/useSuggestionOverlays";
 import { useDocxSelectMode } from "@/components/workspace/docx-editor/host/useDocxSelectMode";
@@ -176,10 +176,15 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   }, [reload]);
   const { onReloadSettled } = structure;
   const onReloaded = useCallback(async (h: string | null) => {
+    const moved = h !== editorHashRef.current;
     editorHashRef.current = h;
     reloadWaiters.current.splice(0).forEach((r) => r());
     onReloadSettled();
-  }, [onReloadSettled]);
+    // A reload resets the engine's own history, so the header Undo falls back to the
+    // SERVER history — whose flags only the Lexical paths ever refreshed. Without
+    // this, Undo greyed out right after a sheet / AI / chart change (simulator, 10-31).
+    if (moved) void useThesisDocStore.getState().refreshHistoryState(thesisId);
+  }, [onReloadSettled, thesisId]);
 
   // The doc changed on the server by something other than our save (an AI turn's
   // MODK_DOCCHANGES → revalidate, a sheet, history) → the DTO's hash moves away
@@ -209,6 +214,8 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
     if (s.kind === "saved") {
       editorHashRef.current = s.docHash;
       setBanner("Saved");
+      // Every save is a server history step too (see onReloaded).
+      void useThesisDocStore.getState().refreshHistoryState(thesisId);
       // The block model must catch up with the bytes: indices for the AI, the
       // outline drawer, block links. Nothing is lost when an op IS queued (this
       // surface enqueues one — see onServerFormat): revalidate returns early rather
@@ -276,6 +283,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
     if (s.index < 0) return;
     // A running header/footer story (Task 18) — the chrome selection, not a block.
     if (isChromeReport(s)) { lastSelKeyRef.current = ""; reportChrome(thesisId, s, editorTopRef.current); return; }
+    leftChrome();
     if (swallowsReport()) { lastSelKeyRef.current = ""; return; }
     if (s.userDriven === false && (s.blocks?.length ?? 1) <= 1 && useWorkspaceStore.getState().selectedBlocks.length > 1) return;
     useWorkspaceStore.getState().setChromeSelection(null);
