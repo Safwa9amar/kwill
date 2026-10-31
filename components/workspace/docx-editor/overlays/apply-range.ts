@@ -25,21 +25,40 @@ export type RangeApplyOutcome = { ok: true } | { ok: false; reason: string };
 
 const blank = (s: string | undefined) => !s || !s.trim();
 
+// The engine refuses a findMatches query longer than this, so a real thesis
+// paragraph (routinely 300–900 chars) could never be found whole: every range
+// rewrite fell back to the server and the student watched a preview instead of
+// their page (found driving the simulator, 10-31). Past the cap the paragraph is
+// pinned by its head AND its tail — same block, at its start and at its end —
+// the method bridge/apply-op.ts proved for single-paragraph edits.
+const QUERY_MAX = 256;
+const PROBE = 120;
+
+/** Where a whole paragraph sits: its id (= semantic paragraphId) and its end offset. */
+export type WholeParagraph = { blockId: string; end: number };
+
 /**
  * The WHOLE body paragraph `index` whose text is `text`, or null. Stricter than
  * bridge/find-block.ts on purpose: no fallback to "the first body match" (that is
  * fine for scrolling to a place, not for deleting one), and the match must span
  * the paragraph — the engine's context around it is empty.
  */
-export function wholeParagraphMatch(editor: Editor, index: number, text: string): TextMatch | null {
+export function wholeParagraphMatch(editor: Editor, index: number, text: string): WholeParagraph | null {
   const q = text.replace(/\s+/g, " ").trim();
   if (!q) return null;
-  const hits = Array.from(editor.findMatches(q, { matchCase: true })).filter(
+  const inBlock = (query: string) => Array.from(editor.findMatches(query, { matchCase: true })).filter(
     (m) => !m.scope && isBlockLevelId(m.blockId) && blockIndexFromId(m.blockId) === index,
   );
-  if (hits.length !== 1) return null;
-  const m = hits[0];
-  return blank(m.contextBefore) && blank(m.contextAfter) ? m : null;
+  if (q.length <= QUERY_MAX) {
+    const hits = inBlock(q);
+    if (hits.length !== 1) return null;
+    const m = hits[0];
+    return blank(m.contextBefore) && blank(m.contextAfter) ? { blockId: m.blockId, end: m.start + m.length } : null;
+  }
+  const heads = inBlock(q.slice(0, PROBE)).filter((m) => blank(m.contextBefore));
+  const tails = inBlock(q.slice(-PROBE)).filter((m) => blank(m.contextAfter));
+  if (heads.length !== 1 || tails.length !== 1 || heads[0].blockId !== tails[0].blockId) return null;
+  return { blockId: heads[0].blockId, end: tails[0].start + tails[0].length };
 }
 
 export function applyRangeLocally(
@@ -60,7 +79,7 @@ export function applyRangeLocally(
     type: "setSelection",
     range: {
       anchor: { paragraphId: first.blockId, offset: 0 },
-      head: { paragraphId: last.blockId, offset: last.start + last.length },
+      head: { paragraphId: last.blockId, offset: last.end },
     },
   } as EditorCommand;
   const canSelect = editor.can(select);

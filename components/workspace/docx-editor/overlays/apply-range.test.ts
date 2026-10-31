@@ -50,6 +50,25 @@ describe("wholeParagraphMatch", () => {
   });
 });
 
+describe("wholeParagraphMatch past the engine's 256-char query cap", () => {
+  const long = "A".repeat(150) + " middle " + "Z".repeat(150);
+  const head = long.slice(0, 120);
+  const tail = long.slice(-120);
+  it("pins a long paragraph by its head at the start and its tail at the end of the SAME block", () => {
+    const { editor } = fakeEditor({
+      [head]: [match(7, head, { contextAfter: "AAA" })],
+      [tail]: [match(7, tail, { start: long.length - 120, contextBefore: "ZZZ" })],
+    });
+    expect(wholeParagraphMatch(editor, 7, long)).toEqual({ blockId: id(7), end: long.length });
+  });
+  it("refuses when head and tail land in different blocks, or either is mid-paragraph", () => {
+    const split = fakeEditor({ [head]: [match(7, head)], [tail]: [match(8, tail)] }).editor;
+    expect(wholeParagraphMatch(split, 7, long)).toBeNull();
+    const midHead = fakeEditor({ [head]: [match(7, head, { contextBefore: "x" })], [tail]: [match(7, tail)] }).editor;
+    expect(wholeParagraphMatch(midHead, 7, long)).toBeNull();
+  });
+});
+
 describe("applyRangeLocally", () => {
   const req = { start: 4, end: 6, firstText: "First para", lastText: "Last para", paragraphs: ["New one", " ", "New two"] };
 
