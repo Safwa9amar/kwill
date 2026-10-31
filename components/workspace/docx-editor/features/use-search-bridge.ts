@@ -6,18 +6,40 @@
 // `findMatches(literal)` in that block, the one meant picked by bridge/search-resolve.
 //
 //   focus   → selectMatch + scrollToBlock: the current hit is selected on the page
-//   replace → replaceMatch per hit, back-to-front, as ONE history group when the
+//   replace → per hit, back-to-front: select its span, then paste the new text
+//             (deleteText for an empty replacement), as ONE history group when the
 //             engine accepts one — local and instant; the save loop persists it
+//
+// ⚠️ NOT `replaceMatch`: it is declared in the engine's types but has no runtime
+// handler at 2.21.1 — the tree editor answers "command 'replaceMatch' is not
+// supported", so every replace would count as failed. Select-then-paste is the
+// same path bridge/apply-op.ts uses for a text edit (a plain paste is
+// insertPlainText: delete the selection and insert, in one commit).
 //
 // Semantic hits need nothing here: they navigate by block index through the
 // Phase 1 scrollToIndex path.
 
 import { useEffect, useRef, type RefObject } from "react";
-import type { DocxEditorRef, Editor } from "@docx-editor.dev/react";
+import type { DocxEditorRef, Editor, EditorCommand } from "@docx-editor.dev/react";
 import type { TextMatch } from "@docx-editor.dev/core/contracts/editor";
 import { blockIndexFromId, isBodyId } from "@/lib/docx-block-id";
 import { pickMatch, replaceOrder } from "../bridge/search-resolve";
 import type { SearchFocusInput, SearchReplaceInput, SearchReplaceResult, SearchTarget } from "../bridge/surface-types";
+
+const cmd = (c: Record<string, unknown>) => c as unknown as EditorCommand;
+type Group = ReturnType<Editor["beginHistoryGroup"]>;
+
+/** One hit replaced in place: its span selected, then the new text pasted over it.
+ *  The two execs share the group, so with one they undo as a single step. */
+function replaceOne(editor: Editor, m: TextMatch, text: string, group: Group | null): { ok: boolean; code?: string } {
+  const opts = group ? { historyGroup: group } : undefined;
+  const sel = editor.exec(cmd({
+    type: "setSelection",
+    range: { anchor: { paragraphId: m.blockId, offset: m.start }, head: { paragraphId: m.blockId, offset: m.start + m.length } },
+  }), opts);
+  if (!sel.ok) return sel;
+  return editor.exec(cmd(text ? { type: "pasteWithoutFormatting", text } : { type: "deleteText" }), opts);
+}
 
 function inBlock(editor: Editor, literal: string, blockIndex: number): TextMatch[] {
   return Array.from(editor.findMatches(literal, { matchCase: true }))
@@ -77,12 +99,11 @@ export function useSearchBridge(
     // losing the replacement.
     let group = found.length > 1 ? editor.beginHistoryGroup() : null;
     for (const match of replaceOrder(found)) {
-      const cmd = { type: "replaceMatch" as const, match, text: replace.text };
-      let r = group ? editor.exec(cmd, { historyGroup: group }) : editor.exec(cmd);
+      let r = replaceOne(editor, match, replace.text, group);
       if (!r.ok && group && (r.code === "invalidArgs" || r.code === "unsupported")) {
         group.end();
         group = null;
-        r = editor.exec(cmd);
+        r = replaceOne(editor, match, replace.text, null);
       }
       if (r.ok) replaced++;
       else failed++;
