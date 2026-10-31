@@ -110,14 +110,40 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   const select = useDocxSelectMode(lastSelKeyRef);
   const { swallowsReport } = select;
 
-  // A fresh token on mount; the DOM side holds it for its own fetches. (A session
-  // outliving the hour re-mounts on the next workspace open; Phase 4 refreshes it
-  // in place on AppState "active".)
+  // The DOM side does its own fetches (load, save, reload) with the token it is
+  // handed, so it must never hold an expired one. Supabase refreshes the session
+  // natively ahead of expiry; every refresh is passed straight down (the save loop
+  // reads it through a ref, so no reload follows). ⚠️ Only a non-null token is
+  // taken: a null one would unmount the surface below, unsaved edits and all —
+  // a real sign-out leaves the workspace anyway.
   useEffect(() => {
     let alive = true;
     void supabase.auth.getSession().then(({ data }) => { if (alive) setToken(data.session?.access_token ?? null); });
-    return () => { alive = false; };
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (alive && session?.access_token) setToken(session.access_token);
+    });
+    return () => { alive = false; sub.subscription.unsubscribe(); };
   }, []);
+
+  // A 401 means the token expired under us anyway (the app slept through the
+  // refresh, or the WebView outlived it). Refresh once and retry the save — the
+  // new token and the flush land in the same render, so the retry carries it.
+  // Seen on the simulator after the hour: every save failed "save 401" while the
+  // native app was signed in.
+  const refreshingRef = useRef(false);
+  const retryAfterRefresh = useCallback(() => {
+    if (refreshingRef.current) return;
+    refreshingRef.current = true;
+    void supabase.auth.refreshSession()
+      .then(({ data }) => {
+        const t = data.session?.access_token;
+        if (!t) return;
+        setToken(t);
+        void flushEditsRef.current?.();
+      })
+      .finally(() => { refreshingRef.current = false; });
+  }, []);
+  const flushEditsRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     useLexicalEditorStore.getState().setActive(active);
@@ -131,6 +157,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
     setFlushNonce(n);
     setTimeout(() => { if (flushWaiters.current.delete(n)) resolve(); }, 8000);
   }), []);
+  flushEditsRef.current = flushEdits;
   const onFlushed = useCallback(async (n: number) => { flushWaiters.current.get(n)?.(); flushWaiters.current.delete(n); }, []);
   useEffect(() => {
     useLexicalEditorStore.getState().registerFlushEdits(flushEdits);
@@ -185,13 +212,18 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
       setBanner("Changed elsewhere — reloaded");
       setReloadNonce((n) => n + 1);
     } else if (s.kind === "error") {
+      if (/\b401\b/.test(s.message)) {
+        setBanner("Saving…");
+        retryAfterRefresh();
+        return;
+      }
       setBanner(`Save failed: ${s.message}`);
     } else if (s.kind === "saving") {
       setBanner("Saving…");
     } else {
       setBanner(null);
     }
-  }, [thesisId]);
+  }, [thesisId, retryAfterRefresh]);
   useEffect(() => {
     if (!banner || banner === "Saving…") return;
     const t = setTimeout(() => setBanner(null), 2600);
