@@ -38,13 +38,21 @@ export function PendingRecovery(p: {
       try {
         if (a.action === "discard") { await p.pending.discard(a.key); return; }
         const bytes = await p.pending.readRecovered(a.key);
-        if (!bytes) { p.onRecovered(null); return; }
-        p.editorRef.current?.load(bytes);
+        const editor = p.editorRef.current?.getEditor();
+        if (!bytes || !editor) { p.onRecovered(null); return; }
+        // ⚠️ Save only once the engine has TAKEN the bytes: load() re-parses
+        // asynchronously, and a save() before its change event serialises the
+        // document still on screen — the server's — and would then drop the copy.
+        await new Promise<void>((resolve, reject) => {
+          const off = editor.on("change", () => { off(); clearTimeout(t); resolve(); });
+          const t = setTimeout(() => { off(); reject(new Error("the restored copy never loaded")); }, 8000);
+          p.editorRef.current?.load(bytes);
+        });
+        // Dropped only once the server has it; until then it doubles as the
+        // pending copy the save writes before its PUT.
+        const offSaved = p.saveLoop.onSaved(() => { offSaved(); void p.pending.discard(a.key).catch(() => {}); });
         p.saveLoop.markDirty();
-        // The save writes these bytes as the pending copy before its PUT, so the
-        // recovered record is redundant from here whatever the PUT answers.
         await p.saveLoop.flush().catch(() => {});
-        await p.pending.discard(a.key);
       } catch (e) {
         console.warn("[docx] recovery action failed", e);
       }
