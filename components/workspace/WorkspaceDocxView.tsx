@@ -4,6 +4,7 @@ import * as Device from "expo-device";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { typography } from "@/constants/typography";
 import DocxEditorDom from "@/components/workspace/docx-editor/DocxEditorDom";
+import { useSurfaceOps } from "@/components/workspace/docx-editor/use-surface-ops";
 import type { LexicalState } from "@/components/workspace/lexical/editor-components/types";
 import type { SaveState } from "@/components/workspace/docx-editor/bridge/save-loop";
 import type { DocBlockDTO } from "@/lib/api";
@@ -86,6 +87,8 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
   // changes, and the Bridge's effect never fires for the second one either.
   const flushSeq = useRef(0);
   const reloadWaiters = useRef<(() => void)[]>([]);
+  // Student edits run in the engine first (registers applyOp; see use-surface-ops.ts).
+  const { ops: surfaceOps, onOpApplied, markReady } = useSurfaceOps({ thesisId, active });
 
   // A fresh token on mount; the DOM side holds it for its own fetches. (A session
   // outliving the hour re-mounts on the next workspace open; Phase 4 refreshes it
@@ -141,7 +144,8 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
 
   const onReady = useCallback(async (info: { pages: number; docHash: string | null }) => {
     editorHashRef.current = info.docHash;
-  }, []);
+    markReady();
+  }, [markReady]);
 
   const onSave = useCallback(async (s: SaveState) => {
     if (s.kind === "saved") {
@@ -264,6 +268,8 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
         onFlushed={onFlushed}
         onReloaded={onReloaded}
         onServerFormat={onServerFormat}
+        ops={surfaceOps}
+        onOpApplied={onOpApplied}
         shaping={shaping}
         onError={async (m) => setBanner(m)}
         dom={{

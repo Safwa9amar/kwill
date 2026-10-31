@@ -33,7 +33,10 @@ import { mapCommand } from "./command-map";
 import { findBlockMatch } from "./find-block";
 import { spannedBlocks } from "./dom-selectors";
 import { fetchDocument } from "./load-document";
+import type { OpEnvelope } from "./op-map";
 import type { SaveLoop } from "./save-loop";
+import { useApplyOp } from "./use-apply-op";
+import { placeCaret } from "./apply-op";
 
 // A report counts as the student's own doing for this long after a touch/key.
 // Lexical's EditorBridge uses 700ms; this surface is a WebView over a paginated
@@ -100,6 +103,9 @@ export type BridgeProps = {
   // edit and the re-parse that follows the save, an index alone can name the
   // wrong paragraph, and the host re-resolves by text before it mutates.
   onServerFormat: ((target: BlockRef, changes: { direction: "rtl" | "ltr" }) => void) | undefined;
+  // Student edits planned by the host, run here first (bridge/use-apply-op.ts).
+  ops?: readonly OpEnvelope[] | null;
+  onOpApplied?: (nonce: number, ok: boolean) => void;
 };
 
 export function Bridge(p: BridgeProps) {
@@ -108,7 +114,7 @@ export function Bridge(p: BridgeProps) {
   const pageFocused = useRef(true);
   const lastFocus = useRef<BlockRef | null>(null);
   const structureChanged = useRef(false);
-  const restore = useRef<(BlockRef & { until: number }) | null>(null);
+  const restore = useRef<(BlockRef & { until: number; caret?: { anchor: number; head: number } | null }) | null>(null);
   // The first change after mount belongs to the document the host handed in as a
   // prop, not to the student. See `onChange` below.
   const programmatic = useRef(true);
@@ -118,6 +124,9 @@ export function Bridge(p: BridgeProps) {
 
   const style = useParagraphStyle();
   const para = useParagraphFormat();
+  // Declared before the command and flush effects: an op must land before a flush
+  // that arrives with it (see use-apply-op.ts).
+  const { runExtra, caret } = useApplyOp({ editorRef: p.editorRef, saveLoop: p.saveLoop, ops: p.ops, onOpApplied: p.onOpApplied });
 
   // Two independent signals, because neither is trustworthy alone on a WebView:
   // `hasFocus()` lags a focus change, and the page can keep `activeElement` after
@@ -196,8 +205,10 @@ export function Bridge(p: BridgeProps) {
     if (Date.now() > keep.until) { restore.current = null; return; }
     const m = findBlockMatch(editor, keep.index, keep.text);
     if (!m) return; // not re-parsed yet — the next event retries
-    restore.current = null; // cleared BEFORE selectMatch, which re-enters here
-    editor.selectMatch(m);
+    restore.current = null; // cleared BEFORE the selection moves, which re-enters here
+    // ⚠️ A CARET, never selectMatch(m): that SELECTS the matched prefix (up to 120
+    // chars), and the student's next keystroke replaced it. See placeCaret.
+    placeCaret(editor, m, keep.caret ?? null);
     editor.scrollToBlock(m.blockId);
   };
 
@@ -205,7 +216,7 @@ export function Bridge(p: BridgeProps) {
    *  emits must not be mistaken for the student typing. */
   const loadDocument = (bytes: ArrayBuffer) => {
     const keep = lastFocus.current;
-    if (keep) restore.current = { ...keep, until: Date.now() + RESTORE_WINDOW_MS };
+    if (keep) restore.current = { ...keep, until: Date.now() + RESTORE_WINDOW_MS, caret: caret() };
     programmatic.current = true;
     p.editorRef.current?.load(bytes);
   };
@@ -255,6 +266,7 @@ export function Bridge(p: BridgeProps) {
         }
         case "server": { const f = lastFocus.current; if (f) p.onServerFormat?.({ ...f }, a.changes); break; }
         case "noop": break;
+        default: runExtra(a); break;
       }
     }
   }, [p.command?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -285,9 +297,17 @@ export function Bridge(p: BridgeProps) {
     if (p.reloadNonce == null || p.reloadNonce === 0) return;
     void (async () => {
       try {
+        // ⚠️ Unsaved edits leave FIRST. A load replaces what the engine holds, and the
+        // armed debounce would then PUT the reloaded bytes back — the edit silently
+        // gone. Flushed, they either land (the hash moves to ours → 304 below) or are
+        // refused because the server moved (412 → the host's "changed elsewhere").
+        await p.saveLoop.flush().catch(() => {});
         const r = await fetchDocument({ apiBase: p.apiBase, thesisId: p.thesisId, token: p.token, ifNoneMatch: p.saveLoop.getHash() });
         if (r.status === 304) { p.onReloaded?.(p.saveLoop.getHash()); return; }
         loadDocument(r.bytes);
+        // Whatever was still dirty described the bytes just replaced: nothing to save,
+        // and a refused (412) save left dirty set would re-PUT on every reload after.
+        p.saveLoop.discard();
         p.saveLoop.setHash(r.docHash);
         p.onReloaded?.(r.docHash);
       } catch (e) {
@@ -303,6 +323,9 @@ export function Bridge(p: BridgeProps) {
   useEffect(() => {
     const unsub = p.saveLoop.onSaved((bytes) => {
       if (!structureChanged.current) return;
+      // Typed since those bytes were taken: re-parsing them would drop the keystrokes.
+      // The next save carries both, and re-parses then.
+      if (p.saveLoop.isDirty()) return;
       structureChanged.current = false;
       loadDocument(bytes);
     });

@@ -25,6 +25,7 @@ import "@docx-editor.dev/core/styles/editor.css";
 import type { LexicalCommand, LexicalState } from "@/components/workspace/lexical/editor-components/types";
 import { Bridge, type BlockRef } from "./bridge/Bridge";
 import { fetchDocument } from "./bridge/load-document";
+import type { OpEnvelope } from "./bridge/op-map";
 import { createSaveLoop, type SaveState } from "./bridge/save-loop";
 import { ensureShaper } from "./bridge/shaper";
 
@@ -67,6 +68,7 @@ const PAGE_CSS = [
 export default function DocxEditorDom({
   apiBase, thesisId, token, command, scrollToIndex, reloadNonce, flushNonce, shaping = true,
   onState, onSave, onReady, onFlushed, onReloaded, onServerFormat, onError,
+  ops, onOpApplied,
   dom: _dom,
 }: {
   apiBase: string;
@@ -90,6 +92,9 @@ export default function DocxEditorDom({
   // between the report and the op. See bridge/Bridge.tsx.
   onServerFormat?: (target: BlockRef, changes: { direction: "rtl" | "ltr" }) => Promise<void>;
   onError?: (message: string) => Promise<void>;
+  // Student edits run in the engine first (applyOp; bridge/use-apply-op.ts).
+  ops?: OpEnvelope[] | null;
+  onOpApplied?: (nonce: number, ok: boolean) => Promise<void>;
   dom?: import("expo/dom").DOMProps;
 }) {
   const ref = useRef<DocxEditorRef>(null);
@@ -235,6 +240,8 @@ export default function DocxEditorDom({
             onFlushed={(n) => void onFlushed?.(n)}
             onReloaded={(h) => void onReloaded?.(h)}
             onServerFormat={(t, c) => void onServerFormat?.(t, c)}
+            ops={ops}
+            onOpApplied={(n, ok) => void onOpApplied?.(n, ok)}
           />
           </DocxEditor>
       </div>

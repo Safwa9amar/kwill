@@ -29,9 +29,13 @@ describe("mapCommand — paragraph level", () => {
     expect(mapCommand(cmd("heading", "paragraph"))).toEqual([{ kind: "style", styleId: "Normal" }]);
     expect(mapCommand(cmd("quote"))).toEqual([{ kind: "style", styleId: "Quote" }]);
   });
-  it("maps lists to the list slots", () => {
-    expect(mapCommand(cmd("list", "bullet"))).toEqual([{ kind: "slot", slot: "list.bullet" }]);
-    expect(mapCommand(cmd("list", "number"))).toEqual([{ kind: "slot", slot: "list.numbered" }]);
+  it("maps every list value the bubbles send to a SET (not a toggle)", () => {
+    for (const v of ["bullet", "ul", "check"]) expect(mapCommand(cmd("list", v))).toEqual([{ kind: "list", list: "bullet" }]);
+    for (const v of ["number", "ol"]) expect(mapCommand(cmd("list", v))).toEqual([{ kind: "list", list: "number" }]);
+    expect(mapCommand(cmd("list", "none"))).toEqual([{ kind: "list", list: null }]);
+    expect(mapCommand(cmd("list", "indent"))).toEqual([{ kind: "indent", direction: "increase" }]);
+    expect(mapCommand(cmd("list", "outdent"))).toEqual([{ kind: "indent", direction: "decrease" }]);
+    expect(mapCommand(cmd("list", "weird"))).toEqual([{ kind: "noop", reason: "list: unknown value weird" }]);
   });
   it("routes direction to the server — the engine exposes no paragraph-direction command", () => {
     expect(mapCommand(cmd("direction", "rtl"))).toEqual([{ kind: "server", changes: { direction: "rtl" } }]);
@@ -43,33 +47,45 @@ describe("mapCommand — paragraph level", () => {
 });
 
 describe("mapCommand — whole-block format from the pill", () => {
-  it("selects the paragraph first, then sets (not toggles) the marks", () => {
-    const value = JSON.stringify({ bold: true, italic: false, level: 3, alignment: "right", direction: "rtl", color: "2980B9" });
+  it("is not run in the DOM: the host sends it through mutate → applyOp as a format op", () => {
+    const value = JSON.stringify({ indices: [3], changes: { bold: true, level: 3 } });
     expect(mapCommand(cmd("blockFormat", value))).toEqual([
-      { kind: "selectParagraph" },
-      { kind: "marks", marks: { bold: true, italic: false, color: { kind: "hex", value: "2980B9" } } },
-      { kind: "style", styleId: "Heading3" },
-      { kind: "paragraph", update: { alignment: "right" } },
-      { kind: "server", changes: { direction: "rtl" } },
+      { kind: "noop", reason: "blockFormat: the docx host sends it through mutate → applyOp as a format op" },
     ]);
-  });
-  it("level 0 is Normal; clearFormatting is the slot; a null color is automatic", () => {
-    const value = JSON.stringify({ level: 0, clearFormatting: true, color: null });
-    expect(mapCommand(cmd("blockFormat", value))).toEqual([
-      { kind: "selectParagraph" },
-      { kind: "marks", marks: { color: { kind: "auto" } } },
-      { kind: "slot", slot: "format.clear" },
-      { kind: "style", styleId: "Normal" },
-    ]);
-  });
-  it("refuses malformed JSON without throwing", () => {
-    expect(mapCommand(cmd("blockFormat", "{not json"))).toEqual([{ kind: "noop", reason: "blockFormat: malformed value" }]);
   });
 });
 
-describe("mapCommand — Lexical-only envelopes", () => {
-  it("is a noop for serialize / patchBlocks / blur / focus / insert", () => {
-    for (const t of ["serialize", "patchBlocks", "blur", "focus", "insert"]) {
+describe("mapCommand — the Insert drawer", () => {
+  const ins = (kind: string) => mapCommand(cmd("insert", JSON.stringify({ kind })));
+  it("restyles for the text and style kinds", () => {
+    expect(ins("h2")).toEqual([{ kind: "insert", then: { style: "Heading2" } }]);
+    expect(ins("quote")).toEqual([{ kind: "insert", then: { style: "Quote" } }]);
+    expect(ins("intenseQuote")).toEqual([{ kind: "insert", then: { style: "IntenseQuote" } }]);
+    expect(ins("normal")).toEqual([{ kind: "insert", then: { style: "Normal" } }]);
+  });
+  it("lists, page break and table run in the engine", () => {
+    expect(ins("bullet")).toEqual([{ kind: "insert", then: { list: "bullet" } }]);
+    expect(ins("number")).toEqual([{ kind: "insert", then: { list: "number" } }]);
+    expect(ins("pageBreak")).toEqual([{ kind: "insert", then: { pageBreak: true } }]);
+    expect(ins("table")).toEqual([{ kind: "insert", then: { table: { rows: 3, cols: 3 } } }]);
+  });
+  it("clearSlash and the drawer's native kinds only clear the /query", () => {
+    for (const k of ["clearSlash", "figure", "pasteImage", "equation", "toc", "footnote", "divider"]) {
+      expect(ins(k)).toEqual([{ kind: "insert", then: null }]);
+    }
+  });
+  it("refuses malformed JSON without throwing", () => {
+    expect(mapCommand(cmd("insert", "{not json"))).toEqual([{ kind: "noop", reason: "insert: malformed value" }]);
+  });
+});
+
+describe("mapCommand — keyboard and Lexical-only envelopes", () => {
+  it("maps focus / blur", () => {
+    expect(mapCommand(cmd("focus"))).toEqual([{ kind: "focus" }]);
+    expect(mapCommand(cmd("blur"))).toEqual([{ kind: "blur" }]);
+  });
+  it("is a noop for serialize / patchBlocks (nothing sends them to this surface)", () => {
+    for (const t of ["serialize", "patchBlocks"]) {
       expect(mapCommand(cmd(t))).toEqual([{ kind: "noop", reason: `${t}: not an engine command` }]);
     }
   });
