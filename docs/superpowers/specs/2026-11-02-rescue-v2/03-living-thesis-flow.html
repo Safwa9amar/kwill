@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rescue — Living thesis + student notes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg0:#0D0F13; --panel:#14181F; --panel2:#1A1F29; --line:#262C37; --ink:#E8ECF2; --muted:#8B95A7; --dim:#5B6577;
+  --brand:#F59433; --brandL:#FFB166; --ok:#4CC38A; --bad:#FF6B6B; --warn:#FFD166; --code:#7DB3FF;
+  --ar:"Noto Sans Arabic","Geeza Pro",system-ui,sans-serif; --serif:"Amiri","Geeza Pro",serif; --ui:"Inter",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg0);color:var(--ink);font-family:var(--ui)}
+body{background:radial-gradient(1100px 480px at 15% -12%, rgba(245,148,51,.10), transparent 60%),var(--bg0)}
+.wrap{max-width:1240px;margin:0 auto;padding:24px 24px 70px}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:20px}
+h1{margin:0;font:800 27px var(--ui);letter-spacing:-.4px}
+h1 em{font-style:normal;color:var(--brand)}
+.sub{color:var(--muted);font-size:13.5px;margin-top:6px;line-height:1.5;max-width:820px}
+.tgl{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.tgl button{background:none;border:0;color:var(--muted);font:700 12.5px var(--ui);padding:9px 14px;cursor:pointer}
+.tgl button.on{background:rgba(245,148,51,.16);color:var(--brandL)}
+.phase{display:flex;align-items:center;gap:10px;margin:30px 0 14px}
+.phase .pp{font:800 10.5px var(--ui);letter-spacing:1.3px;text-transform:uppercase;padding:5px 10px;border-radius:999px;border:1px solid}
+.pp.free{color:var(--ok);border-color:rgba(76,195,138,.45);background:rgba(76,195,138,.08)}
+.pp.paid{color:var(--brandL);border-color:rgba(245,148,51,.45);background:rgba(245,148,51,.08)}
+.pp.after{color:var(--warn);border-color:rgba(255,209,102,.45);background:rgba(255,209,102,.07)}
+.phase h2{margin:0;font:800 19px var(--ui)}
+.phase p{margin:0;color:var(--muted);font-size:12.5px}
+.row{display:flex;align-items:flex-start;gap:0;justify-content:flex-start}
+.cell{width:250px;flex:none}
+.arrow{width:46px;flex:none;align-self:center;margin-top:-90px;display:flex;justify-content:center;color:#3a4252;font:800 22px var(--ui)}
+.gate{width:46px;flex:none;align-self:center;margin-top:-90px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.gate .lk{width:34px;height:34px;border-radius:11px;border:2px solid var(--ok);color:var(--ok);display:grid;place-items:center;font:800 13px var(--ui);background:rgba(76,195,138,.1)}
+.gate span{font:800 8.5px var(--ui);letter-spacing:.8px;color:var(--ok);text-transform:uppercase}
+.sn{display:flex;align-items:center;gap:7px;margin-bottom:8px;font:700 11px var(--ui);color:var(--muted)}
+.sn b{width:22px;height:22px;border-radius:7px;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;color:var(--ink);font:800 11px var(--ui)}
+.ct{margin-top:10px;font:800 13.5px var(--ui);color:var(--ink)}
+.cn{margin-top:4px;font:500 11.8px/1.5 var(--ui);color:#AEB7C6}
+.cn b{color:var(--ink)}
+
+/* phone + app theme */
+.ph{width:236px;height:500px;border-radius:34px;background:#0a0c10;padding:7px;box-shadow:0 22px 46px rgba(0,0,0,.55),0 0 0 1px #2a303a}
+.scr{--bg:#FAFAFE;--surface:#F0F0F5;--card:#FFFFFF;--input:#F2F2F7;--text:#1A1A26;--sec:#737385;--ph:#A6A6B3;--border:#E0E0E6;--subtle:#EDEDF0;--success:#26B88C;--error:#E64040;--bink:#C2670C;--stage:#ECECF3;--stage2:#F4F4F8;--bwash:rgba(245,148,51,.13);--gwash:rgba(38,184,140,.13);--sheetsh:0 -8px 24px rgba(30,30,60,.10);
+  position:relative;width:100%;height:100%;border-radius:28px;overflow:hidden;background:var(--bg);direction:rtl;font-family:var(--ar);color:var(--text);transition:background .3s}
+body.dark .scr{--bg:#121220;--surface:#232338;--card:#1C1C2E;--input:#1A1A28;--text:#FFFFFF;--sec:#9999AE;--ph:#666678;--border:#333346;--subtle:#232338;--success:#33D6A6;--error:#FF5959;--bink:#FFB166;--stage:#17172A;--stage2:#1B1B30;--bwash:rgba(245,148,51,.18);--gwash:rgba(51,214,166,.16);--sheetsh:0 -8px 24px rgba(0,0,0,.4)}
+.sbar{height:24px;display:flex;justify-content:space-between;align-items:center;padding:0 18px;font:700 10px var(--ui);color:var(--text);direction:ltr;position:relative;z-index:5}
+.sbar .ic{display:flex;gap:4px}.sbar .ic i{display:block;width:12px;height:6px;border-radius:2px;background:currentColor;opacity:.8}.sbar .ic i:first-child{width:8px;opacity:.55}
+.stage{position:absolute;top:0;left:0;right:0;height:250px;background:linear-gradient(180deg,var(--stage),var(--stage2));overflow:hidden}
+.close{position:absolute;top:28px;right:12px;width:26px;height:26px;border-radius:9px;background:rgba(255,255,255,.75);display:grid;place-items:center;font:700 13px var(--ui);color:#1A1A26;z-index:4}
+body.dark .close{background:rgba(40,40,60,.8);color:#fff}
+.seg{position:absolute;top:30px;left:50%;transform:translateX(-50%);display:flex;background:rgba(255,255,255,.85);border:1px solid var(--border);border-radius:999px;padding:3px;z-index:4}
+body.dark .seg{background:rgba(35,35,56,.9)}
+.seg span{font:700 10px var(--ar);padding:3px 12px;border-radius:999px;color:var(--sec)}
+.seg span.on{background:var(--text);color:var(--bg)}
+.car{position:absolute;left:0;right:0;top:62px;bottom:14px;display:flex;align-items:center;justify-content:center;gap:9px;direction:ltr}
+.pg{position:relative;background:#FCFBF8;border-radius:3px;box-shadow:0 8px 20px rgba(30,30,60,.2);direction:rtl;padding:11px 10px;display:flex;flex-direction:column;gap:3px;flex:none;overflow:hidden}
+.pg.mid{width:122px;height:170px;z-index:2}
+.pg.side{width:84px;height:120px;opacity:.6}
+.pg.big{width:150px;height:200px;padding:14px 13px;gap:4px}
+.pg .h{font:700 7.5px var(--serif);text-align:center;color:#20242e;margin:2px 0 3px}
+.pg i{display:block;height:2.1px;border-radius:2px;background:#4b5160;width:var(--w,100%);flex:none}
+.pg i.m{background:#2457b3;height:2.7px}
+.pg i.s{width:calc(var(--w,100%) - 18%);height:3px}
+.pg i.g{background:#cfd3da}
+.pg .im{height:24px;border-radius:2px;background:#b9c8db;margin:3px -7px;flex:none}
+.pg .im.ok{margin:3px 6px}
+.pg .hd{position:absolute;top:4px;left:8px;right:8px;font:400 4.8px var(--ui);color:#2457b3;border-bottom:.6px solid #2457b3;text-align:left}
+.pg .hd2{position:absolute;top:4px;left:10px;right:10px;font:400 5px var(--serif);color:#6d7382;border-bottom:.6px solid #c4ad82;text-align:center}
+.pg .pn{position:absolute;bottom:3px;left:0;right:0;text-align:center;font:600 5.6px var(--ui);color:#666}
+.pg .wm{position:absolute;inset:0;display:grid;place-items:center;font:800 11px var(--ar);color:rgba(245,148,51,.32);transform:rotate(-30deg)}
+.pg .fr{position:absolute;inset:6px;border:1.4px double #b39b6e;border-radius:2px}
+.pg .cv{font:400 4.6px/1.35 var(--serif);text-align:center;color:#20242e}
+.pg .cv.t{font-weight:700;font-size:6px;color:#1d2b4f}
+.pg .lg{width:14px;height:14px;border-radius:50%;margin:2px auto;background:conic-gradient(#1f6b46 0 25%,#c33 0 50%,#1f6b46 0 75%,#c33 0)}
+.skel{background:linear-gradient(100deg,#e7e7ef 30%,#f6f6fa 50%,#e7e7ef 70%);background-size:220% 100%;animation:shim 1.5s linear infinite}
+body.dark .skel{background:linear-gradient(100deg,#25253a 30%,#30304a 50%,#25253a 70%);background-size:220% 100%}
+@keyframes shim{from{background-position:120% 0}to{background-position:-120% 0}}
+.shimo{position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(245,148,51,.28) 50%,transparent 70%);background-size:220% 100%;animation:shim 1.6s linear infinite}
+.hot{position:absolute;width:14px;height:14px;border-radius:50%;background:#E64040;color:#fff;font:800 7.5px/14px var(--ui);text-align:center;box-shadow:0 0 0 4px rgba(230,64,64,.2);z-index:3;direction:ltr}
+.hot.sel{box-shadow:0 0 0 5px rgba(230,64,64,.35),0 0 0 9px rgba(230,64,64,.12)}
+.tip{position:absolute;z-index:6;background:#1A1A26;color:#fff;border-radius:10px;padding:6px 8px;font:500 8.6px/1.5 var(--ar);width:150px;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+.tip b{color:#FFB166}
+.hl{position:absolute;left:5px;right:5px;height:11px;border-radius:3px;background:rgba(255,200,120,.45);outline:1.5px solid #F59433}
+.mg{position:absolute;border:1px dashed #F59433;opacity:.8}
+.mgl{position:absolute;font:700 6px var(--ui);color:#C2670C;background:#fff3e6;padding:0 2px;border-radius:2px;direction:ltr}
+.okb{position:absolute;top:-6px;left:-6px;width:15px;height:15px;border-radius:50%;background:#26B88C;color:#fff;font:800 8.5px/15px var(--ui);text-align:center;z-index:3}
+.slbl{position:absolute;bottom:6px;left:0;right:0;text-align:center;font:600 9.5px var(--ar);color:var(--sec)}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:238px;background:var(--card);border-radius:22px 22px 0 0;box-shadow:var(--sheetsh);padding:8px 15px 0;transition:background .3s;z-index:3}
+.sheet.tall{top:150px}.sheet.xtall{top:92px}.sheet.short{top:290px}
+.grab{width:34px;height:4px;border-radius:3px;background:var(--border);margin:0 auto 8px}
+.t1{font:800 16px/1.4 var(--ar);margin:2px 0 3px}
+.t2{font:500 10.8px/1.55 var(--ar);color:var(--sec)}
+.okpill{display:inline-flex;gap:5px;align-items:center;margin-top:8px;font:600 10px var(--ar);color:var(--success);background:var(--gwash);border-radius:999px;padding:3px 9px}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.chip{font:600 10px var(--ar);background:var(--input);border-radius:999px;padding:3px 8px;color:var(--text);display:flex;gap:4px;align-items:center}
+.chip b{font:700 9.5px var(--ui);color:var(--bink)}
+.chip.on{background:var(--bwash);outline:1.5px solid var(--brand)}
+.foot{position:absolute;z-index:4;left:0;right:0;bottom:0;padding:9px 15px 16px;background:linear-gradient(180deg,transparent,var(--card) 30%)}
+.cta{height:42px;border-radius:14px;background:var(--brand);color:#fff;display:grid;place-items:center;font:700 13px var(--ar);box-shadow:0 6px 16px rgba(245,148,51,.32)}
+.cta2{height:38px;border-radius:13px;background:var(--card);border:1.5px solid var(--border);color:var(--text);display:grid;place-items:center;font:700 12px var(--ar)}
+.link{text-align:center;font:600 10.8px var(--ar);color:var(--bink);margin-top:8px}
+.fine{text-align:center;font:500 9.5px var(--ar);color:var(--sec);margin-top:5px}
+.trust{display:flex;flex-direction:column;gap:7px;margin-top:10px}
+.trust div{display:flex;gap:8px;align-items:center;font:600 11px var(--ar)}
+.trust i{font-style:normal;width:20px;height:20px;border-radius:7px;background:var(--gwash);color:var(--success);display:grid;place-items:center;font:800 10px var(--ui);flex:none}
+.filec{display:flex;gap:9px;align-items:center;background:var(--input);border-radius:12px;padding:7px 9px;margin-top:4px}
+.filec .fi{width:22px;height:27px;border-radius:4px;background:#2B5797;color:#fff;font:800 6px/27px var(--ui);text-align:center;direction:ltr;flex:none}
+.filec b{display:block;font:700 10.5px var(--ar)}
+.filec small{font:500 9.5px var(--ar);color:var(--sec)}
+.bar{height:5px;border-radius:3px;background:var(--subtle);overflow:hidden;margin:9px 0 6px}
+.bar i{display:block;height:100%;width:var(--p);background:var(--brand);border-radius:3px}
+.steps{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.st{display:flex;align-items:center;gap:8px;font:500 10.6px var(--ar);color:var(--ph);padding:3px 0}
+.st .b{width:15px;height:15px;border-radius:50%;border:1.5px solid var(--border);display:grid;place-items:center;font:800 8.5px var(--ui);color:#fff;flex:none}
+.st.d{color:var(--text)}.st.d .b{background:var(--success);border-color:var(--success)}
+.st.c{color:var(--text);font-weight:700}.st.c .b{border-color:var(--brand);border-top-color:transparent;animation:spin 1s linear infinite}
+.st .eta{margin-inline-start:auto;font:600 9.5px var(--ar);color:var(--bink)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.stepbar{display:flex;gap:3px;margin:8px 0 4px}
+.stepbar i{flex:1;height:5px;border-radius:3px;background:var(--subtle)}
+.stepbar i.f{background:var(--success)}.stepbar i.c{background:var(--brand)}
+.uni{display:flex;gap:10px;align-items:center;background:var(--input);border-radius:14px;padding:9px 10px;margin-top:8px}
+.uni .lg2{width:30px;height:30px;border-radius:50%;background:conic-gradient(#1f6b46 0 25%,#c33 0 50%,#1f6b46 0 75%,#c33 0);flex:none;box-shadow:inset 0 0 0 7px #fff}
+.uni b{display:block;font:700 11px var(--ar)}
+.uni small{font:500 9.5px var(--ar);color:var(--sec)}
+.uni .ch{margin-inline-start:auto;font:700 10px var(--ar);color:var(--bink)}
+.dash{border:1.5px dashed var(--border);border-radius:14px;padding:9px 10px;margin-top:8px;display:flex;gap:9px;align-items:center}
+.dash .ic2{width:28px;height:28px;border-radius:9px;background:var(--bwash);color:var(--bink);display:grid;place-items:center;font:800 13px var(--ui);flex:none}
+.dash b{display:block;font:700 10.8px var(--ar)}
+.dash small{font:500 9.5px var(--ar);color:var(--sec)}
+.opt{margin-inline-start:auto;font:600 9px var(--ar);color:var(--sec);background:var(--input);border-radius:999px;padding:2px 7px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}
+.gi{background:var(--input);border-radius:11px;padding:7px 6px;text-align:center}
+.gi b{display:block;font:800 14px var(--ui);color:var(--text)}
+.gi span{font:500 9.3px var(--ar);color:var(--sec)}
+.rows{margin-top:8px;border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.rw{display:flex;align-items:center;gap:8px;padding:7px 10px;border-top:1px solid var(--subtle);font:600 10.5px var(--ar)}
+.rw:first-child{border-top:0}
+.rw .v{margin-inline-start:auto;font:700 10px var(--ui);direction:ltr;color:var(--bink)}
+.rw .v.a{font-family:var(--ar);direction:rtl}
+.rw .cv2{color:var(--ph);font:700 11px var(--ui)}
+.rw.new{background:var(--bwash)}
+.src{display:inline-flex;font:700 9.5px var(--ar);color:var(--success);background:var(--gwash);border-radius:999px;padding:2px 8px;margin-top:4px}
+.price{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px}
+.price b{font:800 21px var(--ui);color:var(--text)}
+.price span{font:500 9.5px var(--ar);color:var(--sec)}
+.inc{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+.inc div{display:flex;gap:7px;font:500 10.5px var(--ar);align-items:center}
+.inc i{font-style:normal;color:var(--success);font-weight:800;font-family:var(--ui)}
+.pay{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.pay div{display:flex;align-items:center;gap:8px;border:1.5px solid var(--border);border-radius:12px;padding:7px 9px;font:600 10.5px var(--ar)}
+.pay div.on{border-color:var(--brand);background:var(--bwash)}
+.pay .rd{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--border);flex:none}
+.pay div.on .rd{border:4px solid var(--brand)}
+.pay small{margin-inline-start:auto;font:500 9px var(--ar);color:var(--sec)}
+.covpair{position:absolute;top:58px;left:0;right:0;display:flex;justify-content:center;gap:14px;direction:ltr}
+.covpair .pg{width:96px;height:136px;padding:12px 9px;gap:3px}
+.covpair .pg.pick{outline:2.5px solid var(--brand);outline-offset:3px}
+.covlbl{position:absolute;top:206px;left:0;right:0;display:flex;justify-content:center;gap:14px;direction:ltr}
+.covlbl span{width:100px;text-align:center;font:600 9.5px var(--ar);color:var(--sec)}
+.covlbl span.on{color:var(--bink);font-weight:700}
+.fld{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--subtle);font:500 10.5px var(--ar)}
+.fld small{width:46px;color:var(--sec);font:500 9.5px var(--ar);flex:none}
+.fld b{font:700 10.5px var(--ar);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fld .ed{color:var(--ph);font:700 10px var(--ui)}
+.lockscr{position:absolute;inset:0;background:linear-gradient(160deg,#2b2140,#5a3a2a 60%,#c27a3a);color:#fff}
+.lockscr .tm{text-align:center;font:300 52px var(--ui);margin-top:46px;direction:ltr;letter-spacing:-1px}
+.lockscr .dt{text-align:center;font:500 11px var(--ar);opacity:.85}
+.noti{position:absolute;left:10px;right:10px;top:178px;background:rgba(255,255,255,.88);border-radius:18px;padding:10px 11px;color:#1A1A26;box-shadow:0 10px 30px rgba(0,0,0,.25);backdrop-filter:blur(8px)}
+.noti .hdn{display:flex;align-items:center;gap:7px;font:600 9.5px var(--ui);color:#555;direction:ltr;justify-content:flex-end}
+.noti .hdn .av{width:18px;height:18px;border-radius:6px;background:#F59433;color:#fff;font:800 9px/18px var(--ui);text-align:center}
+.noti b{display:block;font:700 12px var(--ar);margin-top:5px}
+.noti p{margin:2px 0 0;font:500 10.5px/1.5 var(--ar);color:#333}
+.dl{display:flex;gap:7px;margin-top:9px}
+.dl div{flex:1;display:flex;align-items:center;gap:7px;border:1.5px solid var(--border);border-radius:12px;padding:7px 8px;font:700 10.5px var(--ar)}
+.dl .fi{width:20px;height:24px;border-radius:4px;color:#fff;font:800 5.5px/24px var(--ui);text-align:center;direction:ltr;flex:none}
+.pack{margin-top:8px;background:var(--bwash);border-radius:14px;padding:9px 10px;display:flex;gap:9px;align-items:center}
+.pack b{display:block;font:700 11px var(--ar)}
+.pack small{font:500 9.3px var(--ar);color:var(--sec)}
+.pack .go{margin-inline-start:auto;background:var(--brand);color:#fff;border-radius:10px;padding:6px 10px;font:700 10px var(--ar)}
+.grp{margin-top:8px}
+.grp h5{margin:0 0 4px;font:700 10.5px var(--ar);color:var(--sec);display:flex;justify-content:space-between}
+.grp h5 b{color:var(--bink);font:700 10px var(--ui)}
+.chg{display:flex;gap:8px;align-items:center;background:var(--input);border-radius:11px;padding:6px 8px;margin-bottom:5px;font:500 10px/1.45 var(--ar)}
+.chg .p{flex:none;font:700 9px var(--ui);color:var(--bink);background:var(--bwash);border-radius:6px;padding:2px 5px;direction:ltr}
+.free{display:inline-block;font:800 9.5px var(--ar);color:#fff;background:var(--success);border-radius:999px;padding:2px 9px;margin-inline-start:6px;vertical-align:2px}
+.diff{margin-top:8px;display:flex;gap:4px;direction:ltr;justify-content:center}
+.diff i{width:12px;height:16px;border-radius:2px;background:var(--subtle)}
+.diff i.c{background:var(--brand)}
+.shield{width:54px;height:54px;border-radius:18px;background:var(--gwash);color:var(--success);display:grid;place-items:center;font:800 24px var(--ui);margin:56px auto 10px}
+.center{text-align:center}
+
+.notes{margin-top:34px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.nt{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:13px 15px}
+.nt h3{margin:0 0 6px;font:800 13.5px var(--ui)}
+.nt ul{margin:0;padding-left:17px;font:500 12px/1.6 var(--ui);color:#C4CBD7}
+.nt b{color:var(--ink)}
+.note{position:relative;margin-top:7px;background:var(--input);border:1.5px solid var(--brand);border-radius:14px;padding:8px 10px 8px 34px;font:500 10.2px/1.6 var(--ar);color:var(--text)}
+.note .mic{position:absolute;left:7px;bottom:7px;width:22px;height:22px;border-radius:8px;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:10px}
+.und{margin-top:9px;font:700 10px var(--ar);color:var(--sec)}
+.chip.ok{background:var(--gwash);color:var(--success)}
+.chip.ok b{color:var(--sec);font-weight:600}
+.conf{margin-top:7px;background:rgba(230,153,25,.12);border-radius:12px;padding:7px 9px;font:500 10px/1.55 var(--ar);color:var(--text)}
+.conf b{color:var(--bink)}
+.conf .cb{display:flex;gap:6px;margin-top:6px}
+.conf .cb span{flex:1;text-align:center;border:1.5px solid var(--border);border-radius:9px;padding:4px 0;font:700 9.5px var(--ar);background:var(--card)}
+.conf .cb span.p{border-color:var(--brand);color:var(--bink)}
+.rw.note-r{background:var(--gwash)}
+.rw .from{font:700 8.5px var(--ar);color:var(--success);background:var(--card);border-radius:999px;padding:1px 6px}
+.rw{padding:6px 10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Rescue <em>·</em> Living thesis, every screen</h1>
+      <div class="sub">The student's own pages stay in the top half the whole way; one sheet below changes per step. 17 screens; the student can add their own notes at the start and after every revision. Arabic shown; French and English use the same layout (LTR mirrors). Toggle the theme to see dark mode.</div>
+    </div>
+    <div class="tgl"><button class="on" data-t="light">Light</button><button data-t="dark">Dark</button></div>
+  </div>
+
+  <div class="phase"><span class="pp free">Free</span><h2>Upload → diagnosis</h2><p>No account friction, no payment. Ends on proof from their own file.</p></div>
+<div class="row">
+    <div class="cell"><div class="sn"><b>1</b>Start</div>
+      <div class="ph"><div class="scr">
+        <div class="stage"><div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div><div class="close">✕</div>
+          <div class="car" style="top:46px"><div class="pg side skel" style="opacity:.5"></div><div class="pg mid" style="background:transparent;border:2px dashed #b9b9c8;box-shadow:none;align-items:center;justify-content:center"><div style="width:40px;height:40px;border-radius:14px;background:#F59433;color:#fff;display:grid;place-items:center;font:800 20px var(--ui)">↑</div></div><div class="pg side skel" style="opacity:.5"></div></div></div>
+        <div class="sheet" style="top:206px"><div class="grab"></div>
+          <div class="t1">أنقذ تنسيق مذكرتك</div>
+          <div class="t2">ارفع ملف Word، ونشخّصه مجانًا حسب معايير كليتك.</div>
+          <div class="trust"><div><i>✓</i>التشخيص مجاني</div><div><i>✓</i>لن نغيّر أي كلمة من نصّك</div><div><i>✓</i>ملفك الأصلي يبقى محفوظًا</div></div>
+        </div>
+        <div class="foot"><div class="cta">اختر ملف المذكرة</div><div class="fine">أو شاركه مباشرة من واتساب أو تيليغرام</div></div>
+      </div></div>
+      <div class="ct">Start</div><div class="cn">Reached from the drawer, a home card, or <b>Share → Kwill</b> from WhatsApp, which skips the picker.</div>
+    </div>
+    <div class="arrow">←</div>
+    <div class="cell"><div class="sn"><b>2</b>Read</div>
+      <div class="ph"><div class="scr">
+        <div class="stage"><div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+          <div class="car" style="top:40px"><div class="pg side"><i class="m"></i><i></i><i class="s"></i><i></i><i style="--w:60%"></i></div><div class="pg mid"><div class="hd">Chapitre II</div><div class="h" style="text-align:left;color:#2457b3;font-family:Arial;font-size:6px;text-decoration:underline;margin-top:6px">الفصل الأول: الإطار النظري</div><i class="m"></i><i></i><i class="s"></i><i></i><div class="im"></div><i></i><i class="m"></i><i style="--w:55%"></i></div><div class="pg side skel"></div></div>
+          <div class="slbl">نقرأ الصفحة 48 من 153</div></div>
+        <div class="sheet"><div class="grab"></div>
+          <div class="t1">نقرأ مذكرتك</div>
+          <div class="filec"><div class="fi">DOCX</div><div><b>مذكرة_نهائية.docx</b><small>4.2 م.ب</small></div></div>
+          <div class="bar" style="--p:31%"><i></i></div>
+          <div class="steps"><div class="st d"><span class="b">✓</span>رفع الملف</div><div class="st c"><span class="b"></span>قراءة الصفحات<span class="eta">أقل من دقيقة</span></div><div class="st"><span class="b"></span>فهم البنية</div></div>
+        </div>
+      </div></div>
+      <div class="ct">Reading</div><div class="cn">Their <b>real pages appear one by one</b> as they're converted, with a skeleton for the next. Never a bare spinner.</div>
+    </div>
+    <div class="arrow">←</div>
+    <div class="cell"><div class="sn"><b>3</b>Which rules</div>
+      <div class="ph"><div class="scr">
+        <div class="stage"><div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+          <div class="car" style="top:40px"><div class="pg side"><i class="m"></i><i></i><i class="s"></i></div><div class="pg mid"><div class="hd">Chapitre II</div><div class="h" style="text-align:left;color:#2457b3;font-family:Arial;font-size:6px;margin-top:6px">الفصل الأول</div><i class="m"></i><i></i><i class="s"></i><i></i><div class="im"></div><i></i><i style="--w:55%"></i></div><div class="pg side"><i></i><i class="m"></i></div></div></div>
+        <div class="sheet" style="top:118px"><div class="grab"></div>
+          <div class="t1">نقارنها بمعايير أي كلية؟</div>
+          <div class="uni"><div class="lg2"></div><div><b>جامعة باتنة 1</b><small>كلية العلوم الإنسانية والاجتماعية</small></div><span class="ch">تغيير</span></div>
+          <div class="t2" style="margin-top:4px">من ملفك الشخصي</div>
+          <div class="dash"><div class="ic2">📄</div><div><b>لديك دليل القسم؟</b><small>صوّره أو ارفعه لتشخيص أدق</small></div><span class="opt">اختياري</span></div>
+        </div>
+        <div class="foot"><div class="cta">شخّص مذكرتي مجانًا</div></div>
+      </div></div>
+      <div class="ct">Which rules</div><div class="cn">University <b>prefilled from the profile</b>, one tap. The department guide is optional: a photo or PDF that Kwill reads into rules.</div>
+    </div>
+    <div class="arrow">←</div>
+    <div class="cell"><div class="sn"><b>4</b>Your notes</div>
+      <div class="ph"><div class="scr">
+        <div class="stage" style="height:92px"><div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div><div class="car" style="top:26px;bottom:auto;height:60px"><div class="pg side" style="width:42px;height:58px;opacity:1;padding:7px 6px"><i class="m"></i><i></i><i></i></div><div class="pg side" style="width:42px;height:58px;opacity:1;padding:7px 6px"><div class="h" style="font-size:4px;margin-top:2px">الإهداء</div><i style="--w:60%;margin:0 auto"></i></div><div class="pg side" style="width:42px;height:58px;opacity:1;padding:7px 6px"><i></i><i class="m"></i></div></div></div>
+        <div class="sheet" style="top:72px"><div class="grab"></div>
+          <div class="t1" style="margin-top:0">أخبر Kwill عن مذكرتك</div>
+          <div class="note"><span>الإهداء والشكر بدون ترقيم. الاقتباسات الفرنسية بخط Times New Roman 12. المشرف يريد عناوين الفصول بخط 18.</span><span class="mic">🎙</span></div>
+          <div class="und">فهمنا من ملاحظتك</div>
+          <div class="chips" style="margin-top:4px"><span class="chip ok">✓ الإهداء بلا ترقيم <b>✕</b></span><span class="chip ok">✓ الفرنسية Times 12 <b>✕</b></span></div>
+          <div class="conf"><b>⚠ عناوين الفصول:</b> الدليل 16 · ملاحظتك 18<div class="cb"><span class="p">ملاحظتي (18)</span><span>دليل القسم (16)</span></div></div>
+        </div>
+        <div class="foot" style="padding-bottom:10px"><div class="cta">متابعة</div><div class="link" style="margin-top:6px">تخطَّ</div></div>
+      </div></div>
+      <div class="ct">Your notes</div><div class="cn">Optional and skippable. Free text or <b>voice</b> (existing speech-to-text). Saved for every re-run. Kwill shows how it read each line as removable chips; a clash with the guide is <b>asked, never guessed</b>.</div>
+    </div>
+  </div>
+<div class="row" style="margin-top:26px">
+    <div class="cell"><div class="sn"><b>5</b>Understood</div>
+      <div class="ph"><div class="scr">
+        <div class="stage"><div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+          <div class="car" style="top:40px"><div class="pg side" style="outline:1.5px solid #C3A6FF"><div class="lg"></div><i style="--w:70%;margin:0 auto"></i><i style="--w:50%;margin:0 auto"></i></div><div class="pg mid"><div class="h" style="outline:1.5px solid #F59433;border-radius:2px;margin-top:8px">الفصل الأول: الإطار النظري</div><i></i><i></i><i></i><i style="--w:60%"></i><div class="im" style="outline:1.5px solid #26B88C"></div><i style="outline:1px solid #7DB3FF;--w:70%"></i><i></i><i style="--w:55%"></i><div class="shimo"></div></div><div class="pg side"><i></i><i></i></div></div></div>
+        <div class="sheet"><div class="grab"></div>
+          <div class="t1">فهمنا مذكرتك</div>
+          <div class="grid3"><div class="gi"><b>153</b><span>صفحة</span></div><div class="gi"><b>3</b><span>فصول</span></div><div class="gi"><b>23</b><span>شكلًا</span></div><div class="gi"><b>14</b><span>جدولًا</span></div><div class="gi"><b>96</b><span>هامشًا</span></div><div class="gi"><b>✓</b><span>غلاف</span></div></div>
+          <div class="t2" style="margin-top:7px">النوع: مذكرة كلاسيكية · نقارنها الآن بمعايير كليتك…</div>
+          <div class="bar" style="--p:72%"><i></i></div>
+        </div>
+      </div></div>
+      <div class="ct">Understood</div><div class="cn">Shows <b>what Kwill recognised</b> (chapters, figures, the format) before judging anything. Soft outlines appear on the page.</div>
+    </div>
+    <div class="arrow">←</div>
+    <div class="cell"><div class="sn"><b>6</b>Diagnosis</div>
+      <div class="ph"><div class="scr">
+        <div class="stage"><div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div><div class="close">✕</div>
+          <div class="seg"><span class="on">قبل</span><span>بعد</span></div>
+          <div class="car"><div class="pg side"><i></i><i class="m"></i><i style="--w:70%"></i><i></i></div>
+            <div class="pg mid"><div class="hd">Chapitre II</div><div class="h" style="text-align:left;color:#2457b3;font-family:Arial;font-size:6px;text-decoration:underline;margin-top:6px">الفصل الأول: الإطار النظري</div><i class="m"></i><i></i><i class="s"></i><i style="--w:60%"></i><div class="im"></div><i></i><i class="m"></i><i style="--w:55%"></i><div class="pn" style="text-align:left;padding-left:7px;color:#2457b3">12</div>
+              <span class="hot sel" style="top:1px;left:-5px">1</span><span class="hot" style="top:15px;right:-5px">2</span><span class="hot" style="top:66px;left:-5px">3</span></div>
+            <div class="pg side"><i class="s"></i><i></i></div></div>
+          <div class="tip" style="top:118px;left:6px"><b>١</b> ترويسة «Chapitre II» على صفحة الفصل الأول — سنضع عنوان الفصل الصحيح.</div></div>
+        <div class="sheet"><div class="grab"></div>
+          <div class="t1">47 نقطة سنصلحها</div>
+          <div class="t2">حسب معايير كليتك · اضغط أي نقطة لتراها</div>
+          <div class="chips"><span class="chip on">العناوين <b>9</b></span><span class="chip">الغلاف <b>3</b></span><span class="chip">الفهرس <b>4</b></span><span class="chip">الترقيم <b>6</b></span><span class="chip">الأشكال <b>12</b></span><span class="chip">الخط <b>13</b></span></div>
+        </div>
+        <div class="foot"><div class="cta">أصلح مذكرتي</div><div class="fine">دفعة واحدة · إعادة مجانية بعد تعديلات الأستاذ</div></div>
+      </div></div>
+      <div class="ct">Diagnosis</div><div class="cn">Numbered dots on <b>their real page</b>. A chip filters and jumps to the next page with that issue; tapping a dot explains it in one plain sentence.</div>
+    </div>
+    <div class="arrow">←</div>
+    <div class="cell"><div class="sn"><b>7</b>After preview</div>
+      <div class="ph"><div class="scr">
+        <div class="stage"><div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div><div class="close">✕</div>
+          <div class="seg"><span>قبل</span><span class="on">بعد</span></div>
+          <div class="car"><div class="pg side"><div class="fr"></div><div class="lg" style="margin-top:14px"></div><div class="cv t">مذكرة ماستر</div></div>
+            <div class="pg mid"><div class="hd2">الفصل الأول: الإطار النظري</div><div class="h" style="font-size:8.5px;margin-top:9px">الفصل الأول: الإطار النظري</div><i></i><i></i><i></i><i style="--w:60%"></i><div class="im ok"></div><div class="cv" style="font-size:4.6px">الشكل 1: مخطط المنشآت الرياضية</div><i></i><i style="--w:55%"></i><div class="pn">1</div><div class="wm">معاينة</div></div>
+            <div class="pg side"><i></i><i></i></div></div></div>
+        <div class="sheet"><div class="grab"></div>
+          <div class="t1">هكذا ستبدو مذكرتك</div>
+          <div class="t2">صفحتان حقيقيتان من ملفك بعد الإصلاح: الغلاف وبداية الفصل الأول.</div>
+          <div class="okpill">✓ نفس كلماتك، تنسيق كليتك</div>
+        </div>
+        <div class="foot"><div class="cta">أصلح مذكرتي</div><div class="fine">دفعة واحدة · إعادة مجانية بعد تعديلات الأستاذ</div></div>
+      </div></div>
+      <div class="ct">After preview</div><div class="cn">Flip the switch: two pages <b>really repaired</b>, watermarked. The page cross-fades with a sweep, the moment the student decides.</div>
+    </div>
+    <div class="gate"><div class="lk">🔓</div><span>pay</span></div>
+    <div class="cell"><div class="sn"><b>8</b>Payment</div>
+      <div class="ph"><div class="scr">
+        <div class="stage" style="height:160px"><div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div><div class="car" style="top:30px;bottom:auto;height:120px"><div class="pg side" style="width:70px;height:98px"><div class="fr"></div></div><div class="pg side" style="width:70px;height:98px;opacity:1"><div class="h" style="font-size:5px;margin-top:6px">الفصل الأول</div><i></i><i></i><i></i></div><div class="pg side" style="width:70px;height:98px"><i></i><i></i></div></div></div>
+        <div class="sheet" style="top:112px"><div class="grab"></div>
+          <div class="t1">إصلاح مذكرة واحدة</div>
+          <div class="price"><b>— دج</b><span>دفعة واحدة · السعر من لوحة التحكم</span></div>
+          <div class="inc"><div><i>✓</i>تنسيق كامل حسب معايير كليتك</div><div><i>✓</i>الغلاف ونسخة PDF جاهزة للإيداع</div><div><i>✓</i>الاستمارتان وورقة الملخص</div><div><i>✓</i>إعادة مجانية حتى يوم المناقشة</div></div>
+          <div class="pay"><div class="on"><span class="rd"></span>بريدي موب / CCP<small>تحويل</small></div><div><span class="rd"></span>الذهبية / CIB<small>بطاقة</small></div></div>
+        </div>
+        <div class="foot"><div class="cta">ادفع وابدأ</div><div class="fine">مشترك؟ الإصلاح مشمول في اشتراكك</div></div>
+      </div></div>
+      <div class="ct">Payment</div><div class="cn">Uses the existing BaridiMob/CCP and Chargily paths; subscribers skip this screen. <b>iOS shows status only</b> and sends the student to /pay by email (App Store rule).</div>
+    </div>
+  </div>
+<div class="phase"><span class="pp paid">Paid</span><h2>Confirm → repair → deliver</h2><p>Rules, at most 5 questions, the cover, then the student can put the phone down.</p></div>
+<div class="row">
+    <div class="cell"><div class="sn"><b>9</b>Rules</div>
+      <div class="ph"><div class="scr">
+        <div class="stage" style="height:160px"><div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+          <div class="car" style="top:30px;bottom:auto;height:124px"><div class="pg mid" style="width:86px;height:120px;padding:9px 12px 9px 8px"><i></i><i></i><i style="--w:70%"></i><i></i><i></i><i style="--w:55%"></i><div class="mg" style="top:6px;bottom:6px;right:10px"></div><div class="mg" style="top:6px;bottom:6px;left:6px"></div><span class="mgl" style="top:52px;right:-2px">3</span><span class="mgl" style="top:52px;left:-1px">2.5</span></div></div></div>
+        <div class="sheet" style="top:118px"><div class="grab"></div>
+          <div class="t1">قواعد كليتك</div>
+          <span class="src">مقروءة من دليل قسمك ✓</span>
+          <div class="rows">
+            <div class="rw">الخط<span class="v">Traditional Arabic · 14</span><span class="cv2">‹</span></div>
+            <div class="rw note-r">عناوين الفصول<span class="from">من ملاحظتك</span><span class="v">18 · Bold</span><span class="cv2">‹</span></div>
+            <div class="rw">تباعد الأسطر<span class="v">1.5</span><span class="cv2">‹</span></div>
+            <div class="rw">الهوامش (سم)<span class="v">2.5 · 2.5 · 2.5 · 3</span><span class="cv2">‹</span></div>
+            <div class="rw">الترقيم<span class="v a">أ ب ج ثم 1 2 3</span><span class="cv2">‹</span></div>
+            <div class="rw new">الإيداع<span class="v a">PDF عبر المنصة</span><span class="cv2">‹</span></div>
+          </div>
+        </div>
+        <div class="foot"><div class="cta">صحيح، تابع</div></div>
+      </div></div>
+      <div class="ct">Rules</div><div class="cn">Each row is editable with a picker. The margins draw <b>live on their page</b> above. Rules from the student's <b>note</b> are tagged, so they know it listened.</div>
+    </div>
+    <div class="arrow">←</div>
+    <div class="cell"><div class="sn"><b>10</b>Question</div>
+      <div class="ph"><div class="scr">
+        <div class="stage"><div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+          <div class="car" style="top:30px"><div class="pg big"><i></i><i></i><i style="--w:75%"></i><i></i><i></i><i style="--w:50%"></i><div style="height:12px;flex:none"></div><i></i><i></i><i style="--w:66%"></i><div class="hl" style="bottom:40px"></div><div style="position:absolute;bottom:40px;right:13px;font:700 7.5px var(--serif);color:#7a3f08;line-height:11px">المبحث الثاني</div><div class="pn">13</div></div></div></div>
+        <div class="sheet"><div class="grab"></div>
+          <div class="t2">سؤال 1 من 3</div>
+          <div class="t1">هل السطر المظلَّل عنوان فرعي؟</div>
+          <div style="display:flex;gap:7px;margin-top:9px"><div class="cta" style="flex:1;height:38px;font-size:12px">نعم، عنوان</div><div class="cta2" style="flex:1">نص عادي</div></div>
+          <div class="link">لست متأكدًا — دع Kwill يقرّر</div>
+        </div>
+      </div></div>
+      <div class="ct">Question</div><div class="cn">The page <b>zooms to the exact line</b>. Two big answers plus "let Kwill decide", so nobody gets stuck. The answer is saved for every re-run.</div>
+    </div>
+    <div class="arrow">←</div>
+    <div class="cell"><div class="sn"><b>11</b>Cover</div>
+      <div class="ph"><div class="scr">
+        <div class="stage"><div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+          <div class="covpair"><div class="pg"><div class="fr"></div><div class="lg" style="margin-top:6px"></div><div class="cv">جامعة باتنة 1</div><div class="cv t" style="margin-top:4px">دور المنشآت الرياضية في تكوين اللاعبين</div><div class="cv" style="margin-top:4px">2025 / 2026</div></div>
+            <div class="pg pick"><div class="cv">الجمهورية الجزائرية الديمقراطية الشعبية</div><div class="lg"></div><div class="cv">كلية العلوم الإنسانية</div><div class="cv t" style="margin-top:3px">دور المنشآت الرياضية في تكوين اللاعبين</div><div class="cv" style="margin-top:3px">إعداد: … إشراف: …</div></div></div>
+          <div class="covlbl"><span>الغلاف الرسمي لجامعتك</span><span class="on">غلافك بعد التنظيف ✓</span></div></div>
+        <div class="sheet"><div class="grab"></div>
+          <div class="t1" style="font-size:14.5px">تأكّد من بيانات الغلاف</div>
+          <div class="fld"><small>العنوان</small><b>دور المنشآت الرياضية في تكوين اللاعبين</b><span class="ed">✎</span></div>
+          <div class="fld"><small>الطالب</small><b>أحمد بن علي</b><span class="ed">✎</span></div>
+          <div class="fld"><small>المشرف</small><b>د. محمد قاسمي</b><span class="ed">✎</span></div>
+          <div class="fld"><small>السنة</small><b>2025 / 2026</b><span class="ed">✎</span></div>
+        </div>
+        <div class="foot"><div class="cta">ابدأ الإصلاح</div></div>
+      </div></div>
+      <div class="ct">Cover</div><div class="cn">Two finished covers side by side. Fields are <b>read from the old cover</b> (or asked if there was none) and confirmed with a glance.</div>
+    </div>
+    <div class="arrow">←</div>
+    <div class="cell"><div class="sn"><b>12</b>Repairing</div>
+      <div class="ph"><div class="scr">
+        <div class="stage"><div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+          <div class="car" style="top:34px;bottom:24px"><div class="pg side" style="opacity:1"><span class="okb">✓</span><div class="h">الفهرس</div><i></i><i style="--w:80%"></i><i></i><i style="--w:70%"></i></div>
+            <div class="pg mid"><div class="hd2">الفصل الأول</div><div class="h" style="font-size:8px;margin-top:8px">الفصل الأول: الإطار النظري</div><i></i><i></i><i></i><i style="--w:60%"></i><div class="im ok"></div><i></i><i style="--w:55%"></i><div class="pn">1</div><div class="shimo"></div></div>
+            <div class="pg side"><i class="g"></i><i class="g"></i><i class="g" style="--w:70%"></i><i class="g"></i></div></div>
+          <div class="slbl">الصفحة 34 من 156</div></div>
+        <div class="sheet"><div class="grab"></div>
+          <div class="t1" style="margin-top:0">نبني التنسيق الجديد</div>
+          <div class="stepbar"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="c"></i><i></i><i></i></div>
+          <div class="t2" style="display:flex;justify-content:space-between"><span>الخطوة 6 من 8</span><span style="color:var(--bink);font-weight:700">حوالي دقيقتين</span></div>
+          <div class="steps" style="margin-top:4px"><div class="st d"><span class="b">✓</span>الأنماط والعناوين</div><div class="st c"><span class="b"></span>الفهرس وقائمة الأشكال</div><div class="st"><span class="b"></span>تعليقات الأشكال والمراجع</div></div>
+        </div>
+        <div class="foot" style="padding-bottom:13px"><div class="fine" style="font-size:10px">أغلق التطبيق بأمان — سنرسل لك إشعارًا</div></div>
+      </div></div>
+      <div class="ct">Repairing</div><div class="cn">Pages turn from grey to finished <b>in front of them</b>; the sheet lists the 8 stages in plain words with the time left. Closing the app is safe.</div>
+    </div>
+  </div>
+<div class="row" style="margin-top:26px">
+    <div class="cell"><div class="sn"><b>13</b>Done (push)</div>
+      <div class="ph"><div class="scr">
+        <div class="lockscr"><div class="sbar" style="color:#fff"><span>10:24</span><span class="ic"><i></i><i></i></span></div><div class="tm">10:24</div><div class="dt">الأحد 9 نوفمبر</div>
+          <div class="noti"><div class="hdn"><span>Kwill · now</span><span class="av">K</span></div><b>مذكرتك جاهزة ✓</b><p>47 إصلاحًا · 156 صفحة · لم تتغيّر أي كلمة. اضغط لتحميلها.</p></div></div>
+      </div></div>
+      <div class="ct">Done</div><div class="cn">A push via the existing FCM, landing straight on the result. Reopening the app <b>mid-run resumes</b> on screen 11.</div>
+    </div>
+    <div class="arrow">←</div>
+    <div class="cell"><div class="sn"><b>14</b>Result</div>
+      <div class="ph"><div class="scr">
+        <div class="stage"><div class="sbar"><span>10:24</span><span class="ic"><i></i><i></i></span></div><div class="close">✕</div>
+          <div class="car" style="top:36px;bottom:20px"><div class="pg side" style="opacity:1"><div class="fr"></div><div class="lg" style="margin-top:12px"></div><div class="cv t">مذكرة ماستر</div></div>
+            <div class="pg mid"><span class="okb">✓</span><div class="hd2">الفصل الأول: الإطار النظري</div><div class="h" style="font-size:8.5px;margin-top:9px">الفصل الأول: الإطار النظري</div><i></i><i></i><i></i><i style="--w:60%"></i><div class="im ok"></div><div class="cv">الشكل 1: مخطط المنشآت الرياضية</div><i></i><i style="--w:55%"></i><div class="pn">1</div></div>
+            <div class="pg side" style="opacity:1"><div class="h">الفهرس</div><i></i><i style="--w:80%"></i><i></i></div></div></div>
+        <div class="sheet"><div class="grab"></div>
+          <div class="t1" style="margin-top:0">مذكرتك جاهزة</div>
+          <div class="t2">156 صفحة · 47 إصلاحًا · تحققنا من كل صفحة</div>
+          <div class="dl"><div><span class="fi" style="background:#C8382E">PDF</span>PDF</div><div><span class="fi" style="background:#2B5797">DOCX</span>Word</div></div>
+          <div class="pack"><div><b>حزمة الإيداع</b><small>PDF · الاستمارتان · ورقة الملخص</small></div><span class="go">شارك</span></div>
+        </div>
+        <div class="foot" style="padding-bottom:12px"><div class="link" style="margin-top:0">ما الذي تغيّر؟ (47)</div><div class="fine">افتح في Kwill لمتابعة الكتابة</div></div>
+      </div></div>
+      <div class="ct">Result</div><div class="cn">Download or share to WhatsApp. The <b>deposit pack</b> is one tap. The thesis also lands in their Kwill library to keep writing.</div>
+    </div>
+    <div class="arrow">←</div>
+    <div class="cell"><div class="sn"><b>15</b>What changed</div>
+      <div class="ph"><div class="scr">
+        <div class="stage" style="height:120px"><div class="sbar"><span>10:25</span><span class="ic"><i></i><i></i></span></div><div class="car" style="top:30px;bottom:auto;height:84px"><div class="pg side" style="width:56px;height:80px;opacity:1"><span class="okb">✓</span><div class="h" style="font-size:5px;margin-top:5px">الفصل الأول</div><i></i><i></i></div></div></div>
+        <div class="sheet xtall" style="top:108px"><div class="grab"></div>
+          <div class="t1" style="margin-top:0">ما الذي تغيّر</div>
+          <div class="grp"><h5>الغلاف <b>3</b></h5><div class="chg"><span class="p">p.1</span>أزلنا ترويسة «Chapitre II» ورقم الصفحة</div><div class="chg"><span class="p">p.1</span>وسّطنا الأسطر بخط واحد وإطار</div></div>
+          <div class="grp"><h5>الفهرس والقوائم <b>4</b></h5><div class="chg"><span class="p">p.5</span>فهرس حقيقي قابل للنقر بدل المكتوب يدويًا</div></div>
+          <div class="grp"><h5>العناوين <b>9</b></h5><div class="chg"><span class="p">p.12</span>«الفصل الأول» أصبح عنوانًا حقيقيًا</div></div>
+          <div class="grp"><h5>تصحيحات طباعية <b>31</b></h5><div class="chg"><span class="p">p.14</span>مسافة قبل «؟» · 6 مواضع</div></div>
+        </div>
+      </div></div>
+      <div class="ct">What changed</div><div class="cn">Every fix grouped by kind, each with its page; <b>tap to jump</b> to it in the top half. Typographic fixes are listed too, so nothing is hidden.</div>
+    </div>
+    <div class="arrow" style="color:var(--warn)">↺</div>
+    <div class="cell"><div class="sn" style="color:var(--warn)"><b>16</b>After revisions</div>
+      <div class="ph"><div class="scr">
+        <div class="stage"><div class="sbar"><span>9:02</span><span class="ic"><i></i><i></i></span></div>
+          <div class="car" style="top:40px"><div class="pg side" style="opacity:1"><i></i><i></i><i></i></div><div class="pg mid" style="outline:2px solid #F59433;outline-offset:2px"><div class="hd2">الفصل الثاني</div><div class="h" style="font-size:8px;margin-top:8px">الفصل الثاني: الدراسة الميدانية</div><i></i><i style="background:#F59433"></i><i style="background:#F59433;--w:80%"></i><i></i><i></i><i style="--w:55%"></i><div class="pn">24</div></div><div class="pg side" style="opacity:1"><i></i><i></i></div></div></div>
+        <div class="sheet" style="top:206px"><div class="grab"></div>
+          <div class="t1">نسخة جديدة من مذكرتك<span class="free">مجانًا</span></div>
+          <div class="t2">تغيّرت 6 صفحات في الفصل الثاني. نعيد تنسيق ما تغيّر فقط.</div>
+          <div class="note" style="min-height:48px;margin-top:7px"><span><b style="color:var(--sec);font-weight:600">ماذا طلب الأستاذ؟</b> انقل الملاحق بعد قائمة المراجع.</span><span class="mic">🎙</span></div>
+          <div class="okpill">✓ لن نسألك من جديد عمّا أجبت عنه</div>
+        </div>
+        <div class="foot"><div class="cta">أعد الإصلاح مجانًا</div><div class="fine">أقل من دقيقة</div></div>
+      </div></div>
+      <div class="ct">After the supervisor's changes</div><div class="cn">Upload the new version (or edit in Kwill). The <b>saved rescue</b> means only changed pages are redone and old answers are reused. The supervisor's remarks go in <b>as a new note</b>.</div>
+    </div>
+  </div>
+<div class="phase"><span class="pp after">Edge</span><h2>When it can't finish safely</h2><p>Rare, and it decides whether students trust the product.</p></div>
+<div class="row">
+    <div class="cell"><div class="sn"><b>17</b>Honest failure</div>
+      <div class="ph"><div class="scr">
+        <div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+        <div style="padding:0 18px" class="center">
+          <div class="shield">✓</div>
+          <div class="t1">لم نُكمل الإصلاح</div>
+          <div class="t2" style="margin-top:4px">وجدنا في الصفحة 88 جدولًا لم نستطع إصلاحه بأمان. لن نسلّمك ملفًا ناقصًا.</div>
+          <div class="trust" style="text-align:right;margin-top:14px"><div><i>✓</i>ملفك الأصلي كما هو تمامًا</div><div><i>✓</i>أعدنا لك المبلغ</div><div><i>✓</i>فريق Kwill يراجع الملف</div></div>
+        </div>
+        <div class="foot"><div class="cta">حسنًا</div><div class="link">تواصل مع الدعم</div></div>
+      </div></div>
+      <div class="ct">Honest failure</div><div class="cn">If Prove fails: <b>no broken file, a refund, the original untouched</b>, and the case goes to Support. It's rare, but it decides whether students trust the product.</div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <div class="nt"><h3>Motion: what makes it smooth</h3><ul>
+      <li><b>One screen.</b> The top half stays; only the sheet changes height and content, on a spring.</li>
+      <li>Before → after is a <b>sweep cross-fade</b> on the page, not a screen change.</li>
+      <li>Pages fill in from skeletons; the step bar fills; numbers count up. Nothing jumps.</li>
+      <li>A light haptic on every answer and on "ready".</li>
+    </ul></div>
+    <div class="nt"><h3>Comfort: what keeps it calm</h3><ul>
+      <li>Copy says <b>"we'll fix"</b>, never "errors" or "violations".</li>
+      <li>"Your words won't change" and "the original is kept" are repeated at the moments of doubt: upload, payment, result.</li>
+      <li>Every question has <b>"let Kwill decide"</b>. Nobody is blocked.</li>
+      <li>Safe to leave at any point. A push brings them back to the right screen.</li>
+    </ul></div>
+    <div class="nt"><h3>How it fits the app</h3><ul>
+      <li>App tokens only (<b>useThemeColors</b>, brand orange, slate); light and dark; RTL-first, with fr/en mirrored.</li>
+      <li>The sheet is a gorhom bottom sheet; page images come from Kwill's converter.</li>
+      <li>One route, <b>/rescue</b>, driven by the saved run's state, so a cold start resumes on the right step.</li>
+      <li>The result thesis opens in the normal workspace.</li>
+    </ul></div>
+    <div class="nt"><h3>The student's note: what it can and can't do</h3><ul>
+      <li><b>Can:</b> formatting wishes ("French quotes in Times 12"), structure hints ("chapter 3 is the applied part"), exceptions ("no number on the dedication"), "keep my tables as they are".</li>
+      <li><b>Asked, not obeyed blindly:</b> anything that clashes with the department guide. Both values are shown and the student picks.</li>
+      <li><b>Can't:</b> change their words, skip the final checks, or break the deposit rules. Those are enforced in code, whatever the note says.</li>
+      <li>Read by the model at <b>Map</b> and <b>Review</b>; parsed into rules where possible; saved in the rescue run for every re-run.</li>
+    </ul></div>
+  </div>
+</div>
+<script>
+document.querySelectorAll('.tgl button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tgl button').forEach(x => x.classList.toggle('on', x === b));
+  document.body.classList.toggle('dark', b.dataset.t === 'dark');
+}));
+</script>
+</body>
+</html>

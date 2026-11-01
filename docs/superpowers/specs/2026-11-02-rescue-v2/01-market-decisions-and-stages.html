@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rescue my thesis — replacing the shop · decision</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0D0F13; --panel:#14181F; --panel2:#1A1F29; --line:#262C37; --ink:#E8ECF2; --muted:#8B95A7; --dim:#5B6577;
+  --brand:#F59433; --brandL:#FFB166; --brandD:#C2670C;
+  --code:#7DB3FF; --model:#F59433; --student:#4CC38A; --bad:#FF6B6B; --ok:#4CC38A; --warn:#FFD166;
+  --paper:#FCFBF8; --pink:#2B303B;
+  --ar:"Amiri","Geeza Pro","Noto Naskh Arabic","Traditional Arabic",serif;
+  --ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui)}
+body{min-height:100vh;background:
+  radial-gradient(1100px 480px at 15% -12%, rgba(245,148,51,.11), transparent 60%),
+  radial-gradient(900px 480px at 100% 0%, rgba(125,179,255,.06), transparent 60%), var(--bg)}
+.wrap{max-width:1270px;margin:0 auto;padding:22px 24px 110px}
+.notrans, .notrans *{transition:none!important;animation:none!important}
+a{color:var(--code)}
+bdi{unicode-bidi:isolate}
+
+/* ── header + nav ───────────────────────────────────── */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:6px}
+.top h1{margin:0;font-size:27px;letter-spacing:-.4px;font-weight:800}
+.top h1 em{font-style:normal;color:var(--brand)}
+.top .sub{color:var(--muted);font-size:13.5px;margin-top:5px;max-width:760px;line-height:1.5}
+.top .sub .arx{font-family:var(--ar);font-size:16px;color:var(--ink)}
+.nav{display:flex;gap:6px;flex-wrap:wrap}
+.nav a{font:600 12px var(--ui);color:var(--ink);text-decoration:none;background:var(--panel2);border:1px solid var(--line);padding:7px 11px;border-radius:999px}
+.nav a:hover{border-color:var(--brand)}
+.sech{display:flex;align-items:center;gap:12px;margin:34px 0 14px}
+.sech .n{width:32px;height:32px;border-radius:10px;background:var(--brand);color:#1b1206;display:grid;place-items:center;font:800 15px var(--ui);flex:none}
+.sech h2{margin:0;font:800 21px var(--ui);letter-spacing:-.3px}
+.sech p{margin:3px 0 0;color:var(--muted);font-size:13px}
+.newb{display:inline-block;font:800 9px var(--ui);letter-spacing:.8px;color:#1b1206;background:var(--warn);border-radius:5px;padding:2px 5px;vertical-align:2px;margin-left:5px}
+
+/* ── ① market cards ─────────────────────────────────── */
+.mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(292px,1fr));gap:12px}
+.mk{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 15px 13px;display:flex;flex-direction:column;gap:8px}
+.mk .tt{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.mk h3{margin:0;font:800 15px/1.25 var(--ui)}
+.mk h3 .arx{display:block;font:700 16px/1.3 var(--ar);color:var(--brandL);margin-top:2px}
+.pill{font:800 9.5px var(--ui);letter-spacing:.8px;text-transform:uppercase;padding:4px 8px;border-radius:999px;white-space:nowrap;border:1px solid}
+.p-v1{color:var(--ok);border-color:rgba(76,195,138,.45);background:rgba(76,195,138,.1)}
+.p-later{color:var(--code);border-color:rgba(125,179,255,.4);background:rgba(125,179,255,.08)}
+.p-never{color:var(--bad);border-color:rgba(255,107,107,.45);background:rgba(255,107,107,.1)}
+.mk .price{font:800 14px var(--ui);color:var(--ink)}
+.mk .price small{font:500 11.5px var(--ui);color:var(--muted)}
+.mk .ln2{font:500 12.4px/1.48 var(--ui);color:#C4CBD7}
+.mk .ln2 i{font-style:normal;font:800 9.5px var(--ui);letter-spacing:.9px;text-transform:uppercase;color:var(--dim);margin-right:5px}
+.mk .ln2.pain i{color:var(--bad)}
+.mk .kw{margin-top:auto;background:rgba(245,148,51,.07);border:1px solid rgba(245,148,51,.25);border-radius:11px;padding:8px 10px;font:500 12.4px/1.45 var(--ui);color:#E3E7EE}
+.mk .kw b{color:var(--brandL)}
+.mk.never .kw{background:rgba(255,107,107,.06);border-color:rgba(255,107,107,.25)}
+.mk .src{font:500 10.5px var(--ui);color:var(--dim)}
+.mk .src a{color:#7f9cc8}
+.mk ul{margin:2px 0 0;padding-left:16px}
+.mk li{margin:1px 0}
+.insight{margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.ins{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:12px;padding:11px 13px;font:500 12.6px/1.5 var(--ui);color:#D3D9E3}
+.ins b{color:var(--ink)}
+
+/* ── ② shop vs kwill ────────────────────────────────── */
+.vs{background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.vr{display:grid;grid-template-columns:170px 1fr 1fr;border-top:1px solid #20262f}
+.vr:first-child{border-top:0}
+.vr > div{padding:11px 15px;font:500 13px/1.45 var(--ui)}
+.vr.h > div{font:800 11px var(--ui);letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);padding:12px 15px}
+.vr.h .s{color:#ff9a9a}.vr.h .k{color:var(--brandL)}
+.vr .l{font-weight:700;color:var(--ink)}
+.vr .s{color:#C2A9A9}
+.vr .k{color:#E7EDF4;background:rgba(245,148,51,.05)}
+.vr .k::before{content:"✓ ";color:var(--ok);font-weight:800}
+.vr .s::before{content:"✕ ";color:var(--bad);font-weight:800}
+.vr.h .s::before,.vr.h .k::before{content:none}
+
+/* ── rail ───────────────────────────────────────────── */
+.ctrls{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-bottom:10px}
+.btn{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:10px;height:34px;min-width:34px;padding:0 11px;font:600 12.5px var(--ui);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover{border-color:#3a4252}
+.btn.on{background:rgba(245,148,51,.14);border-color:rgba(245,148,51,.5);color:var(--brandL)}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg .btn{border:0;border-radius:0;background:transparent;height:32px}
+.seg .btn.on{background:rgba(245,148,51,.16)}
+.railbox{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:12px 14px 12px;margin-bottom:16px}
+.brk{display:grid;grid-template-columns:repeat(3,1fr) 78px repeat(5,1fr);margin-bottom:6px}
+.brk div{font:700 10.5px var(--ui);letter-spacing:1.4px;text-transform:uppercase;text-align:center;padding:4px 0 7px;border-bottom:2px solid;margin:0 6px}
+.brk .free{grid-column:1/4;color:var(--student);border-color:rgba(76,195,138,.45)}
+.brk .paid{grid-column:5/10;color:var(--brandL);border-color:rgba(245,148,51,.45)}
+.rail{position:relative;display:grid;grid-template-columns:repeat(3,1fr) 78px repeat(5,1fr);align-items:start}
+.rtrack,.rfill{position:absolute;top:19px;height:2px;border-radius:2px;pointer-events:none}
+.rtrack{background:var(--line)}
+.rfill{background:linear-gradient(90deg,var(--brandD),var(--brand));transition:width .6s cubic-bezier(.3,.8,.3,1);box-shadow:0 0 12px rgba(245,148,51,.5)}
+.node{position:relative;z-index:1;background:none;border:0;color:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:0 2px;font-family:var(--ui)}
+.node .dot{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--panel2);border:2px solid var(--line);font:800 14px var(--ui);color:var(--muted);transition:all .35s;position:relative}
+.node .nm{font:700 12.5px var(--ui);color:var(--muted);margin-top:4px;transition:color .3s}
+.node .ar{font:400 13px var(--ar);color:var(--dim);line-height:1}
+.node .meta{display:flex;gap:4px;align-items:center;margin-top:3px}
+.node .nw{position:absolute;top:-6px;right:calc(50% - 30px);font:800 7.5px var(--ui);background:var(--warn);color:#1b1206;border-radius:4px;padding:1px 3px;z-index:2}
+.who{font:700 9.5px var(--ui);letter-spacing:.6px;text-transform:uppercase;padding:2px 6px;border-radius:6px;border:1px solid}
+.who.code{color:var(--code);border-color:rgba(125,179,255,.35);background:rgba(125,179,255,.07)}
+.who.model{color:var(--model);border-color:rgba(245,148,51,.4);background:rgba(245,148,51,.08)}
+.who.student{color:var(--student);border-color:rgba(76,195,138,.4);background:rgba(76,195,138,.08)}
+.eyei{width:15px;height:15px;color:var(--brandL);opacity:.9}
+.node.done .dot{border-color:var(--brandD);color:var(--brandL);background:rgba(245,148,51,.10)}
+.node.done .dot b{display:none}
+.node.done .dot::after{content:"✓";font:800 15px var(--ui)}
+.node.active .dot{border-color:var(--brand);background:var(--brand);color:#1b1206;box-shadow:0 0 0 6px rgba(245,148,51,.15),0 0 26px rgba(245,148,51,.55)}
+.node.active .dot::before{content:"";position:absolute;inset:-9px;border-radius:50%;border:2px solid rgba(245,148,51,.55);animation:ring 1.6s infinite}
+.node.active .nm{color:var(--ink)}
+.node.active .ar{color:var(--brandL)}
+@keyframes ring{0%{transform:scale(.85);opacity:1}100%{transform:scale(1.35);opacity:0}}
+.gate{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.gate .lock{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--panel2);border:2px dashed #3a4252;color:var(--muted);transition:all .45s}
+.gate .gl{font:700 9.5px var(--ui);letter-spacing:.8px;text-transform:uppercase;color:var(--dim);text-align:center;line-height:1.25}
+.gate.open .lock{border-style:solid;border-color:var(--student);color:var(--student);background:rgba(76,195,138,.12);box-shadow:0 0 18px rgba(76,195,138,.35)}
+.gate.open .gl{color:var(--student)}
+.gate .lk-open{display:none}.gate.open .lk-open{display:block}.gate.open .lk-shut{display:none}
+.gate.pop .lock{animation:pop .6s}
+@keyframes pop{40%{transform:scale(1.25)}}
+.loop{margin-top:12px;display:flex;align-items:center;gap:10px;justify-content:center;font:500 12.5px var(--ui);color:#C9D0DC;border:1px dashed rgba(255,209,102,.4);background:rgba(255,209,102,.05);border-radius:12px;padding:8px 12px}
+.loop .ic{font:800 17px var(--ui);color:var(--warn);display:inline-block;animation:spinl 3s linear infinite}
+@keyframes spinl{to{transform:rotate(-360deg)}}
+.loop b{color:var(--warn)}
+.loop.hot{box-shadow:0 0 0 3px rgba(255,209,102,.25);border-style:solid}
+
+/* ── theatre ────────────────────────────────────────── */
+.theatre{display:grid;grid-template-columns:1fr 390px;gap:16px}
+.stagebox{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:18px;height:486px;overflow:hidden}
+.stagebox::before{content:"";position:absolute;inset:0;background:radial-gradient(600px 300px at 50% 40%,rgba(255,255,255,.035),transparent 70%);pointer-events:none}
+.cap{position:absolute;top:13px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:center;z-index:20}
+.cap .st{font:700 11px var(--ui);letter-spacing:1.3px;text-transform:uppercase;color:var(--muted)}
+.cap .st b{color:var(--brandL)}
+.chip{font:600 11.5px var(--ui);color:var(--ink);background:rgba(20,24,31,.9);border:1px solid var(--line);padding:5px 10px;border-radius:999px;display:inline-flex;gap:6px;align-items:center;opacity:0;transform:translateY(-4px);transition:all .35s;backdrop-filter:blur(4px)}
+.chip.on{opacity:1;transform:none}
+.chip svg{width:14px;height:14px;color:var(--brandL)}
+
+.doc{position:absolute;left:0;right:0;top:50px;display:flex;gap:12px;justify-content:center;align-items:flex-start;transition:opacity .45s,filter .45s,transform .45s}
+.doc.dim{opacity:.18;filter:blur(1.5px)}
+.stagebox.ov .doc{opacity:0;transform:scale(.96);pointer-events:none}
+.pwrap{display:flex;flex-direction:column;align-items:center;gap:7px;width:150px;transition:width .6s,opacity .6s,margin .6s}
+.pwrap.divw{width:0;opacity:0;margin:0 -6px;overflow:hidden}
+#doc.g-dividers .pwrap.divw{width:150px;opacity:1;margin:0}
+.page{position:relative;width:150px;height:212px;flex:none;background:var(--paper);border-radius:3px;box-shadow:0 10px 26px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.05);overflow:hidden;direction:rtl;font-family:var(--ar);color:var(--pink);display:flex;flex-direction:column}
+.hdr{height:17px;position:relative;flex:none}
+.body{flex:1;position:relative;padding:3px 10px 2px 13px;display:flex;flex-direction:column;gap:3px;transition:padding .5s}
+.ftr{height:15px;position:relative;flex:none}
+.plab,.secl{font:600 10px var(--ui);color:var(--dim);height:13px;transition:opacity .4s}
+.plab{opacity:0}
+#doc.read .plab{opacity:1}
+#doc.wiped .plab{display:none}
+.secl{display:none;color:var(--code);opacity:0}
+#doc.wiped .secl{display:block}
+#doc.g-sections .secl{opacity:1}
+.para{position:relative;display:flex;flex-direction:column;gap:2.6px;margin-bottom:2px}
+.ln{display:block;height:2.6px;border-radius:2px;background:#454b59;width:var(--w,100%);transition:all .5s}
+.ln.m1{background:#2457b3;height:3.3px}
+.ln.m2{background:#8a8f9b;height:2px;margin-right:9px}
+.ln.m3{height:3.8px;width:calc(var(--w,100%) - 14%)}
+.ln.m4{margin-right:-5px}
+.lnw{display:flex;align-items:center;gap:2px}
+.lnw .ln{flex:1}
+.fref{font:700 5px var(--ui);color:#555;line-height:1}
+.h1{position:relative;font:600 7.5px/1.2 Arial,sans-serif;color:#2457b3;text-align:left;text-decoration:underline;margin:3px 0 2px;transition:all .5s}
+.h2{position:relative;font:italic 400 7px/1.2 Tahoma,sans-serif;color:#3b4150;margin:2px 0 1px;transition:all .5s}
+.strand{margin-top:auto}
+.kn-chip{position:absolute;left:6px;bottom:24px;font:700 6.5px var(--ui);direction:ltr;color:#1b1206;background:var(--warn);padding:2px 5px;border-radius:5px;opacity:0;transform:translateY(4px);transition:all .35s;z-index:6}
+.kn-chip.on{opacity:1;transform:none}
+.clines{position:relative;display:flex;flex-direction:column;gap:3px;padding-top:4px}
+.cv{font-size:6px;line-height:1.25;text-align:center;transition:all .5s}
+.cv.x1{text-align:right;transform:translateX(7px);font-family:Arial,sans-serif;font-size:6.6px}
+.cv.x2{text-align:left;font-size:5.4px}
+.cv.x3{transform:translateX(-9px);font-weight:700;color:#2457b3;font-family:Tahoma,sans-serif}
+.cv.ttl{font-size:8px;font-weight:700}
+.logo{width:22px;height:22px;border-radius:50%;margin:3px auto;background:radial-gradient(circle at 50% 50%,#fff 0 30%,transparent 31%),conic-gradient(#1f6b46 0 25%,#c33 0 50%,#1f6b46 0 75%,#c33 0);transform:translateX(16px);transition:all .5s;opacity:.85}
+.cframe{position:absolute;inset:7px;border:1.6px double #b39b6e;border-radius:2px;opacity:0;transition:opacity .6s;pointer-events:none}
+.hdr-old{position:absolute;top:4px;left:9px;right:9px;font:400 6px Arial,sans-serif;color:#2457b3;text-align:left;border-bottom:.7px solid #2457b3;padding-bottom:1px;transition:opacity .4s}
+.hdr-new{position:absolute;top:4px;left:12px;right:12px;font-size:6.2px;color:#5d6372;text-align:center;border-bottom:.7px solid #c4ad82;padding-bottom:1px;opacity:0;transform:translateY(-5px);transition:all .5s}
+.pn-old{position:absolute;bottom:4px;font:400 6.6px Arial,sans-serif;color:#2457b3;transition:opacity .4s}
+.pn-new{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:7.5px;color:#3b4150;opacity:0;transform:scale(.4);transition:all .45s cubic-bezier(.2,1.5,.4,1)}
+.toc-area{position:relative;height:132px}
+.toc-typed,.toc-real{position:absolute;inset:0;display:flex;flex-direction:column;gap:3.4px;transition:opacity .5s}
+.tr,.rr{display:flex;align-items:flex-end;gap:2px;font-size:5.8px;line-height:1.1;position:relative}
+.tr{font-family:Arial,sans-serif;color:#333}
+.tr .d,.rr .d{flex:1;border-bottom:1px dotted #9aa0aa;margin-bottom:1.5px}
+.tr.nd .d{flex:0 0 14px}
+.tr.sh{padding-right:9px;font-size:5.2px}
+.toc-real{opacity:0}
+.rr{font-size:6px;color:#2a2f3a}
+.rr.l1{font-weight:700}
+.rr.l2{padding-right:7px}
+.rr span:first-child{color:#1f4f9a}
+.fld{position:absolute;top:-10px;left:0;font:700 5.5px var(--ui);direction:ltr;color:#4a7fd6;background:#e8f0ff;border-radius:3px;padding:1px 3px}
+.fig{position:relative;height:38px;width:116%;margin-right:-8%;border-radius:2px;background:linear-gradient(160deg,#dfe7ef,#c9d5e2);display:grid;place-items:center;margin-top:2px;transition:all .55s}
+.fig svg{width:22px;height:22px;opacity:.55}
+.cap-area{position:relative;height:10px}
+.cap-old,.cap-new{position:absolute;inset:0;transition:opacity .45s}
+.cap-old{font:italic 5.6px Arial,sans-serif;color:#444;text-align:left}
+.cap-new{font-size:6.1px;text-align:center;color:#2a2f3a;opacity:0}
+.cap-new .fld{top:1px;left:2px}
+.junk{position:relative;height:13px;transition:all .5s}
+.fn{position:relative;margin-top:3px;padding-top:2px;border-top:.7px solid #aaa;width:46%;display:flex;flex-direction:column;gap:2px}
+.fn .ln{height:1.8px;background:#7a808c}
+.divp{align-items:center;justify-content:center}
+.divp .orn{position:absolute;inset:9px;border:2px solid #c4ad82;border-radius:3px}
+.divp .orn::before{content:"";position:absolute;inset:3px;border:.8px solid #c4ad82;border-radius:2px}
+.divp .orn::after{content:"❖";position:absolute;top:-7px;left:50%;transform:translateX(-50%);background:var(--paper);color:#b39b6e;font-size:10px;padding:0 3px}
+.divp .dt{position:relative;text-align:center;font-weight:700;font-size:11px;color:#2a2f3a}
+.divp .ds{position:relative;text-align:center;font-size:8px;color:#6d7382;margin-top:3px}
+.fontb{position:absolute;bottom:3px;left:4px;font:700 5.3px var(--ui);direction:ltr;color:#1e7a4f;background:#dff3e8;border-radius:3px;padding:1px 3px;opacity:0;transform:scale(.6);transition:all .4s cubic-bezier(.2,1.5,.4,1);z-index:5}
+#doc.g-fonts .fontb{opacity:1;transform:none}
+.beam{position:absolute;left:0;right:0;top:-30px;height:30px;background:linear-gradient(180deg,transparent,rgba(245,148,51,.35) 70%,rgba(245,148,51,.85));pointer-events:none;opacity:0;z-index:8}
+.page.scan .beam{animation:beam .9s ease-in-out}
+@keyframes beam{0%{top:-30px;opacity:1}100%{top:100%;opacity:1}}
+.erase{position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.95) 45%,rgba(255,255,255,.95) 55%,transparent);transform:translateX(-110%);pointer-events:none;z-index:8}
+.page.erasing .erase{animation:erase .8s ease-in-out}
+@keyframes erase{to{transform:translateX(110%)}}
+.seen{position:absolute;top:5px;left:5px;width:18px;height:18px;border-radius:50%;background:var(--brand);display:grid;place-items:center;opacity:0;transform:scale(.5);transition:all .35s;z-index:9;box-shadow:0 0 0 4px rgba(245,148,51,.25)}
+.seen svg{width:12px;height:12px;color:#1b1206}
+.page.seenon .seen{opacity:1;transform:none}
+.wm{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;z-index:7;opacity:0;transition:opacity .5s}
+.wm span{transform:rotate(-32deg);font:800 13px var(--ui);letter-spacing:2px;color:rgba(245,148,51,.32);white-space:nowrap}
+.page.pv .wm{opacity:1}
+.stamp{position:absolute;bottom:20px;left:50%;transform:translateX(-50%) scale(1.6);font:800 8px var(--ui);color:var(--ok);border:1.5px solid var(--ok);border-radius:4px;padding:2px 5px;opacity:0;transition:all .35s cubic-bezier(.2,1.5,.4,1);z-index:9;background:rgba(255,255,255,.85);direction:ltr}
+.page.stamped .stamp{opacity:1;transform:translateX(-50%) scale(1)}
+.tag{position:absolute;top:-5px;left:-3px;font:700 6.4px/1 var(--ui);direction:ltr;padding:2px 4px;border-radius:5px;background:var(--c,#AEB6C4);color:#121418;white-space:nowrap;z-index:6;opacity:0;transform:translateY(3px) scale(.8);transition:all .3s;pointer-events:none}
+.tag.on{opacity:1;transform:none}
+.tag.low.on{animation:lowp 1.1s infinite}
+@keyframes lowp{50%{box-shadow:0 0 0 4px rgba(255,209,102,.4)}}
+[data-prob].pr-on{outline:1.5px dashed var(--bad);outline-offset:1px;border-radius:2px}
+[data-prob].pr-on::after{content:attr(data-prob);position:absolute;top:-5px;right:-5px;width:11px;height:11px;border-radius:50%;background:var(--bad);color:#fff;font:800 6.5px/11px var(--ui);text-align:center;direction:ltr;z-index:7}
+.flag{outline:2px solid var(--warn)!important;outline-offset:2px;animation:flagp .9s infinite}
+@keyframes flagp{50%{outline-color:rgba(255,209,102,.25)}}
+
+/* state rules: RESET then REGENERATE (order matters) */
+:is(#doc.wiped,.pv) .hdr-old, :is(#doc.wiped,.pv) .pn-old{opacity:0}
+:is(#doc.wiped) .ln{background:#cdd1d8;height:2.6px;margin-right:0;width:var(--w,100%)}
+:is(#doc.wiped) .h1, :is(#doc.wiped) .h2{color:#9aa0ab;text-decoration:none;font:400 7px/1.2 var(--ar);text-align:right}
+:is(#doc.wiped) .cv{transform:none;text-align:right;color:#9aa0ab;font:400 6px/1.25 var(--ar)}
+:is(#doc.wiped) .logo{transform:none;margin-right:0;filter:grayscale(1);opacity:.5}
+:is(#doc.wiped,.pv) .toc-typed{opacity:.28}
+:is(#doc.wiped,.pv) .toc-typed .t{text-decoration:line-through}
+:is(#doc.wiped) .cap-old{color:#9aa0ab;font-style:normal}
+:is(#doc.wiped,.pv) .junk{height:0;margin:0}
+:is(#doc.wiped) .fn .ln{background:#cdd1d8}
+:is(#doc.g-styles,.pv) .ln{background:#454b59;height:2.6px;margin-right:0;width:var(--w,100%)}
+:is(#doc.g-styles,.pv) .fn .ln{background:#7a808c;height:1.8px}
+:is(#doc.g-styles,.pv) .body{padding:3px 13px 2px 10px}
+:is(#doc.g-roles,.pv) .h1{font:700 10px/1.25 var(--ar);color:#20242e;text-align:center;text-decoration:none;margin:5px 0 4px}
+:is(#doc.g-roles,.pv) .h2{font:700 8px/1.2 var(--ar);color:#20242e;text-align:right}
+:is(#doc.g-roles) .strand{transform:translateY(30px);opacity:0}
+:is(#doc.g-num,.pv) .pn-new{opacity:1;transform:none}
+:is(#doc.g-headers,.pv) .hdr-new{opacity:1;transform:none}
+:is(#doc.g-cover,.pv) .cv{transform:none;text-align:center;color:#20242e;font-family:var(--ar);font-weight:400;font-size:6px}
+:is(#doc.g-cover,.pv) .cv.ttl{font-size:8.6px;font-weight:700;color:#1d2b4f}
+:is(#doc.g-cover,.pv) .cv.ttl2{font-size:9.6px;font-weight:700;color:#7a3f08}
+:is(#doc.g-cover,.pv) .logo{transform:none;filter:none;opacity:1;margin:4px auto}
+:is(#doc.g-cover,.pv) .cframe{opacity:1}
+:is(#doc.g-cover,.pv) .clines{padding-top:9px}
+:is(#doc.g-toc,.pv) .toc-typed{opacity:0}
+:is(#doc.g-toc,.pv) .toc-real{opacity:1}
+:is(#doc.g-captions,.pv) .cap-old{opacity:0}
+:is(#doc.g-captions,.pv) .cap-new{opacity:1}
+:is(#doc.fixed2,.pv) .fig{width:84%;margin-right:8%}
+
+/* overview grid (REVIEW) */
+.ovw{position:absolute;left:0;right:0;top:64px;display:flex;flex-direction:column;align-items:center;gap:12px;opacity:0;transform:scale(1.04);transition:all .45s;pointer-events:none}
+.stagebox.ov .ovw{opacity:1;transform:none}
+.ovw .lbl{font:600 11.5px var(--ui);color:var(--muted)}
+.grid{position:relative;display:flex;flex-wrap:wrap;gap:7px;width:430px;justify-content:center;direction:ltr}
+.th{position:relative;width:40px;height:57px;background:var(--paper);border-radius:2px;padding:6px 5px;display:flex;flex-direction:column;gap:2px;transition:all .5s;box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.th i{display:block;height:1.6px;background:#555b68;border-radius:1px;width:var(--w,100%);margin-left:auto}
+.th .hb{height:3px;background:#20242e;width:60%;margin:3px auto 2px}
+.th .im{height:12px;background:#c9d5e2;border-radius:1px;margin:2px 0}
+.th.figw .im{width:124%;margin-left:-12%}
+.th.figw.fixd .im{width:86%;margin-left:7%}
+.th.dv{border:1.5px solid #c4ad82;outline:1px solid #c4ad82;outline-offset:-5px}
+.th.cov{align-items:center;justify-content:center}
+.th .pn{position:absolute;bottom:2px;left:0;right:0;text-align:center;font:600 4.5px var(--ui);color:#666}
+.th.gone{width:0;padding:0;margin:0 -3.5px;opacity:0}
+.th .fl{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font:700 8.5px var(--ui);background:var(--warn);color:#1b1206;padding:2px 5px;border-radius:5px;white-space:nowrap;opacity:0;transition:opacity .3s;z-index:3}
+.th.flag .fl{opacity:1}
+.th.ok{outline:2px solid var(--ok)!important;animation:none}
+.loupe{position:absolute;left:0;top:0;width:54px;height:54px;border-radius:50%;border:2.5px solid var(--brand);box-shadow:0 0 0 4px rgba(245,148,51,.18),0 0 24px rgba(245,148,51,.45);background:rgba(245,148,51,.06);transition:transform .16s linear;pointer-events:none;z-index:4;opacity:0}
+.loupe.on{opacity:1}
+
+/* phone (CONFIRM) */
+.phone{position:absolute;left:50%;top:50%;width:214px;height:398px;margin:-184px 0 0 -107px;background:#0a0c10;border:1px solid #2c323d;border-radius:30px;padding:9px;box-shadow:0 30px 60px rgba(0,0,0,.6);transform:translateY(130%);transition:transform .6s cubic-bezier(.2,.9,.3,1);z-index:15}
+.phone.on{transform:none}
+.scr{position:absolute;inset:9px;border-radius:22px;overflow:hidden;background:#FAF6F0}
+.notch{position:absolute;top:6px;left:50%;width:56px;height:14px;margin-left:-28px;background:#0a0c10;border-radius:10px;z-index:3}
+.trk{display:flex;width:400%;height:100%;transition:transform .55s cubic-bezier(.3,.8,.3,1);direction:ltr}
+.sc{width:25%;height:100%;direction:rtl;padding:28px 12px 13px;font-family:var(--ar);color:#1E2230;display:flex;flex-direction:column;gap:6px}
+.sc h4{margin:0;font:700 15px var(--ar)}
+.gpill{align-self:flex-start;font:700 9.5px var(--ar);color:#1e7a4f;background:#dff3e8;border-radius:999px;padding:2px 8px;opacity:0;transition:opacity .4s}
+.gpill.on{opacity:1}
+.row{display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid #ece4d8;border-radius:10px;padding:5px 9px;font-size:10.5px;opacity:0;transform:translateY(5px);transition:all .35s}
+.row.on{opacity:1;transform:none}
+.row b{font:700 10px var(--ui);direction:ltr;color:#C2670C}
+.row b.ar2{font:700 10.5px var(--ar)}
+.row.nrow{border-color:#ffd98a;background:#fffaf0}
+.pbtn{margin-top:auto;height:33px;border-radius:11px;background:#F59433;color:#1b1206;display:grid;place-items:center;font:700 12.5px var(--ar);position:relative;flex:none}
+.pbtn.ghost{background:#fff;border:1px solid #ece4d8;color:#1E2230;margin-top:0}
+.q{background:#fff;border:1px solid #ece4d8;border-radius:12px;padding:9px;font-size:12px;line-height:1.5}
+.q .ex{margin-top:6px;background:#f6f1ea;border-radius:7px;padding:5px 7px;font-size:10.5px;color:#555}
+.q .ex mark{background:#ffe2c2;padding:0 2px;border-radius:3px}
+.small{font-size:10px;color:#7a7f8c;text-align:center}
+.covs{display:flex;gap:8px;margin-top:4px}
+.cvc{flex:1;border:2px solid #ece4d8;border-radius:10px;padding:6px;background:#fff;display:flex;flex-direction:column;align-items:center;gap:5px;transition:all .3s}
+.cvc.pick{border-color:#F59433;box-shadow:0 0 0 3px rgba(245,148,51,.2)}
+.cvc .mini{width:56px;height:78px;background:var(--paper);border-radius:2px;box-shadow:0 2px 6px rgba(0,0,0,.15);position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:9px}
+.cvc .mini i{display:block;height:1.6px;background:#666;width:var(--w)}
+.cvc .mini .lg{width:10px;height:10px;border-radius:50%;background:conic-gradient(#1f6b46 0 25%,#c33 0 50%,#1f6b46 0 75%,#c33 0);margin:2px 0}
+.cvc .mini.std{border:1.5px double #b39b6e}
+.cvc span{font-size:9.5px;text-align:center;line-height:1.3}
+.done-ic{width:52px;height:52px;border-radius:50%;background:#dff3e8;color:#1e7a4f;display:grid;place-items:center;font:800 26px var(--ui);margin:40px auto 6px}
+.tapdot{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;background:rgba(245,148,51,.45);transform:scale(0);pointer-events:none;z-index:5}
+.tapdot.go{animation:tap .65s ease-out}
+@keyframes tap{0%{transform:scale(0);opacity:1}100%{transform:scale(2.2);opacity:0}}
+
+/* outputs (PROVE) */
+.outs{position:absolute;left:12px;right:12px;bottom:14px;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;z-index:12;pointer-events:none}
+.out{display:flex;gap:8px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:7px 11px 7px 8px;opacity:0;transform:translateY(26px);transition:all .5s cubic-bezier(.2,1.2,.4,1)}
+.out.nw{border-color:rgba(255,209,102,.45)}
+.outs.on .out{opacity:1;transform:none}
+.outs.on .out:nth-child(2){transition-delay:.12s}
+.outs.on .out:nth-child(3){transition-delay:.24s}
+.outs.on .out:nth-child(4){transition-delay:.36s}
+.outs.on .out:nth-child(5){transition-delay:.48s}
+.out .fi{width:26px;height:31px;border-radius:5px;display:grid;place-items:center;font:800 7.5px var(--ui);color:#fff;flex:none}
+.out .fi.docx{background:#2B5797}.out .fi.pdf{background:#C8382E}.out .fi.rep{background:#4b5466}.out .fi.frm{background:#2f7d57}.out .fi.abs{background:#7a5bb5}
+.out .tx{font:700 11.5px var(--ui)}
+.out .tx small{display:block;font:500 9.8px var(--ui);color:var(--muted);margin-top:1px}
+.flash{position:absolute;z-index:12;right:20px;top:168px;max-width:300px;font:600 11px/1.4 var(--ui);background:var(--panel2);border:1px solid rgba(255,209,102,.5);color:#F4E2B8;padding:7px 10px;border-radius:10px;opacity:0;transform:translateY(6px);transition:all .35s}
+.flash.on{opacity:1;transform:none}
+.flash .arx{font-family:var(--ar);font-size:13px;color:var(--ink)}
+
+/* readout */
+.readout{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px 18px;height:486px;overflow:hidden;display:flex;flex-direction:column}
+.rh{display:flex;align-items:center;gap:11px}
+.rh .num{width:34px;height:34px;border-radius:10px;background:var(--brand);color:#1b1206;display:grid;place-items:center;font:800 15px var(--ui);flex:none}
+.rh .t{font:800 19px var(--ui);letter-spacing:-.2px}
+.rh .t .arx{font:700 17px var(--ar);color:var(--brandL);margin-left:7px}
+.rh .meta{margin-left:auto;display:flex;gap:5px;align-items:center}
+.desc{color:#B9C1CF;font-size:13px;line-height:1.5;margin:10px 0 11px}
+.ri{opacity:0;transform:translateY(6px);transition:all .35s}
+.ri.on{opacity:1;transform:none}
+.cnts{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.cnt{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:7px 10px}
+.cnt b{display:block;font:800 17px var(--ui);color:var(--ink);font-variant-numeric:tabular-nums}
+.cnt span{font:500 10.5px var(--ui);color:var(--muted)}
+.fp{margin-top:8px;font:500 11.5px var(--ui);color:var(--muted);background:var(--panel2);border:1px dashed #333b48;border-radius:10px;padding:7px 10px;line-height:1.45}
+.fp code{color:var(--brandL);font:600 11px ui-monospace,Menlo,monospace}
+.bars{display:flex;flex-direction:column;gap:5px}
+.bar{display:grid;grid-template-columns:96px 1fr 40px;gap:8px;align-items:center;font:600 11.5px var(--ui);color:#C9D0DC}
+.bar .tr2{height:7px;background:var(--panel2);border-radius:4px;overflow:hidden}
+.bar .fl2{height:100%;width:0;border-radius:4px;background:var(--c,#AEB6C4);transition:width .7s cubic-bezier(.3,.8,.3,1)}
+.bar.on .fl2{width:var(--p)}
+.bar em{font-style:normal;color:var(--muted);font-size:11px;text-align:right;font-variant-numeric:tabular-nums}
+.note{margin-top:8px;font:500 12px/1.45 var(--ui);color:#C9D0DC;display:flex;gap:8px;align-items:flex-start}
+.note .ic{flex:none;width:18px;height:18px;border-radius:6px;display:grid;place-items:center;font:800 10.5px var(--ui);margin-top:1px}
+.note .ic.w{background:rgba(255,209,102,.16);color:var(--warn)}
+.note .ic.o{background:rgba(245,148,51,.16);color:var(--brandL)}
+.note .ic.g{background:rgba(76,195,138,.16);color:var(--ok)}
+.note .ic.b{background:rgba(125,179,255,.14);color:var(--code)}
+.plist{display:flex;flex-direction:column;gap:4px}
+.pi{display:flex;gap:8px;align-items:center;font:500 12px var(--ui);color:#D5DBE5}
+.pi .n{flex:none;width:17px;height:17px;border-radius:50%;background:var(--bad);color:#fff;font:800 9.5px/17px var(--ui);text-align:center}
+.total{margin-top:8px;display:flex;align-items:baseline;gap:8px;font:600 12.5px var(--ui);color:var(--muted)}
+.total b{font:800 26px var(--ui);color:var(--bad)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.colh{font:700 10.5px var(--ui);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px}
+.colh.r{color:var(--bad)}.colh.k{color:var(--ok)}
+.li{font:500 12px/1.35 var(--ui);color:#D5DBE5;padding:5px 0;border-bottom:1px solid #20262f}
+.checks{display:flex;flex-direction:column;gap:3px}
+.ck{display:flex;gap:9px;align-items:center;font:500 12px/1.3 var(--ui);color:#D5DBE5;padding:4px 8px;border-radius:9px;transition:background .3s}
+.ck .bx{flex:none;width:17px;height:17px;border-radius:6px;border:1.5px solid #3a4252;display:grid;place-items:center;font:800 10.5px var(--ui);color:transparent;transition:all .3s}
+.ck.act{background:rgba(245,148,51,.10)}
+.ck.act .bx{border-color:var(--brand);animation:spin 1s linear infinite;border-top-color:transparent;border-radius:50%}
+.ck.done .bx{background:var(--ok);border-color:var(--ok);color:#0b1a12;animation:none;border-radius:6px}
+.ck small{color:var(--muted);font-size:10.8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.rfoot{margin-top:auto;padding-top:10px;border-top:1px solid #20262f;font:500 11px var(--ui);color:var(--dim)}
+.legend{display:flex;gap:18px;align-items:center;justify-content:center;margin-top:14px;font:500 12px var(--ui);color:var(--muted);flex-wrap:wrap}
+.legend .g{display:flex;gap:6px;align-items:center}
+
+/* ── ④ decisions ────────────────────────────────────── */
+.dec-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.dec{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:15px 16px}
+.dec .q{font:800 15px/1.35 var(--ui);margin-bottom:4px;color:var(--ink);background:none;border:0;padding:0}
+.dec .why{font:500 12.3px/1.45 var(--ui);color:var(--muted);margin-bottom:10px}
+.opt{position:relative;display:flex;gap:11px;align-items:flex-start;background:var(--panel2);border:1.5px solid var(--line);border-radius:13px;padding:10px 12px;margin-top:8px;cursor:pointer;transition:all .2s}
+.opt:hover{border-color:#3d4656}
+.opt .lt{flex:none;width:24px;height:24px;border-radius:8px;display:grid;place-items:center;font:800 12px var(--ui);background:#232a36;color:var(--muted);transition:all .2s}
+.opt h4{margin:0;font:700 13.3px/1.35 var(--ui);color:var(--ink)}
+.opt p{margin:3px 0 0;font:500 12px/1.45 var(--ui);color:#AEB7C6}
+.opt .rec{display:inline-block;font:800 9px var(--ui);letter-spacing:.8px;text-transform:uppercase;color:var(--ok);border:1px solid rgba(76,195,138,.45);border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:2px}
+.opt.sel{border-color:var(--brand);background:rgba(245,148,51,.09);box-shadow:0 0 0 3px rgba(245,148,51,.13)}
+.opt.sel .lt{background:var(--brand);color:#1b1206}
+.bar-choices{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:50;background:rgba(20,24,31,.94);border:1px solid var(--line);border-radius:999px;padding:9px 16px;display:flex;gap:12px;align-items:center;font:600 12.5px var(--ui);box-shadow:0 14px 40px rgba(0,0,0,.5);backdrop-filter:blur(6px)}
+.bar-choices .c{color:var(--muted)}
+.bar-choices .c b{color:var(--brandL)}
+.bar-choices .cnt2{background:var(--brand);color:#1b1206;border-radius:999px;padding:3px 9px;font-weight:800}
+.bar-choices.done .cnt2{background:var(--ok)}
+.srcs{margin-top:30px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 18px;font:500 12px/1.7 var(--ui);color:var(--muted)}
+.srcs h3{margin:0 0 6px;font:800 13px var(--ui);color:var(--ink)}
+.srcs ol{margin:0;padding-left:18px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="eye" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3" fill="currentColor"/></symbol>
+    <symbol id="img" viewBox="0 0 24 24"><path fill="#5a6b80" d="M3 18l5-6 4 4 3-3 6 5z"/><circle cx="16" cy="8" r="2" fill="#5a6b80"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Rescue my thesis <em>·</em> replacing the shop</h1>
+      <div class="sub"><span class="arx">مسار الإنقاذ</span> — what Algerian print shops and cyber cafés sell around a mémoire today, how Kwill does each one better, the updated flow, and the four decisions left to make.</div>
+    </div>
+    <div class="nav"><a href="#market">① Market</a><a href="#vs">② Shop vs Kwill</a><a href="#flow">③ Flow</a><a href="#decide">④ Decide</a></div>
+  </div>
+
+  <!-- ① MARKET -->
+  <div class="sech" id="market"><div class="n">1</div><div><h2>What the shops sell today</h2><p>From Ouedkniss listings, university deposit notices, press reports and freelance marketplaces. Prices are what sellers post; shops negotiate.</p></div></div>
+  <div class="mk-grid">
+    <div class="mk">
+      <div class="tt"><h3>Formatting<span class="arx">التنسيق · Mise en page</span></h3><span class="pill p-v1">v1 · Rescue</span></div>
+      <div class="price">≈ 40 DA / page <small>· "négociable" — a 70-page mémoire ≈ 2 800 DA</small></div>
+      <div class="ln2"><i>How</i>A real listing's scope: borders &amp; margins, headers/footers, numbering, <b>"anti-décalage"</b>, automatic clickable TOC, clickable lists of tables/figures, references sorted. Bonus offered: a live link to watch progress.</div>
+      <div class="ln2 pain"><i>Pain</i>1–3 days by hand; the operator's habits, not your department's rules; every supervisor revision breaks the TOC and numbering — and is paid again.</div>
+      <div class="kw"><b>Kwill:</b> the 8 stages below, in minutes, on the department's own rules, proven on the real PDF — and re-run after revisions.</div>
+      <div class="src">Ouedkniss: "Mémoire/PFE Professionnel [Mise en page et Plagiat]", "Écrire et mise en page de mémoires — 40 DA".</div>
+    </div>
+    <div class="mk">
+      <div class="tt"><h3>Cover page<span class="arx">الواجهة · Page de garde</span></h3><span class="pill p-v1">v1 · Rescue</span></div>
+      <div class="price">Bundled <small>· or redone per university template</small></div>
+      <div class="ln2"><i>How</i>Retyped by the operator from the student's draft; logo pasted from the web; title must match the approved title word for word.</div>
+      <div class="ln2 pain"><i>Pain</i>Misaligned shapes, a low-res logo, names typed wrong — the most visible page.</div>
+      <div class="kw"><b>Kwill:</b> reads the fields from the old cover (or the file), student confirms in one tap, then their own cover cleaned or the university standard.</div>
+      <div class="src">Faculty guides: unified cover "according to the agreed model" (Ghardaïa).</div>
+    </div>
+    <div class="mk">
+      <div class="tt"><h3>Deposit pack<span class="arx">الإيداع · Dépôt</span></h3><span class="pill p-v1">v1 · proposed</span></div>
+      <div class="price">3.5–7 DA / printed page <small>· binding per copy · CD</small></div>
+      <div class="ln2"><i>How</i>Print 2–3 bound copies + a CD at a shop, or upload to an online printer (Yalidine delivery 24–72 h, cash on delivery). Files: PDF + Word, a signed integrity declaration, the supervisor's deposit authorisation, an abstract sheet.</div>
+      <div class="ln2 pain"><i>Pain</i>Deposit is moving to <b>PDF-only on the supervisor's platform account</b> (Khenchela 2025-26) — the PDF must be right the first time; queues in June.</div>
+      <div class="kw"><b>Kwill:</b> the checked PDF + .docx with fonts embedded, the abstract sheet, and the two forms prefilled. Printing stays at any shop — or a partner later.</div>
+      <div class="src">Univ. Khenchela 2025-26 notice; Constantine 2; Ghardaïa; Sétif 2; print-pdf.dz.</div>
+    </div>
+    <div class="mk">
+      <div class="tt"><h3>Similarity<span class="arx">نسبة التشابه · Plagiat</span></h3><span class="pill p-later">later · honest</span></div>
+      <div class="price">Bundled with formatting <small>· "mise en page et plagiat"</small></div>
+      <div class="ln2"><i>How</i>Shops "reduce the percentage" by rewording until the checker passes. Faculties gate the defense on it — e.g. ≤ 40% at Khenchela. Arrêté 1082 (2020) sanctions plagiarism, up to withdrawing the degree.</div>
+      <div class="ln2 pain"><i>Pain</i>Rewording-to-evade is a risk the student carries alone.</div>
+      <div class="kw"><b>Kwill:</b> a pre-check that finds unquoted borrowed passages and <b>cites</b> them — never a rewriter. Own spec, third-party bill.</div>
+      <div class="src">Arrêté n° 1082 du 27/12/2020; Khenchela deposit notice.</div>
+    </div>
+    <div class="mk">
+      <div class="tt"><h3>Statistics<span class="arx">تحليل الاستبيان · SPSS</span></h3><span class="pill p-later">later · field study</span></div>
+      <div class="price">Listings "SPSS et Word en temps record" <small>· freelancers from $5–10</small></div>
+      <div class="ln2"><i>How</i>Student hands over questionnaire answers; gets SPSS output pasted as images or tables, often without the interpretation.</div>
+      <div class="ln2 pain"><i>Pain</i>Tables in the wrong format, numbers the student can't explain at the defense.</div>
+      <div class="kw"><b>Kwill:</b> exact statistics computed by code, inserted as real Word tables + charts in the Algerian layout, with the reading sentence under each.</div>
+      <div class="src">Ouedkniss "Spss" listings; Khamsat SPSS services.</div>
+    </div>
+    <div class="mk">
+      <div class="tt"><h3>Proofreading<span class="arx">التدقيق · Correction</span></h3><span class="pill p-later">later</span></div>
+      <div class="price">Per page <small>· "correction méthodologique, révision avant impression"</small></div>
+      <div class="ln2"><i>How</i>Operator corrects spelling and "methodology" in the file directly.</div>
+      <div class="ln2 pain"><i>Pain</i>Changes the student never sees; meaning can drift.</div>
+      <div class="kw"><b>Kwill:</b> its own spec — every correction shown as a suggestion the student accepts. Rescue itself never changes words.</div>
+      <div class="src">Ouedkniss "كتابة تعديل طباعة" (Birtouta, 35 DA).</div>
+    </div>
+    <div class="mk">
+      <div class="tt"><h3>Defense slides<span class="arx">عرض المناقشة · Soutenance</span></h3><span class="pill p-later">later · spring</span></div>
+      <div class="price">$10–35 <small>· freelancers; free templates on TikTok/YouTube</small></div>
+      <div class="ln2"><i>How</i>Generic template, content copied by hand from the thesis.</div>
+      <div class="ln2 pain"><i>Pain</i>Done the night before; nothing prepares the jury questions.</div>
+      <div class="kw"><b>Kwill:</b> slides from the thesis's own outline + a timed script + likely jury questions. Build for April–May.</div>
+      <div class="src">Khamsat / Mostaql presentation services.</div>
+    </div>
+    <div class="mk">
+      <div class="tt"><h3>Typing<span class="arx">الرقن · Saisie</span></h3><span class="pill p-later">later</span></div>
+      <div class="price">35–50 DA / page <small>· Birtouta 35 · Reghaïa 50</small></div>
+      <div class="ln2"><i>How</i>Handwritten drafts retyped in Word; contact by WhatsApp/Viber, delivery by email.</div>
+      <div class="ln2 pain"><i>Pain</i>Retyping errors, days of waiting, every page paid.</div>
+      <div class="kw"><b>Kwill:</b> photo → text. Arabic handwriting OCR is its own project; not in v1.</div>
+      <div class="src">Ouedkniss "Traitement de texte &amp; impression laser — 50 DA".</div>
+    </div>
+    <div class="mk never">
+      <div class="tt"><h3>Writing it for them<span class="arx">إنجاز المذكرة</span></h3><span class="pill p-never">never</span></div>
+      <div class="price">50 000 – 200 000 DA <small>· per press reports</small></div>
+      <div class="ln2"><i>How</i>Half paid upfront, topic handed to "specialists". The professors' union called for an investigation and for annulling such theses.</div>
+      <div class="ln2 pain"><i>Pain</i>Fraud; degree can be withdrawn.</div>
+      <div class="kw"><b>Kwill:</b> never. The universities are the channel — Rescue only touches presentation, never authorship.</div>
+      <div class="src">Echorouk; El Raed (09/06/2019).</div>
+    </div>
+  </div>
+  <div class="insight">
+    <div class="ins"><b>The shop's real product is "it opens right".</b> Listings sell "anti-décalage" — the file not shifting on the print shop's PC. Embedding the fonts and delivering a checked PDF answers that by construction.</div>
+    <div class="ins"><b>Revisions are where shops earn twice.</b> The supervisor changes chapter 2, the TOC and numbering break, the student pays again. A re-run that costs nothing is the one thing a shop can't match.</div>
+    <div class="ins"><b>New formats are coming.</b> The 2025 amendment to arrêté 1275 adds the business-model mémoire ("مشروع مؤسسة اقتصادية"); the ministry targets 80% of final-year students. Faculties also move to IMRAD. Rescue must recognise the format, not assume one.</div>
+  </div>
+
+  <!-- ② SHOP vs KWILL -->
+  <div class="sech" id="vs"><div class="n">2</div><div><h2>Shop vs Kwill, head to head</h2><p>What the student actually experiences.</p></div></div>
+  <div class="vs">
+    <div class="vr h"><div></div><div class="s">The shop</div><div class="k">Kwill Rescue</div></div>
+    <div class="vr"><div class="l">Time</div><div class="s">1–3 days, longer in May–June queues</div><div class="k">Minutes; the student can close the app, a push arrives</div></div>
+    <div class="vr"><div class="l">Rules</div><div class="s">The operator's habits</div><div class="k">Their department's guide → catalogue → Algerian default, shown and editable</div></div>
+    <div class="vr"><div class="l">After revisions</div><div class="s">TOC and numbers break; pay again</div><div class="k">Re-run on the new version — free until the defense (decision 2)</div></div>
+    <div class="vr"><div class="l">Opens right elsewhere</div><div class="s">"Anti-décalage" is a selling point because files shift</div><div class="k">Fonts embedded + the PDF that was checked page by page</div></div>
+    <div class="vr"><div class="l">Proof</div><div class="s">Trust the operator</div><div class="k">Free diagnosis first; every word proven kept; a list of every change</div></div>
+    <div class="vr"><div class="l">Progress</div><div class="s">Phone calls; sometimes a shared link</div><div class="k">The 8 stages live on the phone</div></div>
+    <div class="vr"><div class="l">Price</div><div class="s">≈ 40 DA/page, negotiated, cash</div><div class="k">One price per thesis, set in the dashboard; BaridiMob/CCP or card</div></div>
+    <div class="vr"><div class="l">Honesty</div><div class="s">Formatting sold next to "plagiat" and ghost-writing</div><div class="k">Presentation only — words untouched; similarity help is citing, not rewording</div></div>
+  </div>
+
+  <!-- ③ FLOW -->
+  <div class="sech" id="flow"><div class="n">3</div><div><h2>The flow, updated from the research</h2><p>Same 8 stages. Changes are marked <span class="newb">NEW</span>. Starts when you scroll here; ◀ ▶ or click a stage.</p></div></div>
+  <div class="ctrls">
+    <button class="btn" id="prev" title="Previous stage (←)">◀</button>
+    <button class="btn on" id="play">❚❚ Pause</button>
+    <button class="btn" id="next" title="Next stage (→)">▶</button>
+    <div class="seg" id="speed"><button class="btn" data-s="0.5">0.5×</button><button class="btn on" data-s="1">1×</button><button class="btn" data-s="2">2×</button></div>
+  </div>
+  <div class="railbox">
+    <div class="brk"><div class="free">Free · the diagnosis</div><div class="paid">Paid · the repair</div></div>
+    <div class="rail" id="rail"><div class="rtrack" id="rtrack"></div><div class="rfill" id="rfill"></div></div>
+    <div class="loop" id="loop"><span class="ic">↺</span><span><b>After the supervisor's changes</b> — edit in Kwill or upload the new version → stages 1–8 run again on it, <b>free until the defense</b></span><span class="newb">NEW</span></div>
+  </div>
+
+  <div class="theatre">
+    <div class="stagebox" id="stagebox">
+      <div class="cap"><div class="st" id="stcap"></div><div class="chip" id="chip"></div></div>
+      <div class="doc" id="doc">
+        <div class="pwrap">
+          <div class="page" id="p1">
+            <div class="hdr"><div class="hdr-old" data-prob="1">Chapitre II</div></div>
+            <div class="body">
+              <span class="tag" style="--c:#C3A6FF;top:1px;left:1px">cover · 0.97 · seen</span>
+              <div class="cframe"></div>
+              <div class="clines" data-prob="3">
+                <div class="cv x1">الجمهورية الجزائرية الديمقراطية الشعبية</div>
+                <div class="cv x2">وزارة التعليم العالي والبحث العلمي</div>
+                <div class="logo"></div>
+                <div class="cv x3">كلية العلوم الاجتماعية والإنسانية</div>
+                <div class="cv ttl x1">مذكرة مقدمة لنيل شهادة الماستر</div>
+                <div class="cv ttl2 x2" style="font-size:7.5px">دور المنشآت الرياضية في تكوين اللاعبين</div>
+                <div class="cv x3" style="margin-top:6px">إعداد الطالب: ……… &nbsp; إشراف: ………</div>
+                <div class="cv x1" style="margin-top:4px">السنة الجامعية 2025 / 2026</div>
+              </div>
+            </div>
+            <div class="ftr"><span class="pn-old" data-prob="2" style="left:50%;margin-left:-2px">1</span></div>
+            <div class="fontb">fonts embedded</div>
+            <div class="beam"></div><div class="erase"></div>
+            <div class="seen"><svg><use href="#eye"/></svg></div>
+            <div class="wm"><span>PREVIEW · KWILL</span></div>
+            <div class="stamp">PDF ✓</div>
+          </div>
+          <div class="plab">p.1</div><div class="secl">§1 cover · no number</div>
+        </div>
+        <div class="pwrap">
+          <div class="page" id="p2">
+            <div class="hdr"><div class="hdr-old" data-prob="5">Remerciement</div></div>
+            <div class="body">
+              <div class="h1">الفهرس</div>
+              <div class="toc-area">
+                <div class="toc-typed" data-prob="4">
+                  <span class="tag" style="--c:#7DB3FF">typed TOC · 0.94</span>
+                  <div class="tr"><span class="t">مقدمة</span><span class="d"></span><span>1</span></div>
+                  <div class="tr nd"><span class="t">الفصل الأول: الإطار النظري</span><span class="d"></span><span>12</span></div>
+                  <div class="tr sh"><span class="t">المبحث الأول</span><span class="d"></span><span>13</span></div>
+                  <div class="tr sh"><span class="t">المبحث الثاني</span><span class="d" style="flex:0 0 30px"></span><span>15</span></div>
+                  <div class="tr"><span class="t">الفصل الثاني: الدراسة الميدانية</span><span class="d"></span><span>21</span></div>
+                  <div class="tr sh nd"><span class="t">عرض النتائج</span><span class="d"></span><span>24</span></div>
+                  <div class="tr"><span class="t">خاتمة</span><span class="d"></span><span>40</span></div>
+                  <div class="tr"><span class="t">قائمة المراجع</span><span class="d" style="flex:0 0 40px"></span><span>42</span></div>
+                </div>
+                <div class="toc-real">
+                  <span class="fld">TOC field · clickable</span>
+                  <div class="rr l1"><span>مقدمة</span><span class="d"></span><span>أ</span></div>
+                  <div class="rr l1"><span>الفصل الأول: الإطار النظري</span><span class="d"></span><span>1</span></div>
+                  <div class="rr l2"><span>المبحث الأول</span><span class="d"></span><span>2</span></div>
+                  <div class="rr l2"><span>المبحث الثاني</span><span class="d"></span><span>4</span></div>
+                  <div class="rr l1"><span>الفصل الثاني: الدراسة الميدانية</span><span class="d"></span><span>11</span></div>
+                  <div class="rr l2"><span>عرض النتائج</span><span class="d"></span><span>14</span></div>
+                  <div class="rr l1"><span>خاتمة</span><span class="d"></span><span>31</span></div>
+                  <div class="rr l1"><span>قائمة المراجع</span><span class="d"></span><span>33</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="ftr"><span class="pn-new">ب</span></div>
+            <div class="fontb">fonts embedded</div>
+            <div class="beam"></div><div class="erase"></div>
+            <div class="seen"><svg><use href="#eye"/></svg></div>
+            <div class="wm"><span>PREVIEW · KWILL</span></div>
+            <div class="stamp">PDF ✓</div>
+          </div>
+          <div class="plab">p.5</div><div class="secl">§2 front matter · abjad</div>
+        </div>
+        <div class="pwrap divw">
+          <div class="page divp" id="pd">
+            <div class="orn"></div><div class="dt">الفصل الأول</div><div class="ds">الإطار النظري</div>
+            <div class="stamp">PDF ✓</div>
+          </div>
+          <div class="plab"></div><div class="secl">§3 divider</div>
+        </div>
+        <div class="pwrap">
+          <div class="page" id="p3">
+            <div class="hdr"><div class="hdr-old">Chapitre II</div><div class="hdr-new">الفصل الأول: الإطار النظري</div></div>
+            <div class="body">
+              <div class="h1" data-prob="6"><span class="tag" style="--c:#F59433">h1 · 0.93</span>الفصل الأول: الإطار النظري</div>
+              <div class="para"><span class="tag" style="--c:#AEB6C4;top:-2px">body</span><i class="ln m1"></i><i class="ln"></i><i class="ln m1"></i><i class="ln" style="--w:62%"></i></div>
+              <div class="para"><i class="ln m2"></i><i class="ln"></i><i class="ln m2" style="--w:48%"></i></div>
+              <div class="fig" data-prob="7"><span class="tag" style="--c:#7EE0B5">figure</span><svg><use href="#img"/></svg></div>
+              <div class="cap-area">
+                <div class="cap-old" data-prob="8"><span class="tag" style="--c:#7DB3FF;top:-4px">caption · 0.88</span>شكل رقم 1 : مخطط المنشآت</div>
+                <div class="cap-new"><span class="fld">SEQ</span>الشكل 1: مخطط المنشآت الرياضية</div>
+              </div>
+              <div class="para"><i class="ln"></i><i class="ln m1"></i><i class="ln" style="--w:70%"></i></div>
+            </div>
+            <div class="ftr"><span class="pn-old" style="left:12px">12</span><span class="pn-new">1</span></div>
+            <div class="fontb">fonts embedded</div>
+            <div class="beam"></div><div class="erase"></div>
+            <div class="seen"><svg><use href="#eye"/></svg></div>
+            <div class="wm"><span>PREVIEW · KWILL</span></div>
+            <div class="stamp">PDF ✓</div>
+          </div>
+          <div class="plab">p.12</div><div class="secl">§3 chapter 1 · from 1</div>
+        </div>
+        <div class="pwrap">
+          <div class="page" id="p4">
+            <div class="hdr"><div class="hdr-new">الفصل الأول: الإطار النظري</div></div>
+            <div class="body">
+              <div class="h2"><span class="tag" style="--c:#F59433">h2 · 0.95</span>المبحث الأول</div>
+              <div class="para" data-prob="9"><i class="ln m3"></i><i class="ln"></i><i class="ln m4"></i><i class="ln m3"></i><div class="lnw"><i class="ln" style="--w:55%"></i><sup class="fref">(1)</sup></div></div>
+              <div class="junk" data-prob="11"><span class="tag" style="--c:#FF8A8A;top:2px">junk · 3 blank lines</span></div>
+              <div class="para"><i class="ln"></i><i class="ln m1"></i><i class="ln m2"></i><i class="ln" style="--w:40%"></i></div>
+              <div class="h2 strand" data-prob="10"><span class="tag low" style="--c:#FFD166">h2? · 0.62</span>المبحث الثاني</div>
+              <div class="fn"><span class="tag" style="--c:#AEB6C4;top:-9px">footnote</span><i class="ln"></i><i class="ln" style="--w:60%"></i></div>
+            </div>
+            <div class="ftr"><span class="pn-old" style="right:10px">13</span><span class="pn-new">2</span></div>
+            <div class="kn-chip" id="knchip">keep with next → next page</div>
+            <div class="fontb">fonts embedded</div>
+            <div class="beam"></div><div class="erase"></div>
+            <div class="seen"><svg><use href="#eye"/></svg></div>
+            <div class="wm"><span>PREVIEW · KWILL</span></div>
+            <div class="stamp">PDF ✓</div>
+          </div>
+          <div class="plab">p.13</div><div class="secl">§3 chapter 1</div>
+        </div>
+      </div>
+
+      <div class="ovw" id="ovw"><div class="lbl" id="ovlbl"></div><div class="grid" id="grid"><div class="loupe" id="loupe"></div></div></div>
+
+      <div class="phone" id="phone">
+        <div class="scr">
+          <div class="notch"></div>
+          <div class="trk" id="trk">
+            <div class="sc">
+              <h4>قواعد التنسيق</h4>
+              <div class="gpill" id="guidepill">مقروءة من دليل قسمك ✓</div>
+              <div class="row"><span>الخط</span><b>Traditional Arabic · 14</b></div>
+              <div class="row"><span>تباعد الأسطر</span><b>1.5</b></div>
+              <div class="row"><span>الهوامش (سم)</span><b>2.5 · 2.5 · 2.5 · 3</b></div>
+              <div class="row"><span>ترقيم التمهيد</span><b class="ar2">أ ب ج</b></div>
+              <div class="row"><span>ترقيم المتن</span><b class="ar2">1 2 3 · أسفل الوسط</b></div>
+              <div class="row nrow"><span>الإيداع</span><b class="ar2">PDF عبر المنصة</b></div>
+              <div class="pbtn" id="b1">متابعة</div>
+            </div>
+            <div class="sc">
+              <h4>سؤال 1 من 3</h4>
+              <div class="q">هل هذا السطر عنوان فرعي؟<div class="ex">…من أهم أسباب ضعف التكوين. <mark>المبحث الثاني</mark></div></div>
+              <div class="pbtn" id="b2" style="margin-top:6px">نعم، عنوان</div>
+              <div class="pbtn ghost">لا، نص عادي</div>
+              <div class="small">يمكنك تخطّي أي سؤال</div>
+            </div>
+            <div class="sc">
+              <h4>اختر الغلاف</h4>
+              <div class="small" style="text-align:right">قرأنا الأسماء من غلافك ✓</div>
+              <div class="covs">
+                <div class="cvc" id="cvA"><div class="mini"><i style="--w:70%"></i><i style="--w:55%"></i><div class="lg"></div><i style="--w:75%"></i><i style="--w:60%"></i></div><span>غلافك بعد التنظيف</span></div>
+                <div class="cvc"><div class="mini std"><div class="lg"></div><i style="--w:80%"></i><i style="--w:60%"></i><i style="--w:70%"></i><i style="--w:45%"></i></div><span>الغلاف الرسمي لجامعتك</span></div>
+              </div>
+              <div class="pbtn" id="b3">تأكيد</div>
+            </div>
+            <div class="sc" style="text-align:center">
+              <div class="done-ic">✓</div>
+              <h4 style="text-align:center">بدأ الإصلاح</h4>
+              <div class="small">يمكنك إغلاق التطبيق — سنرسل لك إشعارًا عند الانتهاء</div>
+            </div>
+          </div>
+          <div class="tapdot" id="tapdot"></div>
+        </div>
+      </div>
+
+      <div class="flash" id="flash"></div>
+
+      <div class="outs" id="outs">
+        <div class="out nw"><div class="fi docx">DOCX</div><div class="tx">memoire.docx<small>fonts embedded · no décalage</small></div></div>
+        <div class="out"><div class="fi pdf">PDF</div><div class="tx">memoire.pdf<small>print / deposit — the file checked</small></div></div>
+        <div class="out nw"><div class="fi abs">ABS</div><div class="tx">Abstract sheet<small>ملخص · résumé · abstract</small></div></div>
+        <div class="out nw"><div class="fi frm">FORM</div><div class="tx">Deposit forms<small>integrity declaration · authorisation</small></div></div>
+        <div class="out"><div class="fi rep">LIST</div><div class="tx">What changed<small>every fix, page by page</small></div></div>
+      </div>
+    </div>
+    <div class="readout" id="readout"></div>
+  </div>
+  <div class="legend">
+    <span class="g"><span class="who code">code</span> deterministic — same result every run</span>
+    <span class="g"><span class="who model">model</span> judgement only — never writes XML</span>
+    <span class="g"><span class="who student">student</span> answers what Kwill can't decide</span>
+    <span class="g"><svg class="eyei"><use href="#eye"/></svg> uses Kwill's PDF converter to see pages</span>
+  </div>
+
+  <!-- ④ DECIDE -->
+  <div class="sech" id="decide"><div class="n">4</div><div><h2>Decide</h2><p>Four calls the research raised. Click one option per question, then tell me in the terminal (or just say "recommended").</p></div></div>
+  <div class="dec-grid">
+    <div class="dec" data-q="1">
+      <div class="q">1 · What is in the first version?</div>
+      <div class="why">The shop's deliverable is a file that is ready to deposit, not just formatted pages.</div>
+      <div class="opt" data-choice="d1-a"><div class="lt">A</div><div><h4>Rescue + cover + deposit pack<span class="rec">recommended</span></h4><p>Everything in the flow above: formatted .docx and checked PDF (fonts embedded), abstract sheet, integrity declaration + deposit authorisation prefilled.</p></div></div>
+      <div class="opt" data-choice="d1-b"><div class="lt">B</div><div><h4>Rescue + cover only</h4><p>The .docx and PDF. No forms, no abstract sheet. Smaller, ships sooner.</p></div></div>
+      <div class="opt" data-choice="d1-c"><div class="lt">C</div><div><h4>A + printing &amp; delivery partner at launch</h4><p>One tap to print and bind copies, delivered to the wilaya. Needs a partner agreement; printing is the one thing a shop still does.</p></div></div>
+    </div>
+    <div class="dec" data-q="2">
+      <div class="q">2 · What happens after the supervisor's changes?</div>
+      <div class="why">This is where shops get paid twice — and the clearest reason to choose Kwill over them.</div>
+      <div class="opt" data-choice="d2-a"><div class="lt">A</div><div><h4>Free re-runs on the same thesis until the defense<span class="rec">recommended</span></h4><p>One purchase covers every revision of that thesis. Cost is bounded: the same file, mostly cached pages.</p></div></div>
+      <div class="opt" data-choice="d2-b"><div class="lt">B</div><div><h4>Two re-runs included</h4><p>Then each further run is paid. Easier to price, weaker message.</p></div></div>
+      <div class="opt" data-choice="d2-c"><div class="lt">C</div><div><h4>Every run is paid</h4><p>Same model as the shop.</p></div></div>
+    </div>
+    <div class="dec" data-q="3">
+      <div class="q">3 · How do we beat "décalage"?</div>
+      <div class="why">Shops advertise it because files shift on another PC. Arabic fonts are the usual culprit.</div>
+      <div class="opt" data-choice="d3-a"><div class="lt">A</div><div><h4>Embed fonts in the .docx and deliver the checked PDF<span class="rec">recommended</span></h4><p>Word honours embedded fonts on any PC. First task in the plan: prove the engine can embed them, and check the font licences.</p></div></div>
+      <div class="opt" data-choice="d3-b"><div class="lt">B</div><div><h4>PDF is the deposit file; the .docx is "as is"</h4><p>No engine work; the .docx may still shift on another PC.</p></div></div>
+    </div>
+    <div class="dec" data-q="4">
+      <div class="q">4 · Which shop service do we replace next?</div>
+      <div class="why">Each is its own spec after Rescue. The season decides the order: field work Feb–Apr, deposit May, defense June.</div>
+      <div class="opt" data-choice="d4-a"><div class="lt">A</div><div><h4>By season: SPSS field study → similarity pre-check → defense pack<span class="rec">recommended</span></h4><p>Each one lands just before students need it.</p></div></div>
+      <div class="opt" data-choice="d4-b"><div class="lt">B</div><div><h4>Defense pack first</h4><p>The most emotional moment; widest appeal, but only useful in June.</p></div></div>
+      <div class="opt" data-choice="d4-c"><div class="lt">C</div><div><h4>Similarity pre-check first</h4><p>The scariest gate for students; needs a third-party checker and its bill.</p></div></div>
+    </div>
+  </div>
+
+  <div class="srcs">
+    <h3>Sources</h3>
+    <ol>
+      <li>Ouedkniss listings — <a href="https://www.ouedkniss.com/bureautique-internet-memoirepfe-professionnel-mise-en-page-et-plagiat-alger-centre-algerie-d29078666">"Mémoire/PFE Professionnel [Mise en page et Plagiat]"</a>, <a href="https://www.ouedkniss.com/impression-edition-%D9%83%D8%AA%D8%A7%D8%A8%D8%A9-%D8%AA%D8%B9%D8%AF%D9%8A%D9%84-%D8%B7%D8%A8%D8%A7%D8%B9%D8%A9-birtouta-alger-algerie-d25198136">"كتابة تعديل طباعة" (35 DA)</a>, <a href="https://www.ouedkniss.com/alger-gue-de-constantine-algerie-ecoles-formations-spss-d16137888">"Spss"</a>, and the <a href="https://www.ouedkniss.com/services/1?keywords=mise-en-page-memoire">mise-en-page search</a>.</li>
+      <li><a href="https://www.univ-khenchela.dz/107980-2/">Univ. Khenchela</a> — digital-only PDF deposit via the supervisor's platform account; similarity ≤ 40% (2025-26). <a href="https://www.univ-khenchela.dz/static/medias/2026/01/a78b1fb6-81f4-43f5-82bc-fea23a3788f4.pdf">IMRAD master guide 2025-26</a>.</li>
+      <li>Deposit notices: <a href="https://www.univ-constantine2.dz/instbiblio/%D8%AA%D8%AD%D8%AF%D9%8A%D8%AF-%D8%A2%D9%84%D9%8A%D8%A7%D8%AA-%D9%88%D8%A2%D8%AC%D8%A7%D9%84-%D8%A5%D9%8A%D8%AF%D8%A7%D8%B9-%D9%88%D9%85%D9%86%D8%A7%D9%82%D8%B4%D8%A9-%D9%85%D8%B0%D9%83%D8%B1%D8%A7/?lang=en">Constantine 2</a>, <a href="https://fsnv.univ-ghardaia.edu.dz/%D8%A7%D9%8A%D8%AF%D8%A7%D8%B9-%D9%88-%D8%AA%D9%82%D9%8A%D9%8A%D9%85-%D9%85%D8%B0%D9%83%D8%B1%D8%A7%D8%AA-%D8%A7%D9%84%D9%85%D8%A7%D8%B3%D8%AA%D8%B1-%D9%84%D9%82%D8%B3%D9%85-%D8%A7%D9%84%D8%B9%D9%84.html">Ghardaïa</a>, <a href="https://fdsp.univ-setif2.dz/index.php/332-2017-04-27-14-45-23">Sétif 2</a>.</li>
+      <li><a href="https://www.wipo.int/wipolex/fr/legislation/details/20554">Arrêté n° 1082 du 27/12/2020</a> (plagiarism); <a href="https://www.awras.com/%D8%AA%D8%B9%D8%AF%D9%8A%D9%84-%D9%82%D8%B1%D8%A7%D8%B1-%D8%A5%D8%B9%D8%AF%D8%A7%D8%AF-%D9%85%D8%B0%D9%83%D8%B1%D8%A9-%D8%A7%D9%84%D8%AA%D8%AE%D8%B1%D8%AC-%D8%AA%D8%B9%D8%B2%D9%8A%D8%B2-%D8%B1%D9%8A/">2025 amendment to arrêté 1275</a>; <a href="https://www.horizons.dz/2026/02/horizons-dz-economie-innovation-et-entreprenariat-luniversite-table-sur-80-dinscriptions-au-decret-1275/">Horizons, Feb 2026 (80% target)</a>.</li>
+      <li>Ghost-writing prices — <a href="https://elraed.dz/135530-%D9%85%D8%B0%D9%83%D8%B1%D8%A7%D8%AA-%D8%A7%D9%84%D8%AA%D8%AE%D8%B1%D8%AC-%D8%A8%D9%80-10-%D9%85%D9%84%D8%A7%D9%8A%D9%8A%D9%86-%D8%B3%D9%86%D8%AA%D9%8A%D9%85-%D9%88%D8%A3%D9%84%D9%81-%D8%AF%D9%8A%D9%86%D8%A7%D8%B1-%D9%84%D9%84%D8%A8%D8%AD%D9%88%D8%AB">El Raed (2019)</a>, <a href="https://www.echoroukonline.com/%D9%85%D8%B0%D9%83%D8%B1%D8%A7%D8%AA-%D8%AA%D8%AE%D8%B1%D8%AC-%D8%AC%D8%A7%D9%87%D8%B2%D8%A9-%D9%84%D9%84%D8%B7%D9%84%D8%A8%D8%A9-%D9%88%D8%AA%D8%AD%D8%AA-%D8%A7%D9%84%D8%B7%D9%84%D8%A8-%D8%A8">Echorouk</a>.</li>
+      <li>Printing — <a href="https://print-pdf.dz/">print-pdf.dz</a> (4.99 DA B/W, 7 DA colour, −20% students, Yalidine 24–72 h, cash on delivery). Freelance — <a href="https://khamsat.com/data/data-analytics/2037323-%D8%A7%D9%84%D8%AA%D8%AD%D9%84%D9%8A%D9%84-%D8%A7%D9%84%D8%A5%D8%AD%D8%B5%D8%A7%D8%A6%D9%8A-%D9%84%D9%84%D8%A3%D8%A8%D8%AD%D8%A7%D8%AB-%D9%88%D8%A7%D9%84%D8%AF%D8%B1%D8%A7%D8%B3%D8%A7%D8%AA-%D8%A8%D8%A7%D8%B3%D8%AA%D8%AE%D8%AF%D8%A7%D9%85-spss">Khamsat SPSS</a>, <a href="https://khamsat.com/designing/presentation/1504818-%D8%AA%D8%B5%D9%85%D9%8A%D9%85-%D8%B9%D8%B1%D8%B6-%D8%A8%D9%88%D8%B1%D8%A8%D9%88%D9%8A%D9%86%D8%AA-%D9%85%D9%85%D9%8A%D8%B2-%D9%88%D8%AC%D8%B0%D8%A7%D8%A8">Khamsat slides</a>.</li>
+      <li>Facebook and WhatsApp, where most shops actually sell, can't be read without an account — prices there are not included.</li>
+    </ol>
+  </div>
+</div>
+
+<div class="bar-choices" id="choices"><span class="cnt2" id="ccount">0 / 4</span><span class="c" id="ctext">Pick one option per question in ④</span></div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const EYE = '<svg class="eyei"><use href="#eye"/></svg>';
+const GALL = 'g-styles g-roles g-typo g-sections g-num g-headers g-cover g-dividers g-toc g-captions g-refs g-fonts';
+const STAGES = [
+  { key:'Read', ar:'قراءة', who:'code', eye:true },
+  { key:'Map', ar:'فهم', who:'model', eye:true, nw:true },
+  { key:'Diagnose', ar:'تشخيص', who:'code', eye:true },
+  { key:'Confirm', ar:'تأكيد', who:'student', eye:false, nw:true },
+  { key:'Reset', ar:'مسح', who:'code', eye:false },
+  { key:'Regenerate', ar:'إعادة البناء', who:'code', eye:false, nw:true },
+  { key:'Review', ar:'مراجعة بصرية', who:'model', eye:true },
+  { key:'Prove', ar:'إثبات وتسليم', who:'code', eye:true, nw:true },
+];
+const N = STAGES.length;
+const BASE = ['', 'read', 'read', 'read', 'read', 'read wiped', 'read wiped ' + GALL, 'read wiped ' + GALL + ' fixed2'];
+const NEWB = '<span class="newb">NEW</span>';
+
+/* rail */
+const rail = $('#rail');
+STAGES.forEach((s, i) => {
+  if (i === 3) {
+    const g = document.createElement('div');
+    g.className = 'gate'; g.id = 'gate';
+    g.innerHTML = `<div class="lock">
+      <svg class="lk-shut" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      <svg class="lk-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>
+      </div><div class="gl">one-time<br>payment</div>`;
+    rail.appendChild(g);
+  }
+  const b = document.createElement('button');
+  b.className = 'node'; b.dataset.i = i;
+  b.innerHTML = `${s.nw ? '<span class="nw">NEW</span>' : ''}<span class="dot"><b>${i + 1}</b></span><span class="nm">${s.key}</span><span class="ar">${s.ar}</span>
+    <span class="meta"><span class="who ${s.who}">${s.who}</span>${s.eye ? EYE : ''}</span>`;
+  b.onclick = () => go(i);
+  rail.appendChild(b);
+});
+function paintRail() {
+  $$('.node').forEach((n, i) => { n.classList.toggle('active', i === cur); n.classList.toggle('done', i < cur); });
+  const dots = $$('.node .dot'), rb = rail.getBoundingClientRect();
+  const cx = el => { const r = el.getBoundingClientRect(); return r.left + r.width / 2 - rb.left; };
+  const x0 = cx(dots[0]), xN = cx(dots[N - 1]), xc = cx(dots[cur]);
+  $('#rtrack').style.left = $('#rfill').style.left = x0 + 'px';
+  $('#rtrack').style.width = (xN - x0) + 'px';
+  $('#rfill').style.width = (xc - x0) + 'px';
+  $('#gate').classList.toggle('open', cur >= 3);
+}
+window.addEventListener('resize', () => { if (started) paintRail(); });
+
+/* readout */
+const head = i => {
+  const s = STAGES[i];
+  return `<div class="rh"><div class="num">${i + 1}</div><div class="t">${s.key}<span class="arx">${s.ar}</span></div>
+    <div class="meta"><span class="who ${s.who}">${s.who}</span>${s.eye ? EYE : ''}</div></div>`;
+};
+const cnt = (to, label) => `<div class="cnt ri" data-to="${to}"><b>0</b><span>${label}</span></div>`;
+const bar = (label, n, p, c) => `<div class="bar ri" style="--p:${p}%;--c:${c}"><span>${label}</span><div class="tr2"><div class="fl2"></div></div><em>${n}</em></div>`;
+const note = (ic, cls, html) => `<div class="note ri"><span class="ic ${cls}">${ic}</span><span>${html}</span></div>`;
+const pi = (n, t) => `<div class="pi ri"><span class="n">${n}</span>${t}</div>`;
+const ck = (t, s = '') => `<div class="ck ri"><span class="bx">✓</span><span>${t}${s ? ` <small>${s}</small>` : ''}</span></div>`;
+
+const BODY = [
+  () => `<div class="desc">Code takes a full inventory of the student's own file and converts it to PDF through Kwill's converter.</div>
+    <div class="cnts">${cnt(153,'pages')}${cnt(1284,'blocks')}${cnt(41720,'words')}${cnt(96,'footnotes')}${cnt(23,'figures')}${cnt(14,'tables')}${cnt(7,'equations')}${cnt(7,'section breaks')}${cnt(3,'header designs')}</div>
+    <div class="fp ri">Word fingerprint saved: <code>sha256 a3f9…c21e</code> — stage 8 proves nothing was lost.</div>
+    ${note('↗', 'b', 'Arrives the way students already pass it around: share from WhatsApp / Telegram straight into Kwill.')}`,
+  () => `<div class="desc">The model reads the text <b>and looks at page images</b>, then gives every block exactly one role. It never touches the file.</div>
+    <div class="bars">
+      ${bar('body', '1 012', 92, '#AEB6C4')}${bar('h1 · h2 · h3', '71', 30, '#F59433')}${bar('footnote', '96', 38, '#AEB6C4')}
+      ${bar('figure · table', '37', 22, '#7EE0B5')}${bar('caption', '37', 22, '#7DB3FF')}${bar('typed TOC/lists', '3', 6, '#7DB3FF')}
+      ${bar('cover', '1 page', 6, '#C3A6FF')}${bar('junk', '61', 26, '#FF8A8A')}
+    </div>
+    ${note('◆', 'w', `Recognises the format — <b>classic</b>, <b>IMRAD</b> or <b>1275 business-model</b> — each has its own required structure. ${NEWB}`)}
+    ${note('?', 'w', '5 low-confidence roles → questions for the student.')}
+    ${note('★', 'b', 'While we build, <b>I</b> write this map by hand — the answer key the production model is scored against.')}`,
+  () => `<div class="desc">Code compares the file with the faculty's rules. Free — this screen is the sales pitch.</div>
+    <div class="plist">
+      ${pi(1,'A chapter header printed on the cover')}${pi(2,'Page number on the cover')}${pi(3,'Cover misaligned, 4 different fonts')}
+      ${pi(4,'Contents typed by hand — numbers wrong')}${pi(5,'"Remerciement" header on the contents')}${pi(6,'Chapter title not a real heading')}
+      ${pi(7,'Figure wider than the margins')}${pi(8,'Caption typed, not numbered by Word')}${pi(9,'Body in 4 fonts · margin 2.0 cm (rule 3.0)')}
+      ${pi(10,'Heading stranded at the foot of a page')}${pi(11,'Blank lines used as spacing')}
+    </div>
+    <div class="total ri"><b>47</b> problems against your faculty's rules <span style="color:var(--dim)">(+36 not shown)</span></div>
+    ${note('👁', 'o', 'Preview: pages 1 and 12 <b>really repaired</b>, watermarked.')}`,
+  () => `<div class="desc">After payment. The student checks what Kwill read and answers only what it couldn't decide.</div>
+    ${note('1', 'g', 'Rules: department guide (PDF or photo) → catalogue → Algerian default. <b>Editable.</b>')}
+    ${note('2', 'g', '≤ 5 questions, each one dismissible.')}
+    ${note('3', 'g', 'Cover fields read from the old cover — one tap to confirm.')}
+    ${note('4', 'g', 'Cover: their own cleaned, or the university standard.')}
+    ${note('5', 'w', `Deposit rules for the department — PDF-only on the platform, or copies + CD — so the delivery matches. ${NEWB}`)}
+    ${note('↻', 'b', 'Runs on the server — the student can close the app; a push arrives when done.')}`,
+  () => `<div class="desc">Code wipes the presentation layer <b>inside the student's own file</b>. Content never leaves it.</div>
+    <div class="cols">
+      <div><div class="colh r">Removed</div>
+        <div class="li ri"><b>7</b> section breaks</div><div class="li ri"><b>3</b> header/footer designs</div>
+        <div class="li ri">typed contents + <b>2</b> typed lists</div><div class="li ri"><b>61</b> blank lines</div>
+        <div class="li ri"><b>3 140</b> direct font/size runs</div></div>
+      <div><div class="colh k">Kept, untouched</div>
+        <div class="li ri">every word</div><div class="li ri">bold · italic · superscript</div>
+        <div class="li ri"><b>96</b> footnotes</div><div class="li ri"><b>23</b> images · <b>7</b> equations</div>
+        <div class="li ri"><b>14</b> tables</div></div>
+    </div>`,
+  () => `<div class="desc">Code rebuilds every layer from the rules and the map — the same way every time.</div>
+    <div class="checks">
+      ${ck('Styles from the rules', 'Traditional Arabic 14 · 1.5')}${ck('Roles → real headings', 'keep with next')}
+      ${ck('Typography', '31 fixes, listed')}${ck('Sections', 'cover · front matter · per chapter')}
+      ${ck('Page numbers', 'none on cover · abjad letters · then 1 2 3')}${ck('Headers', 'chapter title per section')}
+      ${ck('Cover', 'cleaned in place')}${ck('Divider pages + frames', 'numbered chapters only')}
+      ${ck(`TOC + lists — <b>clickable</b> ${NEWB}`, 'real Word fields')}${ck('Captions', 'real, numbered (SEQ)')}
+      ${ck(`References grouped &amp; sorted ${NEWB}`, 'books · articles · websites — if confirmed')}
+      ${ck(`Fonts embedded ${NEWB}`, 'anti-décalage')}
+    </div>`,
+  () => `<div class="desc">The model looks at every page like a print-shop employee would, fixes what only eyes catch, and re-converts <b>only the pages it touched</b>.</div>
+    ${note('1', 'w', 'Round 1 — overview of all 156 pages → <b>2 issues</b>')}
+    ${note('→', 'o', 'p.12 figure wider than the margins → resized')}
+    ${note('→', 'o', 'p.46 blank page after a divider → removed')}
+    ${note('2', 'g', 'Round 2 — re-converted pages only → <b>0 issues</b> ✓')}
+    ${note('≤3', 'b', 'At most 3 rounds; anything left is reported, never hidden.')}`,
+  () => `<div class="desc">Code proves the result against <b>the real PDF</b>. One failed check → a refund, never a broken file.</div>
+    <div class="checks">
+      ${ck('Every word identical', '41 720 = 41 720 · 31 typo fixes listed')}
+      ${ck('Footnotes, figures, tables, equations', '96 · 23 · 14 · 7')}
+      ${ck('A number on every page, in sequence', 'read from the PDF')}
+      ${ck('No blank page · no heading at a page foot')}
+      ${ck('TOC entries match the real pages')}
+      ${ck('Word opens it — no repair prompt')}
+      ${ck(`Fonts embedded — same look on any PC ${NEWB}`)}
+      ${ck(`Deposit pack matches the department ${NEWB}`, 'PDF · forms · abstract sheet')}
+    </div>`,
+];
+
+/* engine */
+const CANCEL = Symbol('cancel');
+let gen = 0, cur = 0, playing = true, speed = 1, started = false;
+function wait(ms) {
+  const g = gen;
+  return new Promise((res, rej) => {
+    let left = ms, last = performance.now();
+    (function tick() {
+      if (g !== gen) return rej(CANCEL);
+      const now = performance.now();
+      if (playing) left -= (now - last) * speed;
+      last = now;
+      if (left <= 0) return res();
+      requestAnimationFrame(tick);
+    })();
+  });
+}
+const items = () => $$('#readout .ri');
+function reveal(el) { if (!el) return; el.classList.add('on'); if (el.dataset.to) countUp(el.querySelector('b'), +el.dataset.to); }
+async function revealRest(step = 450) { for (const el of items()) { if (!el.classList.contains('on')) { reveal(el); await wait(step); } } }
+function countUp(b, to) {
+  const t0 = performance.now(), d = 700;
+  (function f(t) {
+    const k = Math.min(1, (t - t0) / d), v = Math.round(to * (1 - Math.pow(1 - k, 3)));
+    b.textContent = v.toLocaleString('fr-FR').replace(/ | /g, ' ');
+    if (k < 1) requestAnimationFrame(f);
+  })(t0);
+}
+function setChip(html) { const c = $('#chip'); if (!html) { c.classList.remove('on'); return; } c.innerHTML = html; c.classList.add('on'); }
+let flashTimer = null;
+function flash(html, ms) {
+  const f = $('#flash'); f.innerHTML = html; f.classList.add('on');
+  clearTimeout(flashTimer); flashTimer = setTimeout(() => f.classList.remove('on'), ms / speed);
+}
+function tapAt(el) {
+  const s = $('.scr').getBoundingClientRect(), r = el.getBoundingClientRect(), d = $('#tapdot');
+  d.style.left = (r.left - s.left + r.width / 2) + 'px';
+  d.style.top = (r.top - s.top + r.height / 2) + 'px';
+  d.classList.remove('go'); void d.offsetWidth; d.classList.add('go');
+}
+function baseline(i) {
+  const box = $('#stagebox');
+  box.classList.add('notrans');
+  $('#doc').className = 'doc ' + BASE[i];
+  box.classList.remove('ov');
+  $$('.tag').forEach(t => t.classList.remove('on'));
+  $$('[data-prob]').forEach(e => e.classList.remove('pr-on'));
+  $$('.page').forEach(p => p.classList.remove('pv', 'scan', 'erasing', 'seenon', 'stamped'));
+  $$('.flag').forEach(e => e.classList.remove('flag'));
+  $('#knchip').classList.remove('on');
+  $('#flash').classList.remove('on');
+  $('#phone').classList.remove('on');
+  $('#trk').style.transform = 'translateX(0)';
+  $$('.row').forEach(r => r.classList.remove('on'));
+  $('#guidepill').classList.remove('on');
+  $('#cvA').classList.remove('pick');
+  $('#outs').classList.remove('on');
+  $('#loupe').classList.remove('on');
+  $('#loop').classList.remove('hot');
+  buildGrid();
+  setChip('');
+  $('#stcap').innerHTML = `Stage <b>${i + 1}</b> / ${N} · ${STAGES[i].key}`;
+  $('#readout').innerHTML = head(i) + BODY[i]() + `<div class="rfoot">${i < 3 ? 'Free — before payment' : 'Paid — after the one-time payment'}</div>`;
+  void box.offsetWidth;
+  box.classList.remove('notrans');
+}
+async function go(i) {
+  started = true;
+  gen++;
+  cur = (i + N) % N;
+  const mine = gen;
+  baseline(cur);
+  paintRail();
+  try {
+    await RUN[cur]();
+    await wait(cur === N - 1 ? 5200 : 1900);
+    if (mine === gen) go(cur + 1);
+  } catch (e) { if (e !== CANCEL) console.error(e); }
+}
+
+/* overview grid */
+const GRID_TYPES = ['cov','toc','bd','bd','dv','ch','bd','bd','bd','bd','ch','figw','bd','bd','bd','dv','blank','ch','bd','bd','bd','bd','bd','bd'];
+function buildGrid() {
+  const g = $('#grid');
+  $$('.th', g).forEach(t => t.remove());
+  let pn = 0;
+  GRID_TYPES.forEach(t => {
+    const d = document.createElement('div');
+    d.className = 'th ' + t;
+    const lines = n => Array.from({ length: n }, (_, j) => `<i style="--w:${j === n - 1 ? 55 : 100}%"></i>`).join('');
+    let h = '';
+    if (t === 'cov') h = `<i style="--w:80%;margin:0 auto"></i><i style="--w:60%;margin:0 auto"></i><div style="width:8px;height:8px;border-radius:50%;margin:3px auto;background:conic-gradient(#1f6b46 0 25%,#c33 0 50%,#1f6b46 0 75%,#c33 0)"></div><i style="--w:70%;margin:0 auto"></i>`;
+    else if (t === 'dv') h = `<div class="hb" style="margin-top:16px"></div>`;
+    else if (t === 'ch') h = `<div class="hb"></div>` + lines(7);
+    else if (t === 'figw') h = lines(3) + `<div class="im"></div>` + lines(3);
+    else if (t === 'toc') h = `<div class="hb" style="width:40%"></div>` + lines(8);
+    else if (t === 'bd') h = lines(11);
+    if (t !== 'cov' && t !== 'dv' && t !== 'blank') h += `<span class="pn">${++pn}</span>`;
+    if (t === 'figw') h += `<span class="fl">figure overflows</span>`;
+    if (t === 'blank') h += `<span class="fl">blank page</span>`;
+    d.innerHTML = h;
+    g.appendChild(d);
+  });
+}
+function loupeTo(th) {
+  const g = $('#grid').getBoundingClientRect(), r = th.getBoundingClientRect(), l = $('#loupe');
+  l.style.transform = `translate(${r.left - g.left + r.width / 2 - 27}px, ${r.top - g.top + r.height / 2 - 27}px)`;
+}
+async function sweep(step, flagIt) {
+  const l = $('#loupe');
+  l.classList.add('on');
+  for (const th of $$('#grid .th')) {
+    if (th.classList.contains('gone')) continue;
+    loupeTo(th);
+    await wait(step);
+    if (flagIt && (th.classList.contains('figw') || th.classList.contains('blank'))) { th.classList.add('flag'); await wait(450); }
+  }
+  l.classList.remove('on');
+}
+
+/* stage scripts */
+const RUN = [
+  async () => {
+    const it = items(); let k = 0;
+    await wait(400);
+    for (const p of ['#p1', '#p2', '#p3', '#p4'].map(s => $(s))) {
+      p.classList.add('scan'); reveal(it[k++]); reveal(it[k++]);
+      await wait(950); p.classList.remove('scan');
+    }
+    reveal(it[k++]);
+    $('#doc').classList.add('read');
+    setChip(`${EYE} converted to PDF · 153 pages`);
+    await wait(600);
+    await revealRest(600);
+  },
+  async () => {
+    const it = items();
+    setChip(`${EYE} the model sees the pages`);
+    await wait(300);
+    $('#p1').classList.add('seenon');
+    await wait(700);
+    let k = 0;
+    for (const t of $$('#doc .tag')) { t.classList.add('on'); if (k < 8) reveal(it[k]); k++; await wait(320); }
+    $('#p4').classList.add('seenon');
+    await revealRest(700);
+  },
+  async () => {
+    const it = items();
+    setChip('checked against your faculty\'s rules');
+    await wait(300);
+    const probs = $$('#doc [data-prob]').sort((a, b) => a.dataset.prob - b.dataset.prob);
+    for (let k = 0; k < probs.length; k++) { probs[k].classList.add('pr-on'); reveal(it[k]); await wait(380); }
+    reveal(it[probs.length]);
+    await wait(1500);
+    probs.forEach(p => p.classList.remove('pr-on'));
+    $('#p1').classList.add('pv'); $('#p3').classList.add('pv');
+    setChip(`${EYE} preview — 2 pages repaired for real`);
+    await revealRest();
+    await wait(2000);
+  },
+  async () => {
+    const it = items();
+    const g = $('#gate'); g.classList.remove('pop'); void g.offsetWidth; g.classList.add('pop');
+    setChip('payment received ✓');
+    await wait(500);
+    $('#doc').classList.add('dim');
+    $('#phone').classList.add('on');
+    await wait(700);
+    $('#guidepill').classList.add('on'); reveal(it[0]);
+    for (const r of $$('.row')) { r.classList.add('on'); if (r.classList.contains('nrow')) reveal(it[4]); await wait(260); }
+    await wait(500);
+    tapAt($('#b1')); await wait(450);
+    $('#trk').style.transform = 'translateX(-25%)'; reveal(it[1]);
+    await wait(1300);
+    tapAt($('#b2')); await wait(450);
+    $('#trk').style.transform = 'translateX(-50%)'; reveal(it[2]);
+    await wait(1000);
+    tapAt($('#cvA')); $('#cvA').classList.add('pick'); reveal(it[3]);
+    await wait(800);
+    tapAt($('#b3')); await wait(450);
+    $('#trk').style.transform = 'translateX(-75%)';
+    await revealRest();
+    await wait(1400);
+  },
+  async () => {
+    setChip('wiping the presentation layer');
+    await wait(400);
+    $$('#doc .page').forEach(p => p.classList.add('erasing'));
+    await wait(300);
+    $('#doc').classList.add('wiped');
+    await revealRest(240);
+    await wait(900);
+  },
+  async () => {
+    const it = items();
+    const steps = GALL.split(' ');
+    setChip('rebuilding from the rules + the map');
+    await wait(300);
+    for (let k = 0; k < steps.length; k++) {
+      const el = it[k];
+      reveal(el); el.classList.add('act');
+      await wait(400);
+      $('#doc').classList.add(steps[k]);
+      if (steps[k] === 'g-roles') { $('#knchip').classList.add('on'); setTimeout(() => $('#knchip').classList.remove('on'), 2200 / speed); }
+      if (steps[k] === 'g-typo') flash('typography: <span class="arx">« ؟ »</span> spacing · digits · tatweel — <b>31 fixes</b>, all listed', 1800);
+      if (steps[k] === 'g-toc') flash('TOC and lists are real fields — <b>tap an entry, land on the page</b>', 1800);
+      if (steps[k] === 'g-refs') flash('<span class="arx">المراجع</span>: books · articles · theses · websites — grouped, then sorted A→Z / أ→ي', 2000);
+      if (steps[k] === 'g-fonts') flash('Fonts embedded in the .docx — <b>opens identically on the print shop\'s PC</b>', 2000);
+      await wait(['g-roles', 'g-dividers', 'g-refs', 'g-fonts'].includes(steps[k]) ? 950 : 560);
+      el.classList.remove('act'); el.classList.add('done');
+    }
+  },
+  async () => {
+    const it = items();
+    const box = $('#stagebox');
+    setChip(`${EYE} looking at every page`);
+    box.classList.add('ov');
+    $('#ovlbl').textContent = '👁 round 1 — every page, converted by Kwill';
+    await wait(600);
+    await sweep(105, true);
+    reveal(it[0]);
+    await wait(700);
+    box.classList.remove('ov');
+    await wait(500);
+    const fig = $('#p3 .fig');
+    fig.classList.add('flag');
+    setChip(`${EYE} p.12 — figure wider than the margins`);
+    await wait(1100);
+    $('#doc').classList.add('fixed2');
+    fig.classList.remove('flag');
+    reveal(it[1]);
+    setChip(`${EYE} re-converted p.12 only`);
+    await wait(1100);
+    box.classList.add('ov');
+    const fw = $('#grid .figw'); fw.classList.remove('flag'); fw.classList.add('fixd', 'ok');
+    await wait(800);
+    $('#grid .blank').classList.add('gone');
+    reveal(it[2]);
+    await wait(900);
+    $('#ovlbl').textContent = '👁 round 2 — only the re-converted pages';
+    fw.classList.remove('ok');
+    await sweep(50, false);
+    reveal(it[3]);
+    setChip('0 issues ✓');
+    await wait(600);
+    reveal(it[4]);
+  },
+  async () => {
+    setChip(`${EYE} checking the real PDF`);
+    await wait(400);
+    for (const el of items()) { reveal(el); el.classList.add('act'); await wait(560); el.classList.remove('act'); el.classList.add('done'); }
+    for (const p of $$('#doc .page')) { p.classList.add('stamped'); await wait(130); }
+    await wait(300);
+    $('#outs').classList.add('on');
+    setChip('delivered ✓');
+    await wait(1400);
+    $('#loop').classList.add('hot');
+    flash('Supervisor asks for changes? <b>Upload the new version → the 8 stages run again, free.</b>', 3000);
+  },
+];
+
+/* controls */
+function setPlaying(v) { playing = v; const b = $('#play'); b.innerHTML = v ? '❚❚ Pause' : '▶ Play'; b.classList.toggle('on', v); }
+$('#play').onclick = () => { if (!started) { go(0); setPlaying(true); } else setPlaying(!playing); };
+$('#prev').onclick = () => go(cur - 1);
+$('#next').onclick = () => go(cur + 1);
+$$('#speed .btn').forEach(b => b.onclick = () => { speed = +b.dataset.s; $$('#speed .btn').forEach(x => x.classList.toggle('on', x === b)); });
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input,textarea')) return;
+  if (e.key === 'ArrowRight') go(cur + 1);
+  else if (e.key === 'ArrowLeft') go(cur - 1);
+});
+
+/* decisions */
+const picked = {};
+$$('.opt').forEach(o => o.addEventListener('click', () => {
+  const card = o.closest('.dec');
+  $$('.opt', card).forEach(x => x.classList.toggle('sel', x === o));
+  picked[card.dataset.q] = o.dataset.choice.split('-')[1].toUpperCase();
+  const n = Object.keys(picked).length;
+  $('#ccount').textContent = `${n} / 4`;
+  $('#choices').classList.toggle('done', n === 4);
+  $('#ctext').innerHTML = [1, 2, 3, 4].map(q => `Q${q} <b>${picked[q] || '·'}</b>`).join(' &nbsp; ') + (n === 4 ? ' — tell me in the terminal' : '');
+}));
+
+/* start the animation when the flow scrolls into view */
+buildGrid();
+baseline(0); cur = 0;
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(() => {
+  paintRail();
+  const io = new IntersectionObserver(es => {
+    if (es.some(e => e.isIntersecting) && !started) { go(0); io.disconnect(); }
+  }, { threshold: 0.35 });
+  io.observe($('#stagebox'));
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rescue — student experience directions</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0D0F13; --panel:#14181F; --panel2:#1A1F29; --line:#262C37; --ink:#E8ECF2; --muted:#8B95A7; --dim:#5B6577;
+  --brand:#F59433; --brandL:#FFB166; --brandD:#C2670C; --ok:#4CC38A; --bad:#FF6B6B; --warn:#FFD166;
+  /* app light theme (constants/colors.ts) */
+  --a-bg:#FAFAFE; --a-surface:#F0F0F5; --a-card:#FFFFFF; --a-input:#F2F2F7; --a-text:#1A1A26; --a-sec:#737385;
+  --a-ph:#A6A6B3; --a-border:#E0E0E6; --a-subtle:#EDEDF0; --a-success:#26B88C; --a-error:#E64040; --a-warn:#E69919;
+  --ar:"Noto Sans Arabic","Geeza Pro",system-ui,sans-serif;
+  --serif:"Amiri","Geeza Pro",serif;
+  --ui:"Inter",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui)}
+body{background:radial-gradient(1100px 480px at 15% -12%, rgba(245,148,51,.10), transparent 60%),var(--bg)}
+.wrap{max-width:1300px;margin:0 auto;padding:24px 24px 60px}
+h1{margin:0;font:800 27px var(--ui);letter-spacing:-.4px}
+h1 em{font-style:normal;color:var(--brand)}
+.sub{color:var(--muted);font-size:13.5px;margin-top:6px;line-height:1.5;max-width:900px}
+.princ{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:18px 0 22px}
+.pr{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:11px 12px}
+.pr b{display:block;font:700 12.5px var(--ui);margin-bottom:3px}
+.pr span{font:500 11.5px/1.45 var(--ui);color:var(--muted)}
+
+/* direction rows */
+.dir{display:grid;grid-template-columns:330px 1fr;gap:22px;align-items:center;background:var(--panel);border:1.5px solid var(--line);border-radius:22px;padding:20px 22px;margin-bottom:16px;cursor:pointer;transition:all .2s;position:relative}
+.dir:hover{border-color:#3a4252}
+.dir.sel{border-color:var(--brand);box-shadow:0 0 0 4px rgba(245,148,51,.14);background:linear-gradient(0deg,rgba(245,148,51,.04),rgba(245,148,51,.04)),var(--panel)}
+.dir .lt{width:34px;height:34px;border-radius:11px;background:#232a36;color:var(--muted);display:grid;place-items:center;font:800 15px var(--ui);margin-bottom:10px;transition:all .2s}
+.dir.sel .lt{background:var(--brand);color:#1b1206}
+.dir h2{margin:0;font:800 20px var(--ui);letter-spacing:-.3px}
+.dir .rec{display:inline-block;font:800 9.5px var(--ui);letter-spacing:.8px;text-transform:uppercase;color:var(--ok);border:1px solid rgba(76,195,138,.45);border-radius:999px;padding:2px 7px;margin-left:8px;vertical-align:3px}
+.dir .tag{font:500 13px/1.5 var(--ui);color:#C4CBD7;margin:6px 0 12px}
+.pc{font:500 12.3px/1.5 var(--ui);color:#C4CBD7;margin:4px 0;display:flex;gap:7px}
+.pc i{font-style:normal;font-weight:800;flex:none}
+.pc.p i{color:var(--ok)}.pc.c i{color:var(--bad)}
+.phones{display:flex;gap:16px;justify-content:flex-end}
+.cap2{font:600 11px var(--ui);color:var(--muted);text-align:center;margin-top:8px;letter-spacing:.3px}
+
+/* phone */
+.ph{width:250px;height:520px;border-radius:36px;background:#0a0c10;padding:8px;box-shadow:0 24px 50px rgba(0,0,0,.55),0 0 0 1px #2a303a;flex:none}
+.scr{position:relative;width:100%;height:100%;border-radius:29px;overflow:hidden;background:var(--a-bg);direction:rtl;font-family:var(--ar);color:var(--a-text)}
+.sbar{height:26px;display:flex;justify-content:space-between;align-items:center;padding:0 18px;font:700 10.5px var(--ui);color:var(--a-text);direction:ltr}
+.sbar .ic{display:flex;gap:4px;align-items:center}
+.sbar .ic i{display:block;width:13px;height:7px;border-radius:2px;background:var(--a-text);opacity:.85}
+.sbar .ic i:first-child{width:9px;opacity:.6}
+.tb{display:flex;align-items:center;gap:10px;padding:6px 14px 4px}
+.back{width:28px;height:28px;border-radius:10px;background:var(--a-surface);display:grid;place-items:center;font:700 14px var(--ui);color:var(--a-text);flex:none}
+.prog{flex:1;display:flex;gap:4px;direction:rtl}
+.prog i{flex:1;height:4px;border-radius:3px;background:var(--a-subtle)}
+.prog i.f{background:var(--brand)}
+.body{padding:8px 16px}
+.t1{font:800 19px/1.35 var(--ar);margin:6px 0 4px}
+.t2{font:500 11.5px/1.55 var(--ar);color:var(--a-sec)}
+.okpill{display:inline-flex;gap:5px;align-items:center;margin-top:9px;font:600 10.5px var(--ar);color:#167a5c;background:#E3F6EF;border-radius:999px;padding:4px 10px}
+.list{margin-top:12px;background:var(--a-card);border:1px solid var(--a-border);border-radius:16px;overflow:hidden}
+.li{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--a-subtle);font:600 12px var(--ar)}
+.li:first-child{border-top:0}
+.li .ico{width:26px;height:26px;border-radius:9px;display:grid;place-items:center;font:700 12px var(--ui);flex:none}
+.li .n{margin-inline-start:auto;font:700 11px var(--ui);color:var(--brandD);background:#FFF1E3;border-radius:999px;padding:2px 8px}
+.li .chev{color:var(--a-ph);font:700 12px var(--ui)}
+.foot{position:absolute;left:0;right:0;bottom:0;padding:10px 16px 18px;background:linear-gradient(180deg,rgba(250,250,254,0),var(--a-bg) 28%)}
+.cta{height:44px;border-radius:14px;background:var(--brand);color:#fff;display:grid;place-items:center;font:700 14px var(--ar);box-shadow:0 6px 16px rgba(245,148,51,.35)}
+.cta2{height:40px;border-radius:14px;background:var(--a-card);border:1.5px solid var(--a-border);color:var(--a-text);display:grid;place-items:center;font:700 13px var(--ar);margin-top:8px}
+.link{text-align:center;font:600 11.5px var(--ar);color:var(--brandD);margin-top:9px}
+.fine{text-align:center;font:500 10px var(--ar);color:var(--a-sec);margin-top:6px}
+.qbox{margin-top:12px;background:var(--a-card);border:1px solid var(--a-border);border-radius:16px;padding:12px}
+.qbox .ex{font:400 12px/1.9 var(--serif);color:#444}
+.qbox mark{background:#FFE6C7;border-radius:4px;padding:0 3px;font-weight:700;color:#7a3f08}
+.qbox .where{font:500 10px var(--ar);color:var(--a-sec);margin-top:6px}
+
+/* ring progress */
+.ring{width:132px;height:132px;margin:14px auto 6px;position:relative}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .v{position:absolute;inset:0;display:grid;place-items:center;font:800 28px var(--ui);color:var(--a-text)}
+.ring .v small{display:block;font:600 10px var(--ar);color:var(--a-sec);margin-top:-30px}
+.steps{margin-top:8px;display:flex;flex-direction:column;gap:2px}
+.st{display:flex;align-items:center;gap:9px;font:500 11.3px var(--ar);color:var(--a-ph);padding:4px 2px}
+.st .b{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--a-border);display:grid;place-items:center;font:800 9px var(--ui);color:#fff;flex:none}
+.st.d{color:var(--a-text)}
+.st.d .b{background:var(--a-success);border-color:var(--a-success)}
+.st.c{color:var(--a-text);font-weight:700}
+.st.c .b{border-color:var(--brand);border-top-color:transparent;animation:spin 1s linear infinite}
+.st .eta{margin-inline-start:auto;font:600 10px var(--ar);color:var(--brandD)}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* living-thesis stage (B) */
+.stage{position:relative;height:262px;background:linear-gradient(180deg,#ECECF3,#F4F4F8);overflow:hidden}
+.seg{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;background:rgba(255,255,255,.85);border:1px solid var(--a-border);border-radius:999px;padding:3px;z-index:4;direction:rtl}
+.seg span{font:700 10.5px var(--ar);padding:4px 13px;border-radius:999px;color:var(--a-sec)}
+.seg span.on{background:var(--a-text);color:#fff}
+.car{position:absolute;inset:44px 0 14px;display:flex;align-items:center;justify-content:center;gap:10px;direction:ltr}
+.pg{position:relative;background:#FCFBF8;border-radius:3px;box-shadow:0 8px 22px rgba(30,30,60,.18);direction:rtl;padding:12px 11px;display:flex;flex-direction:column;gap:3px;flex:none}
+.pg.mid{width:128px;height:180px;z-index:2}
+.pg.side{width:96px;height:136px;opacity:.55;transform:scale(.96)}
+.pg .h{font:700 8px var(--serif);text-align:center;color:#20242e;margin:3px 0 4px}
+.pg i{display:block;height:2.2px;border-radius:2px;background:#4b5160;width:var(--w,100%)}
+.pg i.m{background:#2457b3;height:2.8px}
+.pg i.s{width:calc(var(--w,100%) - 18%);height:3px}
+.pg .im{height:26px;border-radius:2px;background:#b9c8db;margin:3px -8px}
+.pg .hd{position:absolute;top:5px;left:9px;right:9px;font:400 5px var(--ui);color:#2457b3;border-bottom:.6px solid #2457b3;text-align:left}
+.pg .pn{position:absolute;bottom:4px;left:0;right:0;text-align:center;font:600 6px var(--ui);color:#666}
+.hot{position:absolute;width:15px;height:15px;border-radius:50%;background:var(--a-error);color:#fff;font:800 8px/15px var(--ui);text-align:center;box-shadow:0 0 0 4px rgba(230,64,64,.2);z-index:3;direction:ltr}
+.hl{position:absolute;left:6px;right:6px;height:12px;border-radius:3px;background:rgba(255,200,120,.45);outline:1.5px solid #F59433}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:250px;background:var(--a-card);border-radius:22px 22px 0 0;box-shadow:0 -8px 24px rgba(30,30,60,.10);padding:8px 16px 0}
+.grab{width:36px;height:4px;border-radius:3px;background:var(--a-border);margin:0 auto 8px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.chip{font:600 10.5px var(--ar);background:var(--a-input);border-radius:999px;padding:4px 9px;color:var(--a-text);display:flex;gap:5px;align-items:center}
+.chip b{font:700 10px var(--ui);color:var(--brandD)}
+.row2{display:flex;gap:8px;margin-top:10px}
+.row2 > div{flex:1}
+.shim{position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(245,148,51,.28) 50%,transparent 70%);background-size:220% 100%;animation:shim 1.6s linear infinite;border-radius:3px}
+@keyframes shim{from{background-position:120% 0}to{background-position:-120% 0}}
+.okb{position:absolute;top:-6px;left:-6px;width:16px;height:16px;border-radius:50%;background:var(--a-success);color:#fff;font:800 9px/16px var(--ui);text-align:center;z-index:3}
+.lbl3{position:absolute;bottom:8px;left:0;right:0;text-align:center;font:600 10px var(--ar);color:var(--a-sec)}
+.stepbar{display:flex;gap:3px;margin:10px 0 4px;direction:rtl}
+.stepbar i{flex:1;height:5px;border-radius:3px;background:var(--a-subtle)}
+.stepbar i.f{background:var(--a-success)}
+.stepbar i.c{background:var(--brand)}
+
+/* chat (C) */
+.chathd{display:flex;align-items:center;gap:8px;padding:6px 14px 8px;border-bottom:1px solid var(--a-subtle)}
+.chathd .av{width:26px;height:26px;border-radius:9px;background:var(--brand);color:#fff;display:grid;place-items:center;font:800 12px var(--ui)}
+.chathd b{font:700 12.5px var(--ar)}
+.msgs{padding:10px 14px;display:flex;flex-direction:column;gap:9px}
+.ub{align-self:flex-start;background:#E8ECF8;border-radius:16px 16px 4px 16px;padding:8px 10px;font:500 11.5px var(--ar);max-width:85%}
+.file{display:flex;gap:8px;align-items:center;background:#fff;border-radius:10px;padding:6px 8px;margin-top:2px}
+.file .fi{width:22px;height:27px;border-radius:4px;background:#2B5797;color:#fff;font:800 6px/27px var(--ui);text-align:center;direction:ltr}
+.file small{display:block;font:500 9.5px var(--ar);color:var(--a-sec)}
+.ai{font:500 11.5px/1.65 var(--ar);color:var(--a-text)}
+.card{background:var(--a-card);border:1px solid var(--a-border);border-radius:14px;padding:10px;margin-top:5px}
+.card .big{font:800 15px var(--ar)}
+.minis{display:flex;gap:6px;margin:8px 0}
+.minis .pg{width:58px;height:82px;padding:7px 6px;gap:2px}
+.minis .pg i{height:1.6px}
+.btns{display:flex;gap:6px;margin-top:6px}
+.btns span{flex:1;height:32px;border-radius:10px;display:grid;place-items:center;font:700 11px var(--ar)}
+.btns .p{background:var(--brand);color:#fff}
+.btns .s{background:var(--a-input);color:var(--a-text)}
+.qchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.qchips span{font:600 11px var(--ar);border:1.5px solid var(--a-border);border-radius:999px;padding:5px 11px;background:#fff}
+.qchips span.p{border-color:var(--brand);color:var(--brandD)}
+.pin{margin:8px 12px 0;background:var(--a-card);border:1px solid var(--a-border);border-radius:14px;padding:9px 11px;box-shadow:0 4px 14px rgba(30,30,60,.08)}
+.pin .r{display:flex;justify-content:space-between;align-items:center;font:700 11.5px var(--ar)}
+.pin .r b{font:800 12px var(--ui);color:var(--brandD)}
+.composer{position:absolute;left:10px;right:10px;bottom:14px;height:40px;border-radius:14px;background:var(--a-input);display:flex;align-items:center;padding:0 12px;font:500 11px var(--ar);color:var(--a-ph)}
+.composer .send{margin-inline-start:auto;width:26px;height:26px;border-radius:9px;background:var(--brand);color:#fff;display:grid;place-items:center;font:800 12px var(--ui)}
+
+.endbar{position:sticky;bottom:14px;margin-top:10px;display:flex;justify-content:center}
+.endbar div{background:rgba(20,24,31,.94);border:1px solid var(--line);border-radius:999px;padding:9px 16px;font:600 12.5px var(--ui);color:var(--muted);box-shadow:0 14px 40px rgba(0,0,0,.5)}
+.endbar b{color:var(--brandL)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Rescue <em>·</em> how it should feel for the student</h1>
+  <div class="sub">Three directions for the same 8 stages, drawn in the app's light theme (dark mirrors it) and in Arabic, RTL-first. Each row shows the three moments that decide whether it feels smooth: <b>the free diagnosis</b>, <b>a question</b>, and <b>the wait</b>. Click the direction you want; I'll draw every screen of it next.</div>
+
+  <div class="princ">
+    <div class="pr"><b>One thing at a time</b><span>Each screen asks for one decision, with the button under the thumb.</span></div>
+    <div class="pr"><b>Their thesis stays visible</b><span>Their own pages, not icons, so they can see what is happening.</span></div>
+    <div class="pr"><b>Reassure, don't judge</b><span>"47 things we'll fix", not "47 violations". The original is always kept.</span></div>
+    <div class="pr"><b>Never a blank spinner</b><span>Progress is shown on the pages themselves, with a time left.</span></div>
+    <div class="pr"><b>Leave any time</b><span>The work runs on the server. A push arrives, and reopening resumes where they were.</span></div>
+    <div class="pr"><b>Plain words</b><span>"We're building your table of contents", never "section break" or "field".</span></div>
+  </div>
+
+  <!-- A -->
+  <div class="dir" data-choice="ux-a">
+    <div>
+      <div class="lt">A</div>
+      <h2>Guided steps</h2>
+      <div class="tag">A calm full-screen wizard: a progress bar on top, one decision per screen, a sticky button at the bottom.</div>
+      <div class="pc p"><i>+</i>Familiar and the simplest to build</div>
+      <div class="pc p"><i>+</i>Works the same for any thesis</div>
+      <div class="pc c"><i>−</i>Their thesis is invisible until the end, so it feels like filling in a form</div>
+      <div class="pc c"><i>−</i>A question can't show where in the thesis it applies</div>
+    </div>
+    <div class="phones">
+      <div><div class="ph"><div class="scr">
+        <div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+        <div class="tb"><div class="back">→</div><div class="prog"><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i><i></i></div></div>
+        <div class="body">
+          <div class="t1">وجدنا 47 نقطة سنصلحها في مذكرتك</div>
+          <div class="t2">حسب معايير كلية العلوم الاجتماعية والإنسانية</div>
+          <div class="okpill">✓ لن نغيّر أي كلمة من نصّك</div>
+          <div class="list">
+            <div class="li"><span class="ico" style="background:#F1ECFF;color:#6B4FD8">▣</span>الغلاف<span class="n">3</span><span class="chev">‹</span></div>
+            <div class="li"><span class="ico" style="background:#E8F0FF;color:#2F6FD6">≡</span>الفهرس والقوائم<span class="n">4</span><span class="chev">‹</span></div>
+            <div class="li"><span class="ico" style="background:#FFF1E3;color:#C2670C">#</span>ترقيم الصفحات<span class="n">6</span><span class="chev">‹</span></div>
+            <div class="li"><span class="ico" style="background:#FFF1E3;color:#C2670C">H</span>العناوين<span class="n">9</span><span class="chev">‹</span></div>
+            <div class="li"><span class="ico" style="background:#E3F6EF;color:#167a5c">◫</span>الأشكال والجداول<span class="n">12</span><span class="chev">‹</span></div>
+            <div class="li"><span class="ico" style="background:#F2F2F7;color:#555">Aa</span>الخط والهوامش<span class="n">13</span><span class="chev">‹</span></div>
+          </div>
+        </div>
+        <div class="foot"><div class="cta">أصلح مذكرتي</div><div class="link">شاهد صفحتين بعد الإصلاح</div><div class="fine">دفعة واحدة · إعادة مجانية بعد تعديلات الأستاذ</div></div>
+      </div></div><div class="cap2">Free diagnosis</div></div>
+      <div><div class="ph"><div class="scr">
+        <div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+        <div class="tb"><div class="back">→</div><div class="prog"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></div></div>
+        <div class="body">
+          <div class="t2">سؤال 1 من 3</div>
+          <div class="t1">هل هذا السطر عنوان فرعي؟</div>
+          <div class="qbox"><div class="ex">…وهو من أهم أسباب ضعف التكوين القاعدي لدى الناشئين. <mark>المبحث الثاني</mark> …</div><div class="where">الصفحة 13 · الفصل الأول</div></div>
+        </div>
+        <div class="foot"><div class="cta">نعم، عنوان</div><div class="cta2">لا، نص عادي</div><div class="link">لست متأكدًا — دع Kwill يقرّر</div></div>
+      </div></div><div class="cap2">A question</div></div>
+      <div><div class="ph"><div class="scr">
+        <div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+        <div class="body" style="padding-top:14px">
+          <div class="t1" style="text-align:center">نُصلح مذكرتك</div>
+          <div class="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#EDEDF0" stroke-width="3"/><circle cx="18" cy="18" r="15.5" fill="none" stroke="#F59433" stroke-width="3" stroke-linecap="round" stroke-dasharray="62 100"/></svg><div class="v">64%</div></div>
+          <div class="steps">
+            <div class="st d"><span class="b">✓</span>ننظّف التنسيق القديم</div>
+            <div class="st c"><span class="b"></span>نبني التنسيق الجديد<span class="eta">حوالي دقيقتين</span></div>
+            <div class="st"><span class="b"></span>نراجع كل صفحة</div>
+            <div class="st"><span class="b"></span>نتحقق ونسلّم</div>
+          </div>
+        </div>
+        <div class="foot"><div class="fine" style="font-size:10.5px">يمكنك إغلاق التطبيق — سنرسل لك إشعارًا عند الانتهاء</div></div>
+      </div></div><div class="cap2">The wait</div></div>
+    </div>
+  </div>
+
+  <!-- B -->
+  <div class="dir" data-choice="ux-b">
+    <div>
+      <div class="lt">B</div>
+      <h2>Living thesis <span class="rec">recommended</span></h2>
+      <div class="tag">Their own pages fill the top of the screen the whole way through. A sheet below changes with each step, so the student never leaves the screen.</div>
+      <div class="pc p"><i>+</i>They watch their own thesis being fixed, which builds trust and is a pleasure to watch</div>
+      <div class="pc p"><i>+</i>Each question is shown on the real page, highlighted</div>
+      <div class="pc p"><i>+</i>One screen with no navigation jumps, the smoothest of the three</div>
+      <div class="pc p"><i>+</i>The "before / after" switch is the sales pitch</div>
+      <div class="pc c"><i>−</i>Needs page images at every step. They exist (Kwill's converter), but they have to load fast</div>
+    </div>
+    <div class="phones">
+      <div><div class="ph"><div class="scr">
+        <div class="sbar" style="background:#ECECF3"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+        <div class="stage" style="height:236px">
+          <div class="seg"><span class="on">قبل</span><span>بعد</span></div>
+          <div class="car" style="inset:40px 0 10px">
+            <div class="pg side"><i></i><i class="m"></i><i style="--w:70%"></i><i></i><i class="s"></i></div>
+            <div class="pg mid">
+              <div class="hd">Chapitre II</div>
+              <div class="h" style="text-align:left;color:#2457b3;font-family:Arial;font-size:6.5px;text-decoration:underline">الفصل الأول: الإطار النظري</div>
+              <i class="m"></i><i></i><i class="s"></i><i style="--w:60%"></i>
+              <div class="im"></div>
+              <i></i><i class="m"></i><i style="--w:55%"></i>
+              <div class="pn" style="text-align:left;padding-left:8px;color:#2457b3">12</div>
+              <span class="hot" style="top:2px;left:-6px">1</span>
+              <span class="hot" style="top:22px;right:-6px">2</span>
+              <span class="hot" style="top:92px;left:-6px">3</span>
+            </div>
+            <div class="pg side"><i class="s"></i><i></i><i class="m"></i><i style="--w:40%"></i></div>
+          </div>
+        </div>
+        <div class="sheet" style="top:262px">
+          <div class="grab"></div>
+          <div class="t1" style="font-size:17px;margin-top:0">47 نقطة سنصلحها</div>
+          <div class="t2">حسب معايير كليتك · اضغط على أي نقطة لتراها</div>
+          <div class="chips"><span class="chip">الغلاف <b>3</b></span><span class="chip">الفهرس <b>4</b></span><span class="chip">الترقيم <b>6</b></span><span class="chip">العناوين <b>9</b></span><span class="chip">الأشكال <b>12</b></span><span class="chip">الخط <b>13</b></span></div>
+          <div class="okpill">✓ لن نغيّر أي كلمة من نصّك</div>
+        </div>
+        <div class="foot"><div class="cta">أصلح مذكرتي</div><div class="fine">دفعة واحدة · إعادة مجانية بعد تعديلات الأستاذ</div></div>
+      </div></div><div class="cap2">Free diagnosis · before / after</div></div>
+      <div><div class="ph"><div class="scr">
+        <div class="sbar" style="background:#ECECF3"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+        <div class="stage" style="height:236px">
+          <div class="car" style="inset:14px 0 10px">
+            <div class="pg mid" style="width:176px;height:212px;padding:16px 14px;gap:4px">
+              <i></i><i></i><i style="--w:75%"></i><i></i><i></i><i style="--w:50%"></i>
+              <div style="height:14px"></div>
+              <i></i><i></i><i style="--w:66%"></i>
+              <div class="hl" style="bottom:42px"></div>
+              <div style="position:absolute;bottom:42px;right:14px;font:700 8px var(--serif);color:#7a3f08;line-height:12px">المبحث الثاني</div>
+              <div class="pn">13</div>
+            </div>
+          </div>
+        </div>
+        <div class="sheet" style="top:262px">
+          <div class="grab"></div>
+          <div class="t2">سؤال 1 من 3</div>
+          <div class="t1" style="font-size:16px">هل السطر المظلَّل عنوان فرعي؟</div>
+          <div class="row2"><div class="cta" style="height:40px;font-size:13px">نعم، عنوان</div><div class="cta2" style="margin-top:0">نص عادي</div></div>
+          <div class="link">لست متأكدًا — دع Kwill يقرّر</div>
+        </div>
+      </div></div><div class="cap2">A question, on the real page</div></div>
+      <div><div class="ph"><div class="scr">
+        <div class="sbar" style="background:#ECECF3"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+        <div class="stage" style="height:236px">
+          <div class="car" style="inset:20px 0 26px">
+            <div class="pg side" style="opacity:1"><span class="okb">✓</span><div class="h">الفهرس</div><i></i><i style="--w:80%"></i><i></i><i style="--w:70%"></i><i></i></div>
+            <div class="pg mid"><div class="h" style="font-size:9px">الفصل الأول: الإطار النظري</div><i></i><i></i><i></i><i style="--w:60%"></i><div class="im" style="margin:3px 6px"></div><i></i><i style="--w:55%"></i><div class="pn">1</div><div class="shim"></div></div>
+            <div class="pg side"><i style="background:#cfd3da"></i><i style="background:#cfd3da"></i><i style="background:#cfd3da;--w:70%"></i><i style="background:#cfd3da"></i></div>
+          </div>
+          <div class="lbl3">الصفحة 34 من 153</div>
+        </div>
+        <div class="sheet" style="top:262px">
+          <div class="grab"></div>
+          <div class="t1" style="font-size:16px;margin-top:0">نبني التنسيق الجديد</div>
+          <div class="stepbar"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="c"></i><i></i><i></i></div>
+          <div class="t2" style="display:flex;justify-content:space-between"><span>الخطوة 6 من 8</span><span style="color:#C2670C;font-weight:700">حوالي دقيقتين</span></div>
+          <div class="steps" style="margin-top:6px">
+            <div class="st d"><span class="b">✓</span>الأنماط والعناوين</div>
+            <div class="st c"><span class="b"></span>الفهرس وقائمة الأشكال</div>
+            <div class="st"><span class="b"></span>التعليقات على الأشكال</div>
+          </div>
+        </div>
+        <div class="foot" style="padding-bottom:14px"><div class="fine" style="font-size:10.5px">أغلق التطبيق بأمان — سنرسل لك إشعارًا</div></div>
+      </div></div><div class="cap2">The wait: pages change in front of them</div></div>
+    </div>
+  </div>
+
+  <!-- C -->
+  <div class="dir" data-choice="ux-c">
+    <div>
+      <div class="lt">C</div>
+      <h2>Inside the chat</h2>
+      <div class="tag">Kwill runs the rescue as a conversation. The diagnosis, questions and progress arrive as cards in the thread.</div>
+      <div class="pc p"><i>+</i>Fits the chat-first app, and the student can ask anything along the way</div>
+      <div class="pc p"><i>+</i>Questions become one-tap chips</div>
+      <div class="pc c"><i>−</i>A long rescue gets buried in the thread and is hard to come back to</div>
+      <div class="pc c"><i>−</i>Rules, cover choice and payment feel cramped as chat cards</div>
+      <div class="pc c"><i>−</i>Mixes "the assistant writes with me" with "a paid service fixes my file"</div>
+    </div>
+    <div class="phones">
+      <div><div class="ph"><div class="scr">
+        <div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+        <div class="chathd"><div class="av">K</div><b>إنقاذ المذكرة</b></div>
+        <div class="msgs">
+          <div class="ub">أصلح لي التنسيق من فضلك<div class="file"><div class="fi">DOCX</div><div>مذكرة_نهائية.docx<small>153 صفحة</small></div></div></div>
+          <div class="ai">قرأتُ مذكرتك ✓ وجدتُ نقاطًا لا توافق معايير كليتك:
+            <div class="card"><div class="big">47 نقطة سنصلحها</div>
+              <div class="minis"><div class="pg"><i class="m"></i><i></i><i class="s"></i><i></i></div><div class="pg" style="outline:2px solid #F59433"><div class="h" style="font-size:5px;margin:1px 0">الفصل الأول</div><i></i><i></i><i style="--w:60%"></i><i></i></div></div>
+              <div class="btns"><span class="p">أصلح مذكرتي</span><span class="s">التفاصيل</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="composer">اكتب رسالة…<span class="send">↑</span></div>
+      </div></div><div class="cap2">Free diagnosis as a card</div></div>
+      <div><div class="ph"><div class="scr">
+        <div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+        <div class="chathd"><div class="av">K</div><b>إنقاذ المذكرة</b></div>
+        <div class="msgs">
+          <div class="ai">سؤال صغير قبل أن أبدأ — هل هذا السطر عنوان فرعي؟
+            <div class="card"><div style="font:400 11px/1.9 var(--serif);color:#444">…أسباب ضعف التكوين. <mark style="background:#FFE6C7;border-radius:4px;padding:0 3px;font-weight:700">المبحث الثاني</mark></div><div style="font:500 9.5px var(--ar);color:#737385">الصفحة 13</div></div>
+            <div class="qchips"><span class="p">نعم، عنوان</span><span>نص عادي</span><span>قرّر أنت</span></div>
+          </div>
+        </div>
+        <div class="composer">اكتب رسالة…<span class="send">↑</span></div>
+      </div></div><div class="cap2">Question as chips</div></div>
+      <div><div class="ph"><div class="scr">
+        <div class="sbar"><span>9:41</span><span class="ic"><i></i><i></i></span></div>
+        <div class="chathd"><div class="av">K</div><b>إنقاذ المذكرة</b></div>
+        <div class="pin"><div class="r"><span>نبني التنسيق الجديد</span><b>64%</b></div><div class="stepbar" style="margin:7px 0 2px"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="c"></i><i></i><i></i></div><div class="t2" style="font-size:10px">حوالي دقيقتين</div></div>
+        <div class="msgs">
+          <div class="ub">كم بقي؟</div>
+          <div class="ai">حوالي دقيقتين ⏱ أنا الآن أبني الفهرس وقائمة الأشكال. يمكنك إغلاق التطبيق وسأُعلمك.</div>
+        </div>
+        <div class="composer">اكتب رسالة…<span class="send">↑</span></div>
+      </div></div><div class="cap2">The wait: a pinned progress card</div></div>
+    </div>
+  </div>
+
+  <div class="endbar"><div id="pick">Click a direction, then tell me in the terminal</div></div>
+</div>
+<script>
+document.querySelectorAll('.dir').forEach(d => d.addEventListener('click', () => {
+  document.querySelectorAll('.dir').forEach(x => x.classList.toggle('sel', x === d));
+  document.getElementById('pick').innerHTML = 'Direction <b>' + d.dataset.choice.slice(3).toUpperCase() + '</b> selected — tell me in the terminal (or add what you\'d change)';
+}));
+</script>
+</body>
+</html>
