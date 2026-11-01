@@ -59,7 +59,7 @@ Sources are listed in mockup `01`, section "Sources".
 | D-11 | **Corpus:** the 6 theses on disk, plus the theses in the user's Gmail that students sent for mise en page, growing to about 20 (ar/fr/en; sciences, humanities, law, STAPS; with and without a cover; with equations, tables and figures; **split into parts and single-file**). Gmail attachments are listed first (file, sender, size) and downloaded only after the user confirms each batch. They live only in the gitignored lab folder. |
 | D-12 | **v1 package = rescue + cover + deposit pack** (decision 1, option A). |
 | D-13 | **Free re-runs on the same thesis until the defense** (decision 2, option A), made affordable by **saving the whole rescue run** (§7). |
-| D-14 | **Embed fonts in the .docx and deliver the checked PDF** (decision 3, option A). The first plan task proves the engine can do it and checks the font licences. |
+| D-14 | **Embed fonts in the .docx and deliver the checked PDF** (decision 3, option A), **within font licences**. Checked 2026-11-02: Simplified Arabic and Traditional Arabic are fsType 0x0002, *restricted, embedding not permitted* (Word refuses too); Times New Roman and Tahoma are *editable*. So: embed every font whose licence allows it; the restricted ones ship with Windows and are on nearly every shop PC; any font that is **neither standard on Windows nor embeddable** (typically a downloaded decorative font on the cover) is flagged in Diagnose and swapped for an embeddable equivalent; the PDF is the guaranteed-identical copy. |
 | D-15 | **Next services, in season order:** SPSS field study → similarity pre-check → defense pack (decision 4, option A). |
 | D-16 | **UX direction B, "Living thesis"** (§9). |
 | D-17 | **Student notes:** an optional free-text or voice note at the start, and "what did your supervisor ask?" on every re-run (§6). |
@@ -132,7 +132,7 @@ Low-confidence roles become questions, at most 5, each dismissible and each with
 9. TOC and lists of figures/tables: real Word fields, **clickable** (hyperlinked)
 10. Captions: real, numbered (SEQ + bookmark, the existing caption model)
 11. References grouped (books, articles, theses, websites) and sorted, **only if the student confirmed it**
-12. **Fonts embedded** in the .docx (anti-décalage)
+12. **Fonts embedded** in the .docx where the licence allows (fsType installable/editable); restricted fonts are never embedded (anti-décalage, D-14)
 
 **Deposit pack (delivered with the result):** the checked PDF, the .docx with fonts embedded, the abstract sheet (ملخص · résumé · abstract on one page, from the student's own abstracts), and the integrity declaration plus the supervisor's deposit authorisation, prefilled. The department's deposit rules (PDF on the platform, or copies plus a CD) come from the rules (D-6) and decide the pack's contents.
 
@@ -344,7 +344,7 @@ Similarity pre-check (honest: find and cite), SPSS field study, proofreading, de
 
 ## 15. Risks and open items
 
-- **Font licences.** Traditional Arabic and Simplified Arabic are Microsoft fonts; the embedding permission flags must allow embedding in a document. M0 checks this before anything depends on it. Fallback: embed an OFL font (Amiri) only when the rules allow it, otherwise deliver PDF-first (decision 3, option B).
+- **Font licences (checked).** Traditional Arabic and Simplified Arabic forbid embedding (fsType 0x0002). Handled by D-14: embed only permitted fonts; rely on the Windows-standard set for the rest; swap non-standard, non-embeddable fonts; the PDF is identical by construction. The list of Windows-standard fonts is a data file the plan creates.
 - **Converter vs Word.** Pages are judged in the production converter; Word is the tiebreaker. Known gaps (TOC numbers read "1" until Word repaginates) need a Prove check that reads page numbers from Word's own PDF where they matter.
 - **Session-brain speed.** Minutes per stage on localhost is acceptable for development, not for students; that is what M7 is for.
 - **Corpus privacy.** Theses come only with permission and never leave the gitignored lab folder.
