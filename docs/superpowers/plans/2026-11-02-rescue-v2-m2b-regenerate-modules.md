@@ -164,3 +164,23 @@ The page map must come from the same pagination as the delivered PDF. Today the 
    - t01: `diagnosis-cleared` margins x2 and page-numbers x2 remain after regenerate. Find out which sections and why; fix in `regenerate/layout.ts` or in Diagnose, whichever is wrong.
 3. t01 takes over 15 minutes per rescue. Profile it (each step, each conversion) and report where the time goes. Fix anything silly in our own code (doctor passes, repeated parses); do not sacrifice a check.
 Commands: `WORD_CONVERTER_URL=http://localhost:8093 npx tsx scripts/rescue-lab/cli.ts rescue <tNN> ...` (read `cli.ts`). You may edit `layout.ts`, `toc-numbers.ts`, `render/page-map.ts`, `render/page-markers.ts` (mind the foreign hunk), `scripts/rescue-lab/render.ts`; the integrator rule on `cli.ts` is lifted for you only if a CLI line must change, one small commit.
+
+## Integrator notes from the t03 page-review fixes
+
+These fixes landed outside the modules (engine f84294f; server dc52f4c, 99e0729, 7ddfc24, 44772ec, 2fe6528). The integrator must:
+
+- Add the `tables` step between `layout` and `apparatus` in `regenerate/index.ts`, and add `tables?: TablePaginationReport` to `RegenerateResult.report`:
+  ```ts
+  import { applyTablePagination, type TablePaginationReport } from "./tables";
+  ["tables", () => applyTablePagination(engine, remapRoles(roles, layout!.indexMap)), (r) => (report.tables = r)],
+  ```
+  The step adds and removes no blocks, so it returns no `indexMap`. If `caption-position` runs first, compose its map into the roles too.
+- Pass `captionNumbersAdded: rules.captions.addNumbers !== false` at the `proveDocx` call in `scripts/rescue-lab/cli.ts` (about line 441).
+- Show `report.apparatus.captionsWordAsLabel` in the change report.
+- Rebuild the engine: the server needs f84294f or later.
+
+Still open:
+
+- `SEPARATORS.fr` in `apparatus.ts` uses a plain space before `:`; the French typography rule wants U+00A0. This is a one-line fix.
+- The engine's `paragraphPropsXml` truncates a `w:pPr` holding `w:pPrChange`, so `addGeneratedCaption` on such a paragraph writes a broken `w:pPr`. Only the leading-word cut refuses these paragraphs today.
+- t02 did not load through raw ADM-ZIP in the table sweep. Confirm how the rescue path behaves on it when t02 runs.
