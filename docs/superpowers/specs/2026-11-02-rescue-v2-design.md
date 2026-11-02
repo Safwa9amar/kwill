@@ -67,6 +67,7 @@ Sources are listed in mockup `01`, section "Sources".
 | D-19 | **One release.** Nothing ships piece by piece. Everything is built and verified on localhost with the session brain; the production brain is the last milestone; then server, engine, app and dashboard ship together. |
 | D-20 | **A thesis split into several files is merged into one.** The student picks all the parts at once; Kwill proposes the order (cover, front matter, introduction, chapters, conclusion, bibliography, annexes) and flags a file that *continues* the one before it (a chapter written across two files); the student confirms or drags to reorder; then the parts are merged **without adding anything**: no title headings, no page breaks, no normalisation (Regenerate does all of that). |
 | D-21 | **Implementation is subagent-driven:** a fresh implementer per plan task, a reviewer after each, Claude arbitrates. Corpus rescues (the session brain) stay with Claude in the main session. |
+| D-22 | **Caption numbers are generated apparatus, not words (decided 2026-11-02).** A caption the student left unnumbered gets a real label and number (`جدول 12: البيان المالي`), as a field, like a page number. The student's own words stay untouched and in order, every addition appears in the change report and on the Confirm screen, and it can be turned off there. A typed number on a caption (`2- جدول …`) is replaced by the real one. Prove compares caption text without the label and number. |
 
 ---
 
