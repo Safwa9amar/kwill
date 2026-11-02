@@ -23,7 +23,7 @@
 **Scope (changes to the spec's M1 row):**
 - The **two-page preview moves to M2**, because it needs Regenerate.
 - **Question phrasing** (the brain's `ask` task) moves to M4 (Confirm). M1b only *selects* the question candidates.
-- **Answer keys:** M1b adds keys for the four split theses after assembly (t17–t20), as the brain's budget allows. Done means at least two of them, plus t21.
+- **Answer keys:** M1b adds keys for the four split theses after assembly (t17–t20), as the brain's budget allows. Done means at least two of them. (t21 is the seed asset, a sample CV, not a thesis, so it gets no key.)
 - **Done:** "Free diagnosis correct on every corpus thesis that has an answer key".
 
 ---
@@ -538,8 +538,8 @@ export function diagnose(input: { inv: Inventory; roles: Record<string, { i: num
 
   Re-validate every window, as in the M1a gold-check script.
 - [ ] **Step 2: Assemble t17–t20.** Answer each `order_parts` task from the parts' openings and outlines; open page images only if the order is ambiguous. Then `read` each one through Word, using the private `:8093` converter if the tunnel watchdog is still looping (see memory `word-converter-watchdog-loop`). Record each `assembly.json` check: counts only.
-- [ ] **Step 3: Answer keys** for at least two assembled theses, plus t21: `map`, the brain answers, `approve-map`.
-- [ ] **Step 4: Diagnose every thesis with an answer key** (t01, t02, t03, t05, t06, t21, plus the assembled ones), using the default rules, and with `--profile` where the thesis's university has a seed. For each one, read `diagnosis.md` against the page images:
+- [ ] **Step 3: Answer keys** for at least two assembled theses: `map`, the brain answers, `approve-map`.
+- [ ] **Step 4: Diagnose every thesis with an answer key** (t01, t02, t03, t05, t06, plus the assembled ones), using the default rules, and with `--profile` where the thesis's university has a seed. For each one, read `diagnosis.md` against the page images:
   - **true positive:** keep it;
   - **false positive or false negative:** fix the check (a new commit plus a regression test in `diagnose.test.ts` with synthetic data), then re-run every thesis.
 
@@ -555,8 +555,56 @@ export function diagnose(input: { inv: Inventory; roles: Record<string, { i: num
 - Every thesis with an answer key has an approved `gold/diagnosis.json` whose problems the brain confirmed against the pages.
 - Tests and tsc are green, and the guard passes with `para-format.ts` / `thesis-rtl.ts` reachable.
 
+## Execution notes (2026-11-02)
+
+- **The engine merge needed far more than VML/OLE.** Each fix was found on real split theses, then proven in Word:
+  - footnote images and footnote hyperlinks were not carried;
+  - a double-escaped `&amp;` changed URLs;
+  - every `.wmf`/`.emf`/`.tif` image was written to one file (25 equation previews collapsed into one);
+  - **unbound namespace prefixes** (`w14`, `mc`, `wps`, and `r` in a fresh footnotes part) made Word refuse to open every merged thesis;
+  - `wp:docPr` and bookmark ids were duplicated;
+  - source styles were missing (1052 paragraphs fell back to Normal);
+  - `v:fill` was not remapped.
+
+  Engine `main`: 23344aa, c50ca66, 8f5ef17, 0d741b4, abbcadd, dc4466a, ed85367, 233dc69.
+- **`checkAssembly` grew two checks beyond the plan,** and they caught three silent corruptions that the word and count checks missed:
+  - **(e) reference identity:** every relationship reference resolves to the same type and target, or the same bytes, as in its part;
+  - **(f) unbound namespace prefixes.**
+- **Facts measure what Word renders:**
+  - the character-weighted run font and size;
+  - every theme font slot, with Bidi resolved through the script font (`majorBidi` → the Arab script font);
+  - `pPrDefault` bidi/jc;
+  - fields spanning several paragraphs;
+  - single spacing when nothing sets it.
+- **Diagnose was corrected against seven theses' pages:**
+  - no duplicate structure problems;
+  - page numbers checked per body section, with the introduction's letters (abjad) accepted;
+  - image pages are not blank;
+  - empty sections are detected;
+  - "تمهيد"/"مدخل" count as introductions;
+  - tatweel connectors are not flagged;
+  - kashida counts as justified;
+  - a bibliography without a heading counts as present;
+  - figure groups and the caption side are judged as above, and divider-page margins are exempt.
+- **Corpus status:**
+  - all four split theses assemble with every check ok and read through Word: t17 121 pages, t18 79, t19 67, t20 141;
+  - answer keys: t01, t02, t03, t05, t06, t18, t19;
+  - approved diagnoses for each.
+- **t21 is the seed asset (a CV), not a thesis.**
+
 ## Carry-overs (not in M1b)
 
+- **`order_parts` needs a richer part summary.** A t18 part opened with the abstract but held the whole problem-statement chapter. The brain saw only 600 characters and an empty outline, because its headings are marked by size, not style. `summarizePart` should:
+  - detect size-based headings (larger than the body's dominant size, short lines);
+  - add the part's closing 300 characters;
+  - sample its headings throughout.
+
+  t18 must be re-assembled in the right order (part 0 after the introduction) before it is rescued, then re-mapped.
+- **Engine merge, carried forward:**
+  - a style id that collides keeps the target's definition, so a part's own Normal/Titre look is lost (fidelity only; Regenerate resets it);
+  - headers and footers of parts 2..n are dropped by design;
+  - bookmark references inside a field split across runs are not renamed.
+- **Diagnose:** a chapter with no title (t19's chapters start at I.1) is not flagged; that is content only the student can add.
 - The two-page preview (M2), and the brain's `ask` phrasing of questions (M4).
 - Endnotes and comments across a merge: they are refused today; supporting them is an engine `MergeManager` change.
 - A real 1275 (business-model) format profile with its own required sections.
