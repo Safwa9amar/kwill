@@ -73,17 +73,16 @@ export function useSurfaceOps({ thesisId, active }: { thesisId: string; active: 
     const plan = planOp(op, d.blocks);
     if (!plan.local) {
       if (plan.pending?.at.length) markServer(plan.pending.at.map((r) => r.index));
-      // Paragraph direction cannot be written by the engine (op-map.ts), so the
-      // pill shows the student's choice now; the reload after the server op paints
-      // the page, and the next selection report confirms it.
-      if (plan.direction) {
-        const lex = useLexicalEditorStore.getState();
-        lex.setFormat({ ...lex.format, isRTL: plan.direction === "rtl" });
-      }
       if (__DEV__) console.log("[docx] op → server:", plan.reason);
       return Promise.resolve(false);
     }
     if (!plan.steps.length) return Promise.resolve(true); // nothing to change
+    // The pill reads the caret's direction off the page, one report later; the
+    // student's own tap must not lag behind the page it just turned.
+    if (op.type === "format" && op.changes.direction) {
+      const lex = useLexicalEditorStore.getState();
+      lex.setFormat({ ...lex.format, isRTL: op.changes.direction === "rtl" });
+    }
     const nonce = ++seq.current;
     const steps = plan.steps;
     return new Promise<boolean>((resolve) => {

@@ -13,7 +13,7 @@ import type { EditorCommand } from "@docx-editor.dev/react";
 import { setListAtSelection, type Engine } from "./apply-op";
 import type { EngineAction, InsertThen } from "./command-map";
 
-type Extra = Extract<EngineAction, { kind: "list" | "indent" | "insert" | "focus" | "blur" }>;
+type Extra = Extract<EngineAction, { kind: "list" | "indent" | "direction" | "insert" | "focus" | "blur" }>;
 
 const cmd = (c: Record<string, unknown>) => c as unknown as EditorCommand;
 
@@ -94,6 +94,9 @@ export function runCommandAction(e: Engine | null, a: Extra): void {
     }
     case "indent":
       run(e, cmd({ type: "adjustIndent", direction: a.direction }));
+      return;
+    case "direction":
+      run(e, cmd({ type: "setParagraphDirection", direction: a.direction }));
       return;
     case "insert":
       insert(e, a.then);

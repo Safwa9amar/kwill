@@ -10,10 +10,7 @@
 //    `format.clear`) TOGGLE against the current selection. A value that means
 //    "make it so" (a colour, a list kind) goes out as SET semantics instead —
 //    `marks`, `list` — and is compared against the engine's state before toggling.
-//  • There is no paragraph-direction command (no `bidi` anywhere in the typed
-//    surface, and the store's ACCEPTED_PARAGRAPH_PROPERTIES allow-list refuses
-//    `w:bidi` at 2.21.1). Direction therefore takes the SERVER path — the same
-//    `format` op the pill used before Lexical existed — and the surface reloads.
+//  • Direction is `setParagraphDirection` (engine ≥ 2.33): local, like the rest.
 //  • `blockFormat` (the pill's whole-block change) is NOT run from here: the docx
 //    host turns it into the `format` op it describes and sends it through
 //    `thesis-doc-store.mutate`, which applies it in the engine first (applyOp,
@@ -48,7 +45,7 @@ export type EngineAction =
   | { kind: "paragraph"; update: { alignment?: "left" | "center" | "right" | "justify" } }
   | { kind: "marks"; marks: Record<string, unknown> }
   | { kind: "selectParagraph" }
-  | { kind: "server"; changes: { direction: "rtl" | "ltr" } }
+  | { kind: "direction"; direction: "rtl" | "ltr" }
   | { kind: "list"; list: "bullet" | "number" | null }
   | { kind: "indent"; direction: "increase" | "decrease" }
   | { kind: "insert"; then: InsertThen }
@@ -148,7 +145,7 @@ export function mapCommand(cmd: LexicalCommand): EngineAction[] {
       return [{ kind: "blur" }];
     case "direction":
       return v === "rtl" || v === "ltr"
-        ? [{ kind: "server", changes: { direction: v } }]
+        ? [{ kind: "direction", direction: v }]
         : [{ kind: "noop", reason: `direction: unknown value ${v}` }];
     case "color":
       return [{ kind: "marks", marks: { color: colorMark(v) } }];

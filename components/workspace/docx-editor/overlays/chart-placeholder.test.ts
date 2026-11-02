@@ -88,8 +88,8 @@ function findDrawing(node: AnyNode): AnyNode | null {
   return null;
 }
 
-describe("engine canary: a native chart cannot label itself '(chart)'", () => {
-  it("projectDrawing records missing-graphic-data, not the chart URI", () => {
+describe("engine canary: a native chart labels itself '(chart)'", () => {
+  it("projectDrawing records the chart URI", () => {
     const res = readOoxmlPackage(chartDocxBytes());
     expect(res.ok).toBe(true);
     if (!res.ok) return;
@@ -104,10 +104,9 @@ describe("engine canary: a native chart cannot label itself '(chart)'", () => {
     expect(projection).not.toBeNull();
     expect(projection!.picture).toBeNull();
     const refusal = projection!.diagnostics.find((d) => d.code === "unsupported-graphic");
-    // THE pinned behavior: the engine never sees the chart URI, so the label kind
-    // falls back to "graphic". If this starts failing with detail === CHART_URI,
-    // the engine learned to name charts — tighten isChartPlaceholderLabel to a
-    // positive "(chart)"/"(graphic)" match and update chart-placeholder.ts's note.
-    expect(refusal?.detail).toBe("missing-graphic-data");
+    // THE pinned behavior (engine ≥ 2.3x): the refusal carries the chart URI, which
+    // is what makes the label "(chart)". If this starts failing, the label is back to
+    // a catch-all — re-check isChartPlaceholderLabel.
+    expect(refusal?.detail).toBe("http://schemas.openxmlformats.org/drawingml/2006/chart");
   });
 });

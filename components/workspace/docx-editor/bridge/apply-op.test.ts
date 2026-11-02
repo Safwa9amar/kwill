@@ -15,7 +15,7 @@ vi.mock("@docx-editor.dev/core/editor", () => ({
   commandForSlotValue: (_slot: string, value: string) => ({ type: "setMarkAttr", mark: "color", attr: "val", value }),
 }));
 
-import { applySteps, locateParagraph, placeCaret, type Engine } from "./apply-op";
+import { applySteps, locateForFormat, locateParagraph, placeCaret, type Engine, type Span } from "./apply-op";
 
 type Para = { id: string; text: string; bold?: boolean; style?: string };
 type Cmd = { type: string; [k: string]: unknown };
@@ -217,5 +217,51 @@ describe("placeCaret — the caret put back after a load()", () => {
     const f = fakeEngine([{ id: BODY(4), text: "now shorter" }]);
     placeCaret(f.engine.ed, match(BODY(4), "now shorter", "now shorter"), { anchor: 40, head: 40 });
     expect(f.selection()).toEqual({ id: BODY(4), from: 11, to: 11 });
+  });
+});
+
+describe("locateForFormat — an edit that changes no text needs the paragraph, not a proof", () => {
+  // The paragraph that made this necessary: longer than the engine's query cap, and
+  // its model text ends "…MS Access." where the engine's has a footnote mark before
+  // the dot, so the tail of the model's text is found nowhere.
+  const model = "هو برنامج حاسوبي ".repeat(18) + "MS Access.";
+  const painted = "هو برنامج حاسوبي ".repeat(18) + "MS Access\uFFFC.";
+  const none: Span = new Map();
+  const ref = { index: 318, text: model };
+  const withCaret = (e: Engine, id: string): Engine =>
+    ({ ...e, surface: { state: () => ({ selection: { head: { paragraphId: id }, anchor: { paragraphId: id } } }) } }) as unknown as Engine;
+
+  it("the whole-text match really does fail on it", () => {
+    const { engine } = fakeEngine([{ id: BODY(318), text: painted }]);
+    expect(locateParagraph(engine, ref, none)).toBeNull();
+  });
+  it("finds it by its opening words", () => {
+    const { engine } = fakeEngine([{ id: BODY(318), text: painted }]);
+    expect(locateForFormat(engine, ref, none, false)?.id).toBe(BODY(318));
+  });
+  it("prefers the block whose id parses to the index over one with the same opening", () => {
+    const { engine } = fakeEngine([{ id: BODY(40), text: painted }, { id: BODY(318), text: painted }]);
+    expect(locateForFormat(engine, ref, none, false)?.id).toBe(BODY(318));
+  });
+  it("with no usable opening, the caret's own paragraph still counts — and only that one", () => {
+    const other = { index: 318, text: "نص لا يوجد في أي فقرة" };
+    const { engine } = fakeEngine([{ id: BODY(318), text: painted }]);
+    expect(locateForFormat(withCaret(engine, BODY(318)), other, none, false)?.id).toBe(BODY(318));
+    expect(locateForFormat(withCaret(engine, BODY(7)), other, none, false)).toBeNull();
+  });
+  it("marks need the paragraph's end: an unknown end refuses rather than half-applying", () => {
+    const { engine } = fakeEngine([{ id: BODY(318), text: painted }]);
+    expect(locateForFormat(engine, ref, none, true)).toBeNull();
+  });
+  it("a paragraph matched whole keeps its exact end", () => {
+    const { engine } = fakeEngine([{ id: BODY(5), text: "Introduction" }]);
+    expect(locateForFormat(engine, { index: 5, text: "Introduction" }, none, true)).toEqual({ id: BODY(5), end: 12 });
+  });
+  it("direction reaches the engine on that paragraph, and is not sent to the server", () => {
+    const { engine, log } = fakeEngine([{ id: BODY(318), text: painted }]);
+    const r = applySteps(engine, [{ k: "format", at: [ref], fmt: { direction: "ltr" } }]);
+    expect(r).toEqual({ ok: true });
+    expect(log.map((c) => c.type)).toContain("setParagraphDirection");
+    expect(log.find((c) => c.type === "setParagraphDirection")?.direction).toBe("ltr");
   });
 });

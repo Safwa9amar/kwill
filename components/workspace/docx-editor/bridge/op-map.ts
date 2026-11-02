@@ -32,12 +32,9 @@
 //           bold/italic/    LOCAL    SET semantics over toggleMark (compare isActive
 //           underline                first); color → setMarkAttr (hex | auto).
 //           clearFormatting LOCAL    clearFormatting.
-//           direction       SERVER   `w:bidi` is not authorable at 2.21.1: it is in
-//                                    neither ParagraphFormatCommand nor the store's
-//                                    ACCEPTED_PARAGRAPH_PROPERTIES allow-list (the
-//                                    runtime answers "unsupported-property"). The host
-//                                    previews it instead: the pill's RTL state flips
-//                                    at once and the block pulses until the reload.
+//           direction       LOCAL    setParagraphDirection (w:bidi, engine ≥ 2.33):
+//                                    the page turns under the finger, like every
+//                                    other format, and offline too.
 //   move                    SERVER   no block move in the engine (spec D11).
 //   insertImage/replaceImage SERVER  bytes never cross the JSON bridge.
 //   deleteBlocks            SERVER   a multi-paragraph deleteSelection decides which
@@ -101,6 +98,7 @@ export type ParaFormat = {
   clear?: boolean;
   styleId?: string;
   alignment?: Align;
+  direction?: "rtl" | "ltr";
   marks?: Marks;
 };
 
@@ -129,7 +127,7 @@ export type PendingMark = { look: "busy" | "removing"; at: ParaRef[] };
 
 export type OpPlan =
   | { local: true; steps: LocalStep[] }
-  | { local: false; reason: string; pending: PendingMark | null; direction?: "rtl" | "ltr" };
+  | { local: false; reason: string; pending: PendingMark | null };
 
 /** The envelope the host hands the DOM: run `steps`, answer `onOpApplied(nonce,
  *  ok)`. `at` is the host's Date.now() when it was issued: the DOM refuses a stale
@@ -154,8 +152,7 @@ type Table = Extract<DocBlockDTO, { kind: "table" }>;
 const PARA_MARK = new RegExp("[\\r\\n" + String.fromCharCode(0x0b, 0x0c, 0x2028, 0x2029) + "]");
 const ALIGNS = new Set<string>(["left", "center", "right", "justify"]);
 
-const server = (reason: string, pending: PendingMark | null = null, direction?: "rtl" | "ltr"): OpPlan =>
-  direction ? { local: false, reason, pending, direction } : { local: false, reason, pending };
+const server = (reason: string, pending: PendingMark | null = null): OpPlan => ({ local: false, reason, pending });
 
 const refOf = (b: DocBlockDTO | undefined, index: number): ParaRef => ({
   index,
@@ -184,15 +181,14 @@ export function colorValue(c: string | null | undefined): string {
   return /^[0-9A-F]{6}$/.test(v) ? v : "auto";
 }
 
-/** A pill/model FormatChange → the engine's paragraph format, or null when part of
- *  it has no engine equivalent (direction). */
-export function paraFormatOf(ch: FormatChange): ParaFormat | null {
-  if (ch.direction != null) return null;
+/** A pill/model FormatChange → the engine's paragraph format. */
+export function paraFormatOf(ch: FormatChange): ParaFormat {
   const fmt: ParaFormat = {};
   if (ch.clearFormatting) fmt.clear = true;
   if (ch.level != null) fmt.styleId = ch.level <= 0 ? "Normal" : `Heading${Math.min(6, Math.round(ch.level))}`;
   else if (ch.styleId) fmt.styleId = ch.styleId;
   if (ch.alignment && ALIGNS.has(ch.alignment)) fmt.alignment = ch.alignment;
+  if (ch.direction === "rtl" || ch.direction === "ltr") fmt.direction = ch.direction;
   const marks: Marks = {};
   if (ch.bold != null) marks.bold = ch.bold;
   if (ch.italic != null) marks.italic = ch.italic;
@@ -285,8 +281,7 @@ export function planOp(op: ThesisOp, blocks: readonly DocBlockDTO[]): OpPlan {
       const hold = busy(blocks, op.indices);
       if (op.indices.some((i) => !paraAt(blocks, i))) return server("format: a target is not a paragraph in the model", hold);
       const fmt = paraFormatOf(op.changes);
-      if (!fmt) return server("format: paragraph direction (w:bidi) is not authorable in the engine", hold, op.changes.direction ?? undefined);
-      if (!fmt.clear && !fmt.styleId && !fmt.alignment && !fmt.marks) return { local: true, steps: [] };
+      if (!fmt.clear && !fmt.styleId && !fmt.alignment && !fmt.direction && !fmt.marks) return { local: true, steps: [] };
       return { local: true, steps: [{ k: "format", at: op.indices.map((i) => refOf(blocks[i], i)), fmt }] };
     }
     case "setList": {

@@ -109,7 +109,6 @@ export type BridgeProps = {
   // The block carries its TEXT as well as its index: between a local structural
   // edit and the re-parse that follows the save, an index alone can name the
   // wrong paragraph, and the host re-resolves by text before it mutates.
-  onServerFormat: ((target: BlockRef, changes: { direction: "rtl" | "ltr" }) => void) | undefined;
   // Student edits planned by the host, run here first (bridge/use-apply-op.ts).
   ops?: readonly OpEnvelope[] | null;
   onOpApplied?: (nonce: number, ok: boolean) => void;
@@ -283,7 +282,6 @@ export function Bridge(p: BridgeProps) {
           if (m) editor.selectMatch(m);
           break;
         }
-        case "server": { const f = lastFocus.current; if (f) p.onServerFormat?.({ ...f }, a.changes); break; }
         case "noop": break;
         default: runExtra(a); break;
       }

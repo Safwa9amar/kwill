@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
-    "@docx-editor.dev/core": "^2.21.1",
-    "@docx-editor.dev/fonts": "^2.21.1",
-    "@docx-editor.dev/react": "^2.21.1",
+    "@docx-editor.dev/core": "^2.34.0",
+    "@docx-editor.dev/fonts": "^2.34.0",
+    "@docx-editor.dev/react": "^2.34.0",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/metro-runtime": "~56.0.17",
     "@gorhom/bottom-sheet": "^5.2.14",

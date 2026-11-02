@@ -65,7 +65,7 @@ const ROOT_STYLE = { height: "100%", width: "100%", minWidth: 0, position: "rela
 
 export default function DocxEditorDom({
   apiBase, thesisId, token, command, scrollToIndex, reloadNonce, flushNonce, shaping = true,
-  onState, onSave, onReady, onFlushed, onReloaded, onServerFormat, onError,
+  onState, onSave, onReady, onFlushed, onReloaded, onError,
   ops, onOpApplied,
   sectionStarts, charts, selectedChart, pending, pendingChrome, imageCommand, searchFocus, searchReplace,
   onEquationTap, onInsertTrigger, onPasteImage, onSearchReplaced, onImageRefused,
@@ -93,10 +93,6 @@ export default function DocxEditorDom({
   onReady?: (info: { pages: number; docHash: string | null }) => Promise<void>;
   onFlushed?: (nonce: number) => Promise<void>;
   onReloaded?: (docHash: string | null) => Promise<void>;
-  // { index, text } rather than a bare index: the host re-resolves the block by
-  // its text before it mutates, because a local structural edit can move it
-  // between the report and the op. See bridge/Bridge.tsx.
-  onServerFormat?: (target: BlockRef, changes: { direction: "rtl" | "ltr" }) => Promise<void>;
   onError?: (message: string) => Promise<void>;
   // Student edits run in the engine first (applyOp; bridge/use-apply-op.ts).
   ops?: OpEnvelope[] | null;
@@ -304,7 +300,6 @@ export default function DocxEditorDom({
             onState={(s) => void onState(s)}
             onFlushed={(n) => void onFlushed?.(n)}
             onReloaded={(h) => void onReloaded?.(h)}
-            onServerFormat={(t, c) => void onServerFormat?.(t, c)}
             ops={ops}
             onOpApplied={(n, ok) => void onOpApplied?.(n, ok)}
             sectionStarts={sectionStarts}

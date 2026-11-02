@@ -27,7 +27,7 @@ describe("planOp — every ThesisOp variant has a verdict", () => {
     [{ type: "editText", index: 1, text: "Rewritten." }, "local"],
     [{ type: "splitParagraph", index: 1, before: "First", after: " paragraph" }, "server"],
     [{ type: "format", indices: [0, 1], changes: { bold: true } }, "local"],
-    [{ type: "format", indices: [0], changes: { direction: "rtl" } }, "server"],
+    [{ type: "format", indices: [0], changes: { direction: "rtl" } }, "local"],
     [{ type: "move", from: 1, to: 0 }, "server"],
     [{ type: "insertImage", afterIndex: 1, data: "AAAA", format: "png" }, "server"],
     [{ type: "replaceImage", index: 3, data: "AAAA", format: "png" }, "server"],
@@ -77,12 +77,10 @@ describe("planOp — format", () => {
       }],
     });
   });
-  it("direction is SERVER, previewed: the verdict names it and marks the blocks busy", () => {
+  it("direction is LOCAL: the page turns first, then the bytes leave", () => {
     expect(plan({ type: "format", indices: [0], changes: { direction: "rtl", bold: true } })).toEqual({
-      local: false,
-      reason: expect.stringContaining("w:bidi"),
-      pending: { look: "busy", at: [{ index: 0, text: "Introduction" }] },
-      direction: "rtl",
+      local: true,
+      steps: [{ k: "format", at: [{ index: 0, text: "Introduction" }], fmt: { direction: "rtl", marks: { bold: true } } }],
     });
   });
   it("a target that is not a paragraph sends the whole op to the server", () => {

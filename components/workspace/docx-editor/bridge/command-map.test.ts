@@ -37,8 +37,8 @@ describe("mapCommand — paragraph level", () => {
     expect(mapCommand(cmd("list", "outdent"))).toEqual([{ kind: "indent", direction: "decrease" }]);
     expect(mapCommand(cmd("list", "weird"))).toEqual([{ kind: "noop", reason: "list: unknown value weird" }]);
   });
-  it("routes direction to the server — the engine exposes no paragraph-direction command", () => {
-    expect(mapCommand(cmd("direction", "rtl"))).toEqual([{ kind: "server", changes: { direction: "rtl" } }]);
+  it("direction runs in the engine", () => {
+    expect(mapCommand(cmd("direction", "rtl"))).toEqual([{ kind: "direction", direction: "rtl" }]);
   });
   it("maps color to a hex mark, and an empty value to automatic", () => {
     expect(mapCommand(cmd("color", "C0392B"))).toEqual([{ kind: "marks", marks: { color: { kind: "hex", value: "C0392B" } } }]);

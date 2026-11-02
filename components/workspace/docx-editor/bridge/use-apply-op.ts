@@ -19,9 +19,11 @@ import type { OpEnvelope } from "./op-map";
 import type { SaveLoop } from "./save-loop";
 
 // Older than this and the host may already have given up waiting (it waits longer,
-// see ../use-surface-ops.ts) and sent the op to the server: running it too would
-// apply it twice. Refused, answered false — the server path stands.
-const MAX_AGE_MS = 1500;
+// OP_REPLY_MS in ../use-surface-ops.ts) and sent the op to the server: running it too
+// would apply it twice. Refused, answered false — the server path stands. Generous on
+// purpose: a busy device took 700ms+ to hand one over (simulator, 11-02), and every
+// refusal here costs the student the instant edit.
+const MAX_AGE_MS = 3000;
 
 const topNonce = (ops: readonly OpEnvelope[] | null | undefined): number =>
   (ops ?? []).reduce((m, o) => (o.nonce > m ? o.nonce : m), -1);
@@ -69,7 +71,7 @@ export function useApplyOp(p: {
   }, [top]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const runExtra = useCallback((a: EngineAction) => {
-    if (a.kind === "list" || a.kind === "indent" || a.kind === "insert" || a.kind === "focus" || a.kind === "blur") {
+    if (a.kind === "list" || a.kind === "indent" || a.kind === "direction" || a.kind === "insert" || a.kind === "focus" || a.kind === "blur") {
       runCommandAction(engine(), a);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

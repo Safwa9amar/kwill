@@ -50,9 +50,9 @@ const OK: Outcome = { ok: true };
 
 /** A paragraph the engine can be pointed at: its id (= semantic paragraphId) and
  *  its length in the engine's raw offsets. */
-type Hit = { id: string; end: number };
+export type Hit = { id: string; end: number };
 
-type Span = Map<number, { id: string; text: string }>;
+export type Span = Map<number, { id: string; text: string }>;
 
 // Not re-exported by name at 2.21.1; the facade's own return type is the same thing.
 type HistoryGroup = ReturnType<Editor["beginHistoryGroup"]>;
@@ -157,6 +157,56 @@ export function locateParagraph(e: Engine, ref: ParaRef, span: Span): Hit | null
   return cands.find((c) => blockIndexFromId(c.id) === ref.index) ?? (cands.length === 1 ? cands[0] : null);
 }
 
+/** A paragraph's end as painted: its runs carry their [data-start, data-end) model
+ *  range, in the engine's raw offsets. Null while none of it is painted. */
+function paintedEnd(id: string): number | null {
+  if (typeof document === "undefined") return null;
+  const sel = `[data-paragraph-id="${typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/"/g, '\\"')}"][data-end]`;
+  let end: number | null = null;
+  for (const el of Array.from(document.querySelectorAll<HTMLElement>(sel))) {
+    const v = Number(el.dataset.end);
+    if (Number.isFinite(v) && (end == null || v > end)) end = v;
+  }
+  return end;
+}
+
+/**
+ * The paragraph a FORMAT or LIST step means. These change no text, so they do not
+ * need the proof a rewrite does — and could not have it: a footnote mark or a field
+ * sits in the engine's text and not in the model's, so the whole-text match fails on
+ * exactly what a thesis is full of ("…MS Access⁷." — 11-02), and the student's edit
+ * silently went to the server instead of onto the page. So, in order:
+ *   1. the whole-text match, when it holds (it also proves the exact end);
+ *   2. the paragraph's OPENING words, at its start, in the block whose id still parses
+ *      to the index (or the only candidate);
+ *   3. the paragraph the student's caret is in, which is what they are looking at.
+ * `needEnd`: marks and Clear All act on a RANGE, so without a known end the step is
+ * refused rather than half applied. Direction, alignment, style and lists only need
+ * a caret inside the paragraph.
+ */
+export function locateForFormat(e: Engine, ref: ParaRef, span: Span, needEnd: boolean): Hit | null {
+  const exact = locateParagraph(e, ref, span);
+  if (exact) return exact;
+  const withEnd = (id: string): Hit | null => {
+    const end = paintedEnd(id);
+    return end == null && needEnd ? null : { id, end: end ?? 0 };
+  };
+  const t = ref.text.trim();
+  for (const n of [PROBE, 32]) {
+    if (!t) break;
+    const head = t.slice(0, n);
+    const cands = find(e, head).filter((m) => bodyBlock(m) && m.start === 0);
+    const m = cands.find((c) => blockIndexFromId(c.blockId) === ref.index) ?? (cands.length === 1 ? cands[0] : undefined);
+    if (m) return withEnd(m.blockId);
+    if (t.length <= n) break;
+  }
+  const inSpan = span.get(ref.index)?.id;
+  if (inSpan) return withEnd(inSpan);
+  const head = selectionNow(e)?.head.paragraphId;
+  if (head && isBodyId(head) && isBlockLevelId(head) && blockIndexFromId(head) === ref.index) return withEnd(head);
+  return null;
+}
+
 /** Re-prove, at their exact offsets in paragraph `id`, the characters a rewrite of
  *  [from, to) touches and a margin around them. Cheap insurance for a long
  *  paragraph, where the head/tail match proves only its two ends. */
@@ -218,9 +268,10 @@ function place(e: Engine, s: LocalStep, span: Span): Placed | Outcome {
     case "format":
     case "list": {
       const hits: Hit[] = [];
+      const needEnd = s.k === "format" && (!!s.fmt.marks || !!s.fmt.clear);
       for (const ref of s.at) {
-        const hit = locateParagraph(e, ref, span);
-        if (!hit) return fail(`${s.k}: paragraph ${ref.index} not found by its text`);
+        const hit = locateForFormat(e, ref, span, needEnd);
+        if (!hit) return fail(`${s.k}: paragraph ${ref.index} could not be located`);
         hits.push(hit);
       }
       if (s.k === "format") return { k: "format", hits, fmt: s.fmt };
@@ -265,6 +316,10 @@ function formatOne(e: Engine, hit: Hit, fmt: ParaFormat, group: HistoryGroup | n
   // Clear first: it would wipe whatever the rest of the step set.
   if (fmt.clear && !(r = exec(e, cmd({ type: "clearFormatting" }), group)).ok) return r;
   if (fmt.styleId && !(r = exec(e, cmd({ type: "setParagraphStyle", styleId: fmt.styleId }), group)).ok) return r;
+  // Direction before alignment: the engine stores alignment against the paragraph's
+  // direction (jc is logical in an RTL paragraph), so a change carrying both must
+  // have the direction in place when the alignment is resolved.
+  if (fmt.direction && !(r = exec(e, cmd({ type: "setParagraphDirection", direction: fmt.direction }), group)).ok) return r;
   if (fmt.alignment && !(r = exec(e, cmd({ type: "setAlignment", align: fmt.alignment }), group)).ok) return r;
   // Marks over an EMPTY paragraph would only arm the caret (Word's stored marks) —
   // there is no text to carry them.

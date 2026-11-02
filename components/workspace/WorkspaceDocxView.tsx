@@ -11,7 +11,6 @@ import { useDocxRecovery } from "@/components/workspace/docx-editor/host/useDocx
 import { RecoveryBanner } from "@/components/workspace/docx-editor/host/RecoveryBanner";
 import { useDocxScrollRestore } from "@/components/workspace/docx-editor/host/useDocxScrollRestore";
 import type { DocBlockDTO } from "@/lib/api";
-import { resolveBlockIndexStrict } from "@/lib/block-links";
 import { supabase } from "@/lib/supabase";
 import { useThesisDocStore } from "@/stores/thesis-doc-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
@@ -218,7 +217,7 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
       void useThesisDocStore.getState().refreshHistoryState(thesisId);
       // The block model must catch up with the bytes: indices for the AI, the
       // outline drawer, block links. Nothing is lost when an op IS queued (this
-      // surface enqueues one — see onServerFormat): revalidate returns early rather
+      // surface enqueues one for what the engine cannot do): revalidate returns early rather
       // than clobbering the unflushed optimistic edit, and that op's own server echo
       // reconciles the doc when it lands.
       void useThesisDocStore.getState().revalidate(thesisId);
@@ -245,24 +244,6 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
     const t = setTimeout(() => setBanner(null), 2600);
     return () => clearTimeout(t);
   }, [banner]);
-
-  // Direction has no engine command: the server's `format` op, whose echo bumps
-  // the tick → the hash moves → the effect above reloads the surface.
-  //
-  // The index the surface reported can be stale by the time the op is built — a
-  // local structural edit mints node ids the DTO knows nothing about until the
-  // save that follows re-parses them (spec D7) — so the block is re-found by its
-  // TEXT first, against the model `flushEdits` has just brought up to date. Same
-  // rule as a block link: trust the index while its text still agrees, else the
-  // one unambiguous paragraph that carries it. A miss leaves the reported index
-  // standing, which is what this did before.
-  const onServerFormat = useCallback(async (target: { index: number; text: string }, changes: { direction: "rtl" | "ltr" }) => {
-    await flushEdits();
-    const d = useThesisDocStore.getState().byId[thesisId];
-    const blocks = d?.available ? d.blocks : undefined;
-    const index = resolveBlockIndexStrict(blocks, target.index, target.text) ?? target.index;
-    await useThesisDocStore.getState().mutate(thesisId, { type: "format", indices: [index], changes });
-  }, [thesisId, flushEdits]);
 
   // Outline drawer / modk:// link / deep link → scroll by index (+ its text).
   useEffect(() => {
@@ -341,7 +322,6 @@ export function WorkspaceDocxView({ thesisId, active, deepLinkBlock }: {
         onReady={onReady}
         onFlushed={onFlushed}
         onReloaded={onReloaded}
-        onServerFormat={onServerFormat}
         ops={surfaceOps}
         onOpApplied={onOpApplied}
         shaping={shaping}
