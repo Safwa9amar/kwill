@@ -77,6 +77,18 @@ const MARK_SLOTS: readonly (readonly [key: string, slot: ChromeSlotId])[] = [
   ["underline", "text.underline"],
 ];
 
+/** The paragraph's BASE direction as the engine resolves it (w:bidi through the style
+ *  cascade). ⚠️ Not the painted run's computed `direction`: an Arabic run is rtl inside
+ *  an LTR paragraph too, so the toolbar kept showing RTL after the student chose LTR.
+ *  A selection across both directions answers neither: the run under the caret decides. */
+function paragraphIsRtl(editor: Editor, el: Element | null): boolean {
+  const rtl = commandForSlot("direction.rtl");
+  if (rtl && editor.isActive(rtl)) return true;
+  const ltr = commandForSlot("direction.ltr");
+  if (ltr && editor.isActive(ltr)) return false;
+  return el ? getComputedStyle(el).direction === "rtl" : false;
+}
+
 function applyMarks(editor: Editor, marks: Record<string, unknown>): void {
   for (const [key, slot] of MARK_SLOTS) {
     if (!(key in marks)) continue;
@@ -190,7 +202,7 @@ export function Bridge(p: BridgeProps) {
     p.onState(classifyReport({
       bold: !!fmt?.bold, italic: !!fmt?.italic, underline: !!fmt?.underline,
       blockType,
-      isRTL: focus ? getComputedStyle(focus.el).direction === "rtl" : false,
+      isRTL: paragraphIsRtl(editor, focus?.el ?? null),
       alignment: (fmt?.alignment as LexicalState["alignment"]) ?? null,
       index: focus?.index ?? -1,
       text: focus?.text ?? "",
