@@ -174,6 +174,56 @@ describe("createSaveLoop", () => {
     expect(loop.isDirty()).toBe(false);
   });
 
+  it("a failed save retries by itself, backing off, and stops once one lands", async () => {
+    const f = vi.fn()
+      .mockImplementationOnce(async () => { throw new TypeError("Load failed"); })
+      .mockImplementationOnce(async () => ({ status: 500, ok: false, json: async () => ({}) }))
+      .mockImplementation(async () => ({ status: 200, ok: true, json: async () => ({ docHash: "h2" }) })) as unknown as typeof fetch;
+    const { loop } = make(f);
+    loop.setHash("h1");
+    loop.markDirty();
+    await loop.flush();
+    expect(f).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(f).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1); // first retry after 5s → the 500
+    expect(f).toHaveBeenCalledTimes(2);
+    expect(loop.isDirty()).toBe(true);
+    await vi.advanceTimersByTimeAsync(14999);
+    expect(f).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1); // second retry after 15s → lands
+    expect(f).toHaveBeenCalledTimes(3);
+    expect(loop.isDirty()).toBe(false);
+    expect(loop.getHash()).toBe("h2");
+    await vi.advanceTimersByTimeAsync(120000);
+    expect(f).toHaveBeenCalledTimes(3);
+  });
+
+  it("no retry after a refusal (412), a discard, or a dispose", async () => {
+    const stale = vi.fn(async () => ({ status: 412, ok: false, json: async () => ({ docHash: "hX" }) })) as unknown as typeof fetch;
+    const a = make(stale);
+    a.loop.markDirty();
+    await a.loop.flush();
+    await vi.advanceTimersByTimeAsync(120000);
+    expect(stale).toHaveBeenCalledTimes(1);
+
+    const down = vi.fn(async () => { throw new TypeError("Load failed"); }) as unknown as typeof fetch;
+    const b = make(down);
+    b.loop.markDirty();
+    await b.loop.flush();
+    b.loop.discard();
+    await vi.advanceTimersByTimeAsync(120000);
+    expect(down).toHaveBeenCalledTimes(1);
+
+    const down2 = vi.fn(async () => { throw new TypeError("Load failed"); }) as unknown as typeof fetch;
+    const c = make(down2);
+    c.loop.markDirty();
+    await c.loop.flush();
+    c.loop.dispose();
+    await vi.advanceTimersByTimeAsync(120000);
+    expect(down2).toHaveBeenCalledTimes(1);
+  });
+
   it("isDirty tracks unsaved edits: set by markDirty, cleared once a save is committed to, back on a refusal", async () => {
     const ok = mockPut(200, { docHash: "h2" });
     const { loop } = make(ok);

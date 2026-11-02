@@ -35,6 +35,11 @@ export type PendingPort = {
 // a pause, not a save that never leaves.
 const PENDING_MS = 2000;
 
+// A save that failed comes back by itself. The page already shows the edit, so a
+// student has no reason to touch it again — and a flaky uplink (seen 11-02) would
+// otherwise leave the server behind the screen until their next keystroke.
+const RETRY_MS = [5000, 15000, 30000, 60000];
+
 export interface SaveLoop {
   markDirty(): void;
   flush(): Promise<void>;
@@ -77,12 +82,29 @@ export function createSaveLoop(o: {
   let chain: Promise<void> = Promise.resolve();
   let disposed = false;
   let failed = false;
+  let failures = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
   const savedListeners = new Set<(bytes: ArrayBuffer) => void>();
+
+  function cancelRetry(): void {
+    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+  }
+
+  function armRetry(): void {
+    if (disposed) return;
+    cancelRetry();
+    const ms = RETRY_MS[Math.min(failures, RETRY_MS.length - 1)];
+    failures += 1;
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      if (dirty && !disposed) void scheduleSaveNow();
+    }, ms);
+  }
 
   async function saveOnce(): Promise<void> {
     if (disposed) return;
     const token = o.token();
-    if (!token) { dirty = true; failed = true; o.onState({ kind: "error", message: "no token" }); return; }
+    if (!token) { dirty = true; failed = true; armRetry(); o.onState({ kind: "error", message: "no token" }); return; }
     o.onState({ kind: "saving" });
     try {
       const bytes = await o.getBytes();
@@ -100,6 +122,7 @@ export function createSaveLoop(o: {
       if (res.status === 412) {
         dirty = true; // the bytes are still the student's; the host decides
         failed = false;
+        failures = 0; // refused, not failed: retrying the same bytes cannot help
         // Set aside as a recovered copy, so the reload the host answers with
         // cannot take the student's text with it.
         const recovered = await settleWithin(o.pending?.keep(), PENDING_MS);
@@ -109,6 +132,7 @@ export function createSaveLoop(o: {
       if (!res.ok) throw new Error(`save ${res.status}`);
       if (typeof body.docHash === "string") hash = body.docHash;
       failed = false;
+      failures = 0;
       // Awaited, not fire-and-forget: the next chained save writes the same key,
       // and a late delete would erase the copy that save depends on.
       await settleWithin(o.pending?.clear(), PENDING_MS);
@@ -117,6 +141,7 @@ export function createSaveLoop(o: {
     } catch (e) {
       dirty = true;
       failed = true;
+      armRetry();
       o.onState({ kind: "error", message: String((e as Error)?.message ?? e) });
     }
   }
@@ -158,11 +183,13 @@ export function createSaveLoop(o: {
       if (disposed) return;
       if (!dirty) o.onState({ kind: "dirty" });
       dirty = true;
+      cancelRetry(); // the debounce below saves sooner, with these edits in it
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => { timer = null; if (dirty) void scheduleSaveNow(); }, debounceMs);
     },
     flush() {
       if (timer) { clearTimeout(timer); timer = null; }
+      cancelRetry();
       if (!dirty) return chain;
       return scheduleSaveNow();
     },
@@ -175,11 +202,14 @@ export function createSaveLoop(o: {
     dispose() {
       disposed = true;
       if (timer) clearTimeout(timer);
+      cancelRetry();
     },
     isDirty() { return dirty; },
     lastSaveFailed() { return failed; },
     discard() {
       if (timer) { clearTimeout(timer); timer = null; }
+      cancelRetry();
+      failures = 0;
       dirty = false;
     },
   };
