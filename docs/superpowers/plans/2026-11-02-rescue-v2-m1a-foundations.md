@@ -683,6 +683,17 @@ Run after Tasks 3, 6 and 8. Earlier renders may have been contaminated by the st
 
 ## Execution notes (2026-11-02)
 
+**M1a is complete.** Server `master` `fc800ab`..`afc9f08` (19 commits), each task reviewed, plus a final review whose two Important findings were fixed.
+- **Checks:** rescue + render + classify tests 169/169 green, and tsc clean. The full suite was 2161/2162; the one failure, `schedule-task.test.ts`, depends on the live database and is unrelated.
+- **Corpus:** all 17 single-file theses have a fresh key-v3 read with a Word render and page map; 8 of them are Arabic.
+- **Right-document guard on real renders, 17×17:** 0 wrong pairings pass and 0 right documents fail. Right documents score ≥72% on words and ≥40% on pairs; wrong ones score ≤62% and ≤24%.
+- **Bugs found and fixed on the way:**
+  - the marker step dropping a run straight into a table cell (t14);
+  - zip bit 3 surviving a re-zip (t02);
+  - the stale Word document never closed (`full name` is HFS);
+  - Word's comments pane shrinking the pages (t01);
+  - Arabic PDF text having no spaces between words.
+
 - **Key version is 3, not 2.** The Task 3 review found that different pictures with the same size, name and neighbours still shared a key family (10 groups across 6 corpus files). The object signature now includes `sha1` of each image's bytes, resolved through `word/_rels/document.xml.rels`. `KEY_VERSION` was bumped to 3, with a golden-value test, so a formula change without a bump fails loudly. Read "keyVersion 2" in the tasks above as "the current `KEY_VERSION`".
 - **The t01 answer key is key v3:**
   - 92 brain relabels: 4 → toc-field, 54 → list-field, 29 → figure-source, and 5 typed captions → caption-figure.
@@ -699,5 +710,7 @@ Run after Tasks 3, 6 and 8. Earlier renders may have been contaminated by the st
   - Holds and the extent part of the signature include things Rescue itself writes: section and page breaks, fields, bookmarks, picture resizes. A re-run that reads the student's revised *rescued* file must match against the rescued file's map, not the original's.
   - Prove needs the token list, not only the fingerprint hash, so it can allow field results (TOC page numbers, SEQ numbers) to change on re-pagination.
 - The converter's "Grant File Access" check uses System Events. Whether launchd's `node` has the Accessibility permission is untested; without it the check fails with `-1719` and the old empty error comes back.
+- **Page-map fidelity:** the marked copy can paginate differently from the original. t14's marked render is 114 pages against the plain render's 112, so page numbers in its page map drift after the first divergence. Before M2 relies on page maps for layout checks, the markers must be made layout-neutral (or the drift detected and flagged per page).
+- **Production Word tunnel (user decision):** the cloudflared quick tunnel was stuck in a 429 rate-limit loop on 2026-11-02, kept alive by the watchdog's 90-second restarts. Each loop that read `api.trycloudflare.com` as the tunnel URL also killed the converter mid-job. Lab renders used a private `:8093` instance instead.
 - **Release blocker:** the committed `package.json` still names the engine `mdocxengine`, while the rescue code imports `@kwill/docx-engine`. That rename is another session's uncommitted work, and it must land before the release.
 - For the user to decide: the converter listens on `0.0.0.0` with no auth and fetches any URL (SSRF). The production server reaches it through a tunnel, so binding to localhost or adding a token must be coordinated with that tunnel.
