@@ -594,13 +594,94 @@ The first answer key (897 blocks, key v1) must survive the key change. The old `
 
 ## Task 8: Word render reliability
 
-This task is written from the render-failure diagnosis (run 2026-11-02, after this plan was drafted). **It is appended when that diagnosis reports**, with concrete steps for the root causes it establishes. Do not start it before it is filled in.
+**Files:**
+- Modify: `src/lib/render/page-markers.ts` (⚠️ has an uncommitted import rename from another session — see Step 6), `scripts/word-convert-service.mjs`, `src/lib/word-converter.ts`, `scripts/rescue-lab/render.ts`
+- Test: `src/__tests__/page-markers-zip.test.ts` (new), `scripts/rescue-lab/__tests__/` (none; the lab is smoke-tested)
+
+The diagnosis (2026-11-02) ran the 9 failing corpus files through Word and found three independent causes.
+
+1. **A macOS "Grant File Access" dialog blocks Word.**
+   - The service deletes and recreates `convert-input.docx` for every job, and the grant does not survive that. Word then sits behind stacked dialogs until osascript is killed at 120 s.
+   - This is not a code bug, but the code makes it worse (delete and recreate) and hides it (a silent 120 s timeout).
+2. **The marker step breaks zips whose entries carry flag bit 3 (data descriptor).**
+   - AdmZip keeps the flag but writes no descriptor, and Word refuses the file with `-10000`.
+   - This is deterministic on t02, the only corpus file whose entries all carry bit 3.
+   - `clearFalseDataDescriptors` (already exported by `@kwill/docx-engine`) fixes it.
+   - The docx doctor reports "ok" on the broken file, so it cannot catch this.
+3. **A failed `save as` leaves the document open in Word.**
+   - The AppleScript has no error handling, so `close theDoc` never runs.
+   - The next job's `open` of the same path then fails (`-1728`, `-2753`). Worse, it can **return the stale document's PDF as a success**: one t21 render came back as another thesis.
+
+Also: the lab sends every thesis through Word three times (plain PDF, page PNGs, marked PDF), and the client timeout is a flat 150 s, which is too short for t08 (22.6 MB).
+
+- [ ] **Step 1: Test first (cause 2).** In `src/__tests__/page-markers-zip.test.ts`:
+  - load `assets/thesis-base.docx` and set general-purpose flag bit 3 on every entry, in both the local headers (signature `0x04034b50`, flags at offset +6) and the central directory (signature `0x02014b50`, flags at offset +8);
+  - assert the file still unzips (`new AdmZip(buf).getEntries().length > 0`);
+  - run `injectBlockMarkers(buf)`;
+  - assert that no central-directory entry in `result.bytes` has bit 3 set, and that `result.blockCount` equals the count from the unmodified asset.
+
+  Run it. Expected: FAIL (bit 3 survives).
+- [ ] **Step 2: Fix (cause 2).** In `page-markers.ts`, return `bytes: clearFalseDataDescriptors(zip.toBuffer())`, importing it from `@kwill/docx-engine` in the same import statement the working tree already uses. Run the test: PASS.
+- [ ] **Step 3: Service robustness (causes 1 and 3)** in `scripts/word-convert-service.mjs`:
+  - **Close only our own stale document before opening.** At the top of the `tell` block, run `repeat with d in (documents whose full name is "<DOCX_PATH>")` then `close d saving no`. Never `close every document`: the person at this Mac may have their own documents open.
+  - **Close on failure.** Wrap `save as` in `try … on error errMsg number errNum` → `close theDoc saving no` → `error errMsg number errNum` → `end try`, so the failure still propagates.
+  - **Keep the input file's identity between jobs** so the macOS grant survives. Do not `unlink(DOCX_PATH)` after a job; truncate it with `writeFile(DOCX_PATH, "")`, so no thesis copy is left behind. Write each new job's bytes in place with `writeFile`, which truncates and rewrites the same inode. Keep the PDF unlink as is. Add a comment explaining why.
+  - **Fail fast and clearly on the dialog.**
+    1. Run osascript with a timeout scaled to size: `120_000 + 8_000 * MB`.
+    2. If osascript fails, check System Events: `tell application "System Events" to get name of every window of process "Microsoft Word"`.
+    3. If a window name contains "Grant File Access", reject with `"Word is waiting on a macOS 'Grant File Access' dialog for convert-input.docx — click Select/Grant on this Mac, then retry"`.
+    4. If the check itself errors, return the original error.
+  - **Before/after check that the PDF belongs to this job.** Delete any old PDF before the job, and after `save as` require that the PDF's mtime is later than the job start; otherwise reject with "Word returned a stale PDF".
+- [ ] **Step 4: Client timeout** in `src/lib/word-converter.ts`. The converter fetches by URL and does not know the size up front, so add an optional `sizeBytes?: number` to both functions' options. Use `AbortSignal.timeout(150_000 + 8_000 * Math.ceil((sizeBytes ?? 0) / 1_048_576))`. Existing callers are unchanged (the default is the same 150 s).
+- [ ] **Step 5: Lab render** in `scripts/rescue-lab/render.ts`:
+  - **One Word call fewer.** Rasterize the plain PDF locally with `pdftoppm -png -scale-to-x <PAGE_W> -scale-to-y -1` (poppler is installed on this Mac). Fall back to the service's `/render-pages` only if `pdftoppm` is missing.
+  - **Pass `sizeBytes`** to every converter call.
+  - **Retry once.** If a conversion fails with `-1728`, `-2753`, `-10000` or "stale PDF", wait 3 s and retry. The service now closes its stale document, so the retry is clean. Never retry the Grant File Access error; surface it.
+  - **Right-document guard.**
+    1. After the plain PDF, compute `extractPdfText` words.
+    2. Require that at least 60% of the inventory's first 300 distinct `proveWords` tokens (length ≥ 4) appear in the PDF text.
+    3. On failure, throw "rendered PDF does not match this thesis (overlap X%)". Print only the percentage, never the words.
+- [ ] **Step 6: Commit hunk-only for `page-markers.ts`.** It already carries another session's uncommitted import rename (`mdocxengine` → `@kwill/docx-engine`); that hunk must NOT be committed by us.
+  1. Build a patch of only our change: `git diff src/lib/render/page-markers.ts > /tmp/pm.patch`.
+  2. Edit the patch to drop the import hunk, or write the patch by hand against `HEAD`.
+  3. Stage it with `git apply --cached`.
+  4. Check with `git diff --cached src/lib/render/page-markers.ts` that only the `clearFalseDataDescriptors` lines are staged.
+
+  ⚠️ `HEAD` still imports from `"mdocxengine"`, so the staged import must add `clearFalseDataDescriptors` to that import.
+  - The committed `package.json` maps `"mdocxengine": "file:../mdocxengine"`, the same engine repo, and that repo exports it: `grep -n clearFalseDataDescriptors ~/mdocxengine/src/index.ts`.
+  - `node_modules` has only the renamed `@kwill/docx-engine`. That is the other session's working tree, and it is why the working copy keeps its own import line.
+
+  The staged file must match `HEAD`'s `package.json`. The working file must match the working `package.json`.
+
+  The other three files are stage-whole only if `git diff` shows no foreign hunks. Commit with the message `fix(render): Word conversions survive bit-3 zips, stale open documents and the file-access dialog`.
+- [ ] **Step 7: Restart the service and smoke it** (controller, main session):
+  1. Stop the running `word-convert-service.mjs` (only that pid), start it the same way, and check `curl -s localhost:8092/healthcheck`.
+  2. The first job then closes the stale `convert-input.docx` that the diagnosis left open in Word.
+  3. Render `assets/thesis-base.docx` through `cli.ts` with id `base-smoke`, then remove it.
+
+---
+
+## Task 9: Re-read the whole corpus (controller, main session)
+
+Run after Tasks 3, 6 and 8. Earlier renders may have been contaminated by the stale document (cause 3), so **every** single-file thesis is re-read, including the ones that rendered before.
+
+- [ ] **Step 1:** For each single-file id (t01–t16, t21), run `npx tsx scripts/rescue-lab/cli.ts read <id>`, one at a time. Do t01 last; Task 7 already re-read it. Record from each `status.json` only: id, render ok/failed, pages, unmapped, and the right-document overlap %.
+- [ ] **Step 2:** For any failure, read the error class only (Grant File Access, timeout, `-1728`/`-10000`, mismatch) and act:
+  - Grant File Access: ask the user to click Grant on the Mac, then retry.
+  - Timeout on t08: retry once with Word otherwise idle.
+  - Anything else: open a systematic-debugging pass on that one file.
+- [ ] **Step 3:** Update `lab/PRIVATE-corpus-ids.json` (gitignored) with each id's read status. There is no commit; the lab is gitignored.
 
 ---
 
 ## Done when
 
 - `npx vitest run src/lib/rescue`, `npx tsc --noEmit` and the full server suite (`npx vitest run --testTimeout=60000`) are green.
-- Guard v2 fails on all five bypasses and passes on the tree.
+- Guard v2 fails on all bypasses (five, plus non-literal `import()`) and passes on the tree.
 - The t01 answer key is v2, valid under contract v2, and matches a fresh read.
-- The corpus's single-file theses all have a `read/status.json`; renders are whatever Task 8 makes possible.
+- Every single-file corpus thesis has a fresh `read/status.json`, each render either OK with a right-document overlap ≥ 60%, or failed with a named cause.
+
+## Carry-overs (not in M1a)
+
+- An engine doctor rule for false data descriptors: entries with flag bit 3 set and no descriptor. The doctor reports "ok" today on a zip Word refuses. This needs an engine `main` change plus `npm run build`.
+- For the user to decide: the converter listens on `0.0.0.0` with no auth and fetches any URL (SSRF). The production server reaches it through a tunnel, so binding to localhost or adding a token must be coordinated with that tunnel.
