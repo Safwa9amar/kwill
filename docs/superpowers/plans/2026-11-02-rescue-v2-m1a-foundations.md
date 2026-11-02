@@ -681,7 +681,23 @@ Run after Tasks 3, 6 and 8. Earlier renders may have been contaminated by the st
 - The t01 answer key is v2, valid under contract v2, and matches a fresh read.
 - Every single-file corpus thesis has a fresh `read/status.json`, each render either OK with a right-document overlap ≥ 60%, or failed with a named cause.
 
+## Execution notes (2026-11-02)
+
+- **Key version is 3, not 2.** The Task 3 review found that different pictures with the same size, name and neighbours still shared a key family (10 groups across 6 corpus files). The object signature now includes `sha1` of each image's bytes, resolved through `word/_rels/document.xml.rels`. `KEY_VERSION` was bumped to 3, with a golden-value test, so a formula change without a bump fails loudly. Read "keyVersion 2" in the tasks above as "the current `KEY_VERSION`".
+- **The t01 answer key is key v3:**
+  - 92 brain relabels: 4 → toc-field, 54 → list-field, 29 → figure-source, and 5 typed captions → caption-figure.
+  - All 8 windows are valid.
+  - Earlier versions are kept as `gold/map.v1.json` and `map.v2.json`.
+- **Corpus effect of key v2/v3:** figures in a look-alike family went from 136 to 38, and 12 of 17 files reached 0. One blank line inserted early now re-keys 0 figures; it used to re-key up to 19.
+
 ## Carry-overs (not in M1a)
 
-- An engine doctor rule for false data descriptors: entries with flag bit 3 set and no descriptor. The doctor reports "ok" today on a zip Word refuses. This needs an engine `main` change plus `npm run build`.
+- An engine doctor rule for false data descriptors: entries with flag bit 3 set and no descriptor. The doctor reports "ok" today on a zip Word refuses. Also, `clearFalseDataDescriptors` skips CRC-0 entries, such as directory entries, so they keep a false bit 3. Both need an engine `main` change plus `npm run build`.
+- `src/lib/docx-shapes.ts:100` `stripAltContentFallback` has the same self-closing `<mc:Fallback/>` bug that was fixed in `content.ts`. Kwill's own engine writes that form.
+- **For M4 (re-runs), design notes from the Task 3 review:**
+  - The positional `#N` suffix remains for runs of blank paragraphs. One inserted blank can re-key up to 745 blanks. Match a family by its base, as a multiset, instead of by position.
+  - Holds and the extent part of the signature include things Rescue itself writes: section and page breaks, fields, bookmarks, picture resizes. A re-run that reads the student's revised *rescued* file must match against the rescued file's map, not the original's.
+  - Prove needs the token list, not only the fingerprint hash, so it can allow field results (TOC page numbers, SEQ numbers) to change on re-pagination.
+- The converter's "Grant File Access" check uses System Events. Whether launchd's `node` has the Accessibility permission is untested; without it the check fails with `-1719` and the old empty error comes back.
+- **Release blocker:** the committed `package.json` still names the engine `mdocxengine`, while the rescue code imports `@kwill/docx-engine`. That rename is another session's uncommitted work, and it must land before the release.
 - For the user to decide: the converter listens on `0.0.0.0` with no auth and fetches any URL (SSRF). The production server reaches it through a tunnel, so binding to localhost or adding a token must be coordinated with that tunnel.
