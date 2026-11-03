@@ -26,6 +26,14 @@
 
 CLI: `review <tNN> [--run]`, using the session brain's file queue. The answer goes in `gold/review.json`; defects found and how each was fixed go in `gold/review.md` (no thesis text).
 
+**As built (2026-11-04).**
+- `scripts/rescue-lab/rescue-run.ts` holds `runRescue(args, { fixes, coverFields, deposit, images, prune })`: the one path for the CLI's `rescue`, every Review round and every replay. A round reruns the whole pipeline with the fixes so far, so nothing has a second way to the file.
+- A fix is stored by what its block is: `{ source: key }` from the source inventory, or `{ final: key }` for what Regenerate generated. It holds whatever moved around it. `set_role` goes in before Reset; `exempt_page` goes to Prove's `exemptPages`; the others run on the regenerated file.
+- The task asks 16 questions by name (`REVIEW_QUESTIONS`), and a final answer must answer each. Six are grave: words under a float, text over text, an object off the page, unreadable words, a missing object, a damaged cover. A grave defect no fix reaches fails the run. The rest stay open and go in the report.
+- Every page holding a floating object is in `mustZoom`: the validator refuses a final answer until it has been seen full size.
+- Word converts the whole file every time. "Only what's needed" is what the brain is shown next: pages whose text changed, plus the pages the fixes reach.
+- Output: `gold/review.json`, `gold/review.md`, `gold/accepted.docx` and `.pdf` (hard links, no second copy), `gold/answers.json` when a cover was generated or cleaned, one line per defect in `lab/defects.jsonl`.
+
 ## 2. Corpus runs
 
 Theses: t01–t20 (t21 is the seed CV, not a thesis). Keys exist for t01, t02, t03, t05, t06, t18, t19. Missing: t04, t07–t17, t20.
