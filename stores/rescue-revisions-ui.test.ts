@@ -51,6 +51,23 @@ describe("the chosen files belong to one version", () => {
   });
 });
 
+describe("the supervisor note belongs to the version too", () => {
+  it("a note typed for one version is cleared when the version moves", () => {
+    S().ensure("P:P-v1");
+    S().setNote("P:P-v1", "Changer la marge");
+    expect(S().note).toBe("Changer la marge");
+    S().ensure("P:P-v2");
+    expect(S().note).toBe("");
+  });
+
+  it("a note for a version that is no longer open is refused", () => {
+    S().ensure("P:P-v1");
+    S().ensure("P:P-v2");
+    S().setNote("P:P-v1", "late");
+    expect(S().note).toBe("");
+  });
+});
+
 describe("one re-run call at a time", () => {
   it("a second call is refused while one is in flight, and allowed once it ends", () => {
     expect(S().begin()).toBe(true);

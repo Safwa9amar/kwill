@@ -20,10 +20,13 @@ interface RevisionsUiState {
   /** The project these choices belong to. */
   key: string | null;
   files: PickedFile[];
+  /** The supervisor's note as typed; sent by the CTA or on blur, like the notes screen. */
+  note: string;
   /** One re-run call at a time: a tap while one is in flight is refused. */
   busy: boolean;
   ensure(key: string): void;
   setFiles(key: string, files: PickedFile[]): void;
+  setNote(key: string, note: string): void;
   begin(): boolean;
   end(): void;
 }
@@ -31,14 +34,19 @@ interface RevisionsUiState {
 export const useRevisionsUi = create<RevisionsUiState>()((set, get) => ({
   key: null,
   files: [],
+  note: "",
   busy: false,
   ensure: (key) => {
     if (get().key === key) return;
-    set({ key, files: [] });
+    set({ key, files: [], note: "" });
   },
   setFiles: (key, files) => {
     if (get().key !== key) return;
     set({ files });
+  },
+  setNote: (key, note) => {
+    if (get().key !== key) return;
+    set({ note });
   },
   begin: () => {
     if (get().busy) return false;

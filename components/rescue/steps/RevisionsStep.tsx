@@ -13,6 +13,7 @@ import { useRTL } from "@/hooks/useRTL";
 import { PURCHASES_HIDDEN } from "@/lib/purchases";
 import { ackVersion, getImpact, removeNoteChip, requestRescueReview, resolveNoteConflict, sendNote } from "@/lib/rescue-v2-api";
 import { keepDocx, partsRefusal } from "@/lib/rescue-v2-pick";
+import { runNoteCta, waitForNote, type NoteReading } from "@/lib/rescue-v2-note-cta";
 import { STAGE_LAYOUT } from "@/lib/rescue-v2-layout";
 import { thesisIsRtl } from "@/lib/rescue-v2-screen";
 import { visualRow, visualTextAlign } from "@/lib/rtl-layout";
@@ -35,6 +36,19 @@ function dictationLang(language: "ar" | "fr" | "en" | null): string {
   if (language === "en") return "en-US";
   return recognizerLang();
 }
+
+/** What the CTA reads from the store now: the note's state and whether a conflict is open, for the project `pid`. */
+function readNote(pid: string): NoteReading {
+  const st = useRescueV2Store.getState();
+  const note = st.project?.note;
+  return {
+    parsing: note?.state === "parsing",
+    conflict: (note?.conflicts ?? []).some((c) => c.choice === null),
+    live: st.projectId === pid,
+  };
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /** Screen 17, the stage: the current version, the middle page outlined in brand. */
 function Stage() {
@@ -76,15 +90,15 @@ function RevisionsSheet() {
   const setFiles = useRevisionsUi((s) => s.setFiles);
   const rtl = useRescueV2Store((s) => thesisIsRtl(s.project));
   const language = useRescueV2Store((s) => s.project?.language ?? null);
-  const [note, setNote] = useState("");
+  // The note lives in the store, keyed by version, so the foot's CTA sends the text the sheet holds.
+  const note = useRevisionsUi((s) => (s.key === vkey ? s.note : ""));
+  const setNote = useRevisionsUi((s) => s.setNote);
   const [focused, setFocused] = useState(false);
   const [pickNotice, setPickNotice] = useState<string | null>(null);
   const [impact, setImpact] = useState<{ state: "loading" | "ok" | "failed"; pages: number }>({ state: "loading", pages: 0 });
   const [attempt, setAttempt] = useState(0);
   const [pending, setPending] = useState(false);
   const gate = useRef(false);
-  // The text last sent, so a blur with nothing new sends nothing.
-  const sent = useRef("");
 
   useEffect(() => { if (vkey) ensure(vkey); }, [vkey, ensure]);
 
@@ -124,16 +138,16 @@ function RevisionsSheet() {
     }
   };
 
-  // A changed note is sent when the field loses focus. Nothing typed, or nothing new, sends nothing.
+  // A changed note is sent when the field loses focus, as on the notes screen. Nothing typed, or nothing new, sends nothing. The CTA sends
+  // one that is still unsent and waits for it, so the re-run never starts before the note is read.
   const saveNote = () => {
     setFocused(false);
     const text = note.trim();
-    if (!text || text === sent.current) return;
-    sent.current = text;
+    if (!text || text === (project.note.text ?? "")) return;
     void apply(() => sendNote(id, text, "supervisor"));
   };
 
-  const dictate = (chunk: string) => setNote((prev) => (prev.trim() ? `${prev.trimEnd()} ${chunk}` : chunk));
+  const dictate = (chunk: string) => { if (vkey) setNote(vkey, note.trim() ? `${note.trimEnd()} ${chunk}` : chunk); };
 
   const withLock = async (call: () => Promise<unknown>) => {
     if (gate.current) return;
@@ -218,7 +232,7 @@ function RevisionsSheet() {
         <BottomSheetTextInput
           multiline
           value={note}
-          onChangeText={setNote}
+          onChangeText={(v) => { if (vkey) setNote(vkey, v); }}
           onFocus={() => setFocused(true)}
           onBlur={saveNote}
           placeholder={t("rescueV2.revisions.supervisorPlaceholder")}
@@ -260,8 +274,9 @@ function RevisionsFoot() {
   const errorCode = useRescueV2Store((s) => s.errorCode);
   const beginRerun = useRescueV2Store((s) => s.beginRerun);
   const busy = useRevisionsUi((s) => s.busy);
+  const apply = useRescueV2Store((s) => s.apply);
+  const id = project?.id ?? null;
   const vkey = revisionsKey(project);
-  const files = useRevisionsUi((s) => (s.key === vkey ? s.files : NO_FILES));
   if (!project || isForced(project)) return null;
 
   if (project.phase === "uploading") {
@@ -286,12 +301,28 @@ function RevisionsFoot() {
     : null;
 
   const run = async () => {
+    if (!id || !vkey) return;
     const ui = useRevisionsUi.getState();
     if (!ui.begin()) return;
     try {
-      // The files as they are now, not as this render saw them: a pick may have landed since. Only this version's choices count.
-      const now = useRevisionsUi.getState();
-      await beginRerun(vkey !== null && now.key === vkey ? now.files : []);
+      // The latest values, not the ones this render saw: a blur-send may have landed since. A note still unsent is sent first, then the
+      // re-run starts once, after the note is read (the same sequence as the notes screen's CTA).
+      const saved = useRescueV2Store.getState().project?.note.text ?? "";
+      const typed = useRevisionsUi.getState();
+      const text = (typed.key === vkey ? typed.note : "").trim();
+      await runNoteCta(text !== "" && text !== saved, {
+        send: () => apply(() => sendNote(id, text, "supervisor")),
+        wait: () => waitForNote({
+          read: () => readNote(id),
+          refresh: () => useRescueV2Store.getState().refresh(),
+          sleep,
+        }),
+        // The files as they are now, not as this render saw them: a pick may have landed since. Only this version's choices count.
+        start: () => {
+          const now = useRevisionsUi.getState();
+          return beginRerun(now.key === vkey ? now.files : []);
+        },
+      });
     } finally {
       useRevisionsUi.getState().end();
     }
