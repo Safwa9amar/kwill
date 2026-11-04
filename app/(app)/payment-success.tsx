@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { Button } from "@/components/ui/Button";
@@ -34,6 +34,8 @@ export default function PaymentSuccessScreen() {
   const { t, i18n } = useTranslation();
   const colors = useThemeColors();
   const router = useRouter();
+  // A rescue payment comes back here only through the deep link: its grant is read from the project, not the plan's allowance.
+  const { rescue } = useLocalSearchParams<{ rescue?: string }>();
 
   const quota = useBillingStore((s) => s.quota);
   const refreshQuota = useBillingStore((s) => s.refreshQuota);
@@ -50,10 +52,12 @@ export default function PaymentSuccessScreen() {
   }, [refreshQuota]);
 
   useEffect(() => {
-    void poll();
-  }, [poll]);
+    if (!rescue) void poll();
+  }, [poll, rescue]);
 
   const granted = !!quota && quota.available > 0;
+
+  if (rescue) return <Redirect href={`/(app)/rescue?projectId=${encodeURIComponent(rescue)}` as never} />;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={["top"]}>

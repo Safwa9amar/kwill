@@ -1808,6 +1808,8 @@
       "tryAgain": "Renvoyer",
       "cardNotFinished": "Le paiement n'est pas allé au bout, rien n'a été débité.",
       "cardRetry": "Paiement non terminé ? Réessayer",
+      "cardFailed": "Impossible d'ouvrir la page de paiement. Rien n'a été débité, réessayez.",
+      "backToRepair": "Retour à la remise en forme",
       "notForSale": "La remise en forme n'est pas disponible pour le moment. Réessayez plus tard.",
       "statusTitle": "La remise en forme de ce mémoire n'est pas encore activée",
       "statusBody": "Son état est lié à votre compte Kwill et vous suit sur tous vos appareils.",

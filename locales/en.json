@@ -1808,6 +1808,8 @@
       "tryAgain": "Send again",
       "cardNotFinished": "The payment didn't finish, and nothing was charged.",
       "cardRetry": "Didn't finish paying? Try again",
+      "cardFailed": "We couldn't open the payment page. Nothing was charged, please try again.",
+      "backToRepair": "Back to your thesis repair",
       "notForSale": "The repair isn't available right now. Please try later.",
       "statusTitle": "The repair isn't active for this thesis yet",
       "statusBody": "Its status is linked to your Kwill account and follows you on every device.",

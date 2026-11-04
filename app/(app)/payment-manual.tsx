@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -41,13 +41,20 @@ export default function PaymentManualScreen() {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const router = useRouter();
-  const { plan, kind, amountDzd } = useLocalSearchParams<{ plan?: PlanCode; kind?: "topup"; amountDzd: string }>();
+  const { plan, kind, amountDzd, rescueProjectId } = useLocalSearchParams<{
+    plan?: PlanCode;
+    kind?: "topup" | "rescue";
+    amountDzd: string;
+    rescueProjectId?: string;
+  }>();
 
   const [details, setDetails] = useState<ManualPaymentDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [reference, setReference] = useState("");
   const [image, setImage] = useState<{ base64: string; mimeType: string; uri: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Synchronous, so a second tap before the state flushes cannot send a second transfer.
+  const inFlight = useRef(false);
 
   useEffect(() => {
     fetchManualPaymentDetails()
@@ -85,20 +92,30 @@ export default function PaymentManualScreen() {
   };
 
   const submit = async () => {
-    if (!reference.trim() || !image) return;
+    if (!reference.trim() || !image || inFlight.current) return;
+    // A rescue transfer names its project; without one the form cannot say what it pays for, so it is refused here.
+    if (kind === "rescue" && !rescueProjectId) {
+      Alert.alert(t("payment.manualSubmitFailedTitle"), t("payment.checkoutFailedBody"));
+      return;
+    }
+    inFlight.current = true;
     setSubmitting(true);
     try {
-      await submitManualPayment({
-        base64: image.base64,
-        mimeType: image.mimeType,
-        referenceNumber: reference.trim(),
-        plan: kind === "topup" ? undefined : plan,
-        kind: kind === "topup" ? "topup" : undefined,
-      });
-      router.replace("/(app)/payment-manual-submitted" as any);
+      const common = { base64: image.base64, mimeType: image.mimeType, referenceNumber: reference.trim() };
+      await submitManualPayment(
+        kind === "rescue" && rescueProjectId
+          ? { ...common, kind: "rescue", projectId: rescueProjectId }
+          : { ...common, plan: kind === "topup" ? undefined : plan, kind: kind === "topup" ? "topup" : undefined },
+      );
+      if (kind === "rescue" && rescueProjectId) {
+        router.replace({ pathname: "/(app)/payment-manual-submitted", params: { rescue: rescueProjectId } } as never);
+      } else {
+        router.replace("/(app)/payment-manual-submitted" as any);
+      }
     } catch (e: any) {
       Alert.alert(t("payment.manualSubmitFailedTitle"), e?.message || t("payment.checkoutFailedBody"));
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
     }
   };

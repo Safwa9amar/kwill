@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { Button } from "@/components/ui/Button";
@@ -10,6 +10,8 @@ export default function PaymentManualSubmittedScreen() {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const router = useRouter();
+  // A rescue transfer goes back to the repair; a plan or top-up goes back to the plans, as it always did.
+  const { rescue } = useLocalSearchParams<{ rescue?: string }>();
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
       <View style={styles.content}>
@@ -17,8 +19,12 @@ export default function PaymentManualSubmittedScreen() {
         <Text style={[styles.title, { color: colors.textPrimary }]}>{t("payment.manualSubmittedTitle")}</Text>
         <Text style={[styles.body, { color: colors.textSecondary }]}>{t("payment.manualSubmittedBody")}</Text>
         <Button
-          title={t("payment.manualSubmittedCta")}
-          onPress={() => router.replace("/(app)/subscription" as any)}
+          title={rescue ? t("rescueV2.payment.backToRepair") : t("payment.manualSubmittedCta")}
+          onPress={() =>
+            rescue
+              ? router.replace(`/(app)/rescue?projectId=${encodeURIComponent(rescue)}` as never)
+              : router.replace("/(app)/subscription" as any)
+          }
           style={{ marginTop: 24, alignSelf: "stretch" }}
         />
       </View>
