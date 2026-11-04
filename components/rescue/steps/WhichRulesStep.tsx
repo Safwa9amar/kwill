@@ -196,7 +196,9 @@ function GuideSheet() {
     setFailure(null);
     try {
       const ok = await apply(() => uploadGuide(id, uri, name, type));
+      // A refused or failed guide stays on this sheet, with its own line, so the student sees why and can try again.
       if (ok) useBottomSheet.getState().closeSheet("rescue-guide");
+      else setFailure(t("rescueV2.whichRules.guideFailed"));
     } finally {
       gate.current = false;
       setPending(false);
