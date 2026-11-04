@@ -17,7 +17,7 @@ import { STAGE_LAYOUT } from "@/lib/rescue-v2-layout";
 import { thesisIsRtl } from "@/lib/rescue-v2-screen";
 import { visualRow, visualTextAlign } from "@/lib/rtl-layout";
 import { recognizerLang } from "@/lib/voice";
-import { NO_FILES, useRevisionsUi } from "@/stores/rescue-revisions-ui";
+import { NO_FILES, revisionsKey, useRevisionsUi } from "@/stores/rescue-revisions-ui";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
 import type { RescueStep } from "./index";
 
@@ -68,8 +68,10 @@ function RevisionsSheet() {
   const config = useRescueV2Store((s) => s.config);
   const apply = useRescueV2Store((s) => s.apply);
   const id = project?.id ?? null;
+  // The choices belong to the version the project works on now: an accepted re-run moves it, and the files it took go with it.
+  const vkey = revisionsKey(project);
   const forced = isForced(project);
-  const files = useRevisionsUi((s) => (s.key === id ? s.files : NO_FILES));
+  const files = useRevisionsUi((s) => (s.key === vkey ? s.files : NO_FILES));
   const ensure = useRevisionsUi((s) => s.ensure);
   const setFiles = useRevisionsUi((s) => s.setFiles);
   const rtl = useRescueV2Store((s) => thesisIsRtl(s.project));
@@ -84,7 +86,7 @@ function RevisionsSheet() {
   // The text last sent, so a blur with nothing new sends nothing.
   const sent = useRef("");
 
-  useEffect(() => { if (id) ensure(id); }, [id, ensure]);
+  useEffect(() => { if (vkey) ensure(vkey); }, [vkey, ensure]);
 
   // The changed pages, asked only when the student edited in Kwill and chose no file (the file wins otherwise, P-67).
   const needImpact = !!project?.editedInKwill && files.length === 0 && !forced;
@@ -114,7 +116,7 @@ function RevisionsSheet() {
       if (refusal?.key === "tooMany") { setPickNotice(t("rescueV2.start.tooMany")); return; }
       if (refusal?.key === "tooLarge") { setPickNotice(t("rescueV2.start.tooLarge", { mb: refusal.mb })); return; }
       setPickNotice(null);
-      setFiles(id, picked);
+      if (vkey) setFiles(vkey, picked);
     } catch {
       setPickNotice(t("rescueV2.common.somethingWrong"));
     } finally {
@@ -258,8 +260,8 @@ function RevisionsFoot() {
   const errorCode = useRescueV2Store((s) => s.errorCode);
   const beginRerun = useRescueV2Store((s) => s.beginRerun);
   const busy = useRevisionsUi((s) => s.busy);
-  const id = project?.id ?? null;
-  const files = useRevisionsUi((s) => (s.key === id ? s.files : NO_FILES));
+  const vkey = revisionsKey(project);
+  const files = useRevisionsUi((s) => (s.key === vkey ? s.files : NO_FILES));
   if (!project || isForced(project)) return null;
 
   if (project.phase === "uploading") {
@@ -287,8 +289,9 @@ function RevisionsFoot() {
     const ui = useRevisionsUi.getState();
     if (!ui.begin()) return;
     try {
-      // The files as they are now, not as this render saw them: a pick may have landed since.
-      await beginRerun(useRevisionsUi.getState().files);
+      // The files as they are now, not as this render saw them: a pick may have landed since. Only this version's choices count.
+      const now = useRevisionsUi.getState();
+      await beginRerun(vkey !== null && now.key === vkey ? now.files : []);
     } finally {
       useRevisionsUi.getState().end();
     }
