@@ -72,5 +72,7 @@ export default function AppLayout() {
     <Stack.Screen name="library" options={FROM_CHAT} />
     <Stack.Screen name="tasks" options={FROM_CHAT} />
     <Stack.Screen name="ai-key" />
+    {/* Rescue v2: one living screen. Its own Stack (app/(app)/rescue/_layout.tsx) turns off the gestures and the drawer swipe. */}
+    <Stack.Screen name="rescue" />
   </Stack>;
 }

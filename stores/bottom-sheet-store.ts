@@ -6,7 +6,9 @@ export type SheetName =
   | "structure" | "ask" | "new-thesis" | "thesis-sources" | "thesis-attach"
   // Scheduled tasks: pick a job, choose when it runs, or turn the selected
   // paragraph into a task without leaving the Writer.
-  | "task-job" | "task-schedule" | "task-from-block";
+  | "task-job" | "task-schedule" | "task-from-block"
+  // Rescue v2: the living screen's pickers (university, guide, rule, cover field).
+  | "rescue-university" | "rescue-guide" | "rescue-rule-picker" | "rescue-cover-field";
 
 interface BottomSheetState {
   openSheets: Set<SheetName>;
