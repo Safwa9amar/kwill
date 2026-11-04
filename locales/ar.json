@@ -1884,11 +1884,13 @@
         "pdf_word": "PDF و Word",
         "copies_cd": "نسخ مطبوعة وقرص"
       },
-      "outOfRange": "هذه القيمة خارج المجال المعتاد."
+      "outOfRange": "هذه القيمة خارج المجال المعتاد.",
+      "done": "تم"
     },
     "question": {
       "counter": "سؤال {{n}} من {{total}}",
-      "decide": "لست متأكدًا — دع Kwill يقرّر"
+      "decide": "لست متأكدًا — دع Kwill يقرّر",
+      "resume": "متابعة"
     },
     "cover": {
       "title": "تأكّد من بيانات الغلاف",
@@ -1917,7 +1919,11 @@
       "editTitle": "عدّل: {{label}}",
       "save": "حفظ",
       "cta": "ابدأ الإصلاح",
-      "needed": "أضف {{label}} لنتابع"
+      "needed": "أضف {{label}} لنتابع",
+      "less": "تفاصيل أقل",
+      "remove": "إزالة",
+      "juryName": "الاسم",
+      "juryRank": "الرتبة"
     },
     "repairing": {
       "title": "نبني التنسيق الجديد",

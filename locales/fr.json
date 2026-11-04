@@ -1884,11 +1884,13 @@
         "pdf_word": "PDF et Word",
         "copies_cd": "Exemplaires et CD"
       },
-      "outOfRange": "Cette valeur sort de l'habituel."
+      "outOfRange": "Cette valeur sort de l'habituel.",
+      "done": "Terminé"
     },
     "question": {
       "counter": "Question {{n}} sur {{total}}",
-      "decide": "Je ne sais pas, Kwill décide"
+      "decide": "Je ne sais pas, Kwill décide",
+      "resume": "Continuer"
     },
     "cover": {
       "title": "Vérifiez les informations de la page de garde",
@@ -1917,7 +1919,11 @@
       "editTitle": "Modifier : {{label}}",
       "save": "Enregistrer",
       "cta": "Lancer la remise en forme",
-      "needed": "Ajoutez : {{label}}"
+      "needed": "Ajoutez : {{label}}",
+      "less": "Moins de détails",
+      "remove": "Retirer",
+      "juryName": "Nom",
+      "juryRank": "Grade"
     },
     "repairing": {
       "title": "Nous construisons la nouvelle mise en page",

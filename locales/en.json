@@ -1884,11 +1884,13 @@
         "pdf_word": "PDF and Word",
         "copies_cd": "Printed copies and a CD"
       },
-      "outOfRange": "That value is outside the usual range."
+      "outOfRange": "That value is outside the usual range.",
+      "done": "Done"
     },
     "question": {
       "counter": "Question {{n}} of {{total}}",
-      "decide": "Not sure, let Kwill decide"
+      "decide": "Not sure, let Kwill decide",
+      "resume": "Continue"
     },
     "cover": {
       "title": "Check the details on your cover",
@@ -1917,7 +1919,11 @@
       "editTitle": "Edit: {{label}}",
       "save": "Save",
       "cta": "Start the repair",
-      "needed": "Add: {{label}}"
+      "needed": "Add: {{label}}",
+      "less": "Fewer details",
+      "remove": "Remove",
+      "juryName": "Name",
+      "juryRank": "Rank"
     },
     "repairing": {
       "title": "We're building the new layout",
