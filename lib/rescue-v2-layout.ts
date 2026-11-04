@@ -1,0 +1,39 @@
+import type { RescueScreen } from "@/lib/rescue-v2-screen";
+
+/** Top of the sheet as % of the screen, measured off the mocks. */
+export const SHEET_TOP_PCT: Record<Exclude<RescueScreen, "failure">, number> = {
+  start: 42, parts: 24, reading: 49, rules_choice: 24, notes: 15, understood: 49,
+  diagnosis: 49, preview: 49, payment: 23, rules: 24, question: 49, cover: 49,
+  repairing: 49, result: 49, changed: 22, revisions: 42,
+  timeline: 29, version: 33, compare: 55, edit_rerun: 21,
+};
+export type StageLayout =
+  | { kind: "three"; mid: [number, number]; side: [number, number] }
+  | { kind: "pair"; each: [number, number] }
+  | { kind: "big"; page: [number, number] }
+  | { kind: "none" };
+/** Mock sizes, before scaling. */
+export const STAGE_LAYOUT: Record<Exclude<RescueScreen, "failure">, StageLayout> = {
+  start: { kind: "three", mid: [122, 170], side: [84, 120] },
+  parts: { kind: "none" },
+  reading: { kind: "three", mid: [122, 170], side: [84, 120] },
+  rules_choice: { kind: "three", mid: [80, 112], side: [56, 80] },
+  notes: { kind: "three", mid: [42, 58], side: [42, 58] },
+  understood: { kind: "three", mid: [122, 170], side: [84, 120] },
+  diagnosis: { kind: "three", mid: [122, 170], side: [84, 120] },
+  preview: { kind: "three", mid: [122, 170], side: [84, 120] },
+  payment: { kind: "three", mid: [70, 98], side: [70, 98] },
+  rules: { kind: "big", page: [86, 120] },
+  question: { kind: "big", page: [150, 200] },
+  cover: { kind: "pair", each: [96, 136] },
+  repairing: { kind: "three", mid: [122, 170], side: [84, 120] },
+  result: { kind: "three", mid: [122, 170], side: [84, 120] },
+  changed: { kind: "big", page: [56, 80] },
+  revisions: { kind: "three", mid: [122, 170], side: [84, 120] },
+  timeline: { kind: "three", mid: [66, 92], side: [52, 72] },
+  version: { kind: "three", mid: [76, 106], side: [60, 84] },
+  compare: { kind: "big", page: [150, 200] },
+  edit_rerun: { kind: "three", mid: [52, 72], side: [52, 72] },
+};
+export const scaleFor = (screenWidth: number) => screenWidth / 222;
+export const SHEET_RADIUS = 22;

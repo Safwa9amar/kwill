@@ -69,6 +69,7 @@ function decorateApiError(err: Error, status: number, body: any): Error {
     plan?: string;
     limit?: number | null;
     used?: number;
+    info?: { projectId?: string; missing?: string[]; fieldId?: string; priceDzd?: number };
   };
   e.status = status;
   if (body?.code) e.code = body.code;
@@ -80,6 +81,11 @@ function decorateApiError(err: Error, status: number, body: any): Error {
   if (body?.plan) e.plan = body.plan;
   if (body?.limit !== undefined) e.limit = body.limit;
   if (body?.used !== undefined) e.used = body.used;
+  // Rescue v2 (§1.4): a 409 `rescue_one_in_progress` names its project, a 422 `cover_fields_missing` names its fields, and a
+  // 400 `rescue_*` names the field. Without these the screen has no project to open and no field to point at.
+  if (body?.projectId !== undefined || body?.missing !== undefined || body?.fieldId !== undefined || body?.priceDzd !== undefined) {
+    e.info = { projectId: body.projectId, missing: body.missing, fieldId: body.fieldId, priceDzd: body.priceDzd };
+  }
   return e;
 }
 
@@ -288,7 +294,7 @@ export async function apiPost<T>(path: string, body: any, signal?: AbortSignal):
   return response.json();
 }
 
-async function apiPut<T>(path: string, body: any): Promise<T> {
+export async function apiPut<T>(path: string, body: any): Promise<T> {
   const headers = await getAuthHeaders();
   const response = await fetch(`${API_URL}${path}`, {
     method: "PUT",
@@ -320,6 +326,16 @@ export async function apiDelete(path: string): Promise<void> {
   if (!response.ok) {
     await raiseApiError(response);
   }
+}
+
+/** A DELETE that answers with JSON. `apiDelete` discards the body; `apiDeleteWithBody` sends one. Rescue v2's three DELETEs answer with a project. */
+export async function apiDeleteJson<T>(path: string): Promise<T> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_URL}${path}`, { method: "DELETE", headers });
+  if (!response.ok) {
+    await raiseApiError(response);
+  }
+  return response.json();
 }
 
 async function apiDeleteWithBody<T>(path: string, body: any): Promise<T> {
@@ -2567,7 +2583,7 @@ export async function fetchSubscription(): Promise<SubscriptionState> {
  * passed so the payment page comes up in the language the student is using.
  */
 export async function startCheckout(
-  input: { plan: PlanCode } | { kind: "topup" },
+  input: { plan: PlanCode } | { kind: "topup" } | { kind: "rescue"; projectId: string },
   locale: string
 ): Promise<{ checkoutUrl: string; checkoutId: string; amountDzd: number; mode: "test" | "live" }> {
   return apiPost("/api/payment/checkout", { ...input, locale });
@@ -2597,7 +2613,7 @@ export async function fetchManualPaymentDetails(): Promise<ManualPaymentDetails 
 export interface ManualPaymentStatus {
   id: string;
   status: "pending" | "rejected";
-  kind: "subscription" | "topup";
+  kind: "subscription" | "topup" | "rescue";
   plan: PlanCode | null;
   amountDzd: number;
   rejectReason: string | null;
@@ -2615,9 +2631,10 @@ export async function submitManualPayment(input: {
   base64: string;
   mimeType: string;
   referenceNumber: string;
-  plan?: PlanCode;
-  kind?: "topup";
-}): Promise<{ id: string; status: string }> {
+} & (
+  | { plan?: PlanCode; kind?: "topup" }
+  | { kind: "rescue"; projectId: string }
+)): Promise<{ id: string; status: string }> {
   return apiPost("/api/payment/manual", input);
 }
 
