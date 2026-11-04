@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
@@ -8,6 +8,8 @@ import { useThemeColors } from "@/hooks/useThemeColors";
 import { useThesisStore } from "@/stores/thesis-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 import { getThesis, getThesisOutline, type OutlineDTO } from "@/lib/api";
+import { RESCUE_V2_ENABLED } from "@/lib/rescue-v2-enabled";
+import { listRescueProjects } from "@/lib/rescue-v2-api";
 import { spineColorForIndex } from "@/lib/thesis-book";
 import { BackButton } from "@/components/BackButton";
 import { ThesisBookCover } from "@/components/thesis/ThesisBookCover";
@@ -46,6 +48,18 @@ export default function ThesisDetailScreen() {
   const [outline, setOutline] = useState<OutlineDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  // The thesis' rescue project, when it has one (the History row). A failed lookup leaves the row out: nothing else on this screen waits on it.
+  const [rescueProjectId, setRescueProjectId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!RESCUE_V2_ENABLED || !thesisId) return;
+    let alive = true;
+    listRescueProjects().then(
+      (r) => { if (alive) setRescueProjectId(r.projects.find((p) => p.thesisId === thesisId)?.id ?? null); },
+      () => { if (alive) setRescueProjectId(null); },
+    );
+    return () => { alive = false; };
+  }, [thesisId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -174,6 +188,16 @@ export default function ThesisDetailScreen() {
 
           <ThesisStatStrip sections={sectionCount} chapters={chapterCount} words={wordCount} />
 
+          {rescueProjectId ? (
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => router.push({ pathname: "/(app)/rescue", params: { projectId: rescueProjectId, view: "history" } })}
+              style={[styles.rescueRow, { backgroundColor: colors.brandWash }]}
+            >
+              <Text style={[styles.rescueRowText, { color: colors.brandPrimary }]}>{t("rescueV2.library.history")}</Text>
+            </TouchableOpacity>
+          ) : null}
+
           {sectionCount === 0 ? (
             <View style={[styles.emptyChapters, { backgroundColor: colors.bgSurface }]}>
               <Text style={[styles.emptyChaptersText, { color: colors.textSecondary }]}>
@@ -211,4 +235,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   emptyChapters: { borderRadius: 12, padding: 24, alignItems: "center" },
   emptyChaptersText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  rescueRow: { borderRadius: 14, paddingVertical: 14, alignItems: "center" },
+  rescueRowText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });
