@@ -13,6 +13,7 @@ const api = vi.hoisted(() => ({
   getVersion: vi.fn(),
   saveRules: vi.fn(),
   sendNote: vi.fn(),
+  restoreVersion: vi.fn(),
 }));
 const up = vi.hoisted(() => ({ uploadPart: vi.fn() }));
 vi.mock("@/lib/rescue-v2-api", () => api);
@@ -604,5 +605,72 @@ describe("a changed project reads its impact again at once (item 12)", () => {
     api.getRescueProject.mockResolvedValueOnce(dto("I", "done", { rules: null }));
     await S().refresh();
     expect(useHistoryUi.getState().impact.state).toBe("ok");
+  });
+});
+
+describe("a re-run or a restore is started once, and restore never repeats from the line (items 7 and 10)", () => {
+  const openThesis = () => {
+    useRescueV2Store.setState({ projectId: "T", project: dto("T", "done", { thesisId: "TH1", originalVersionId: "T-v0" }) });
+  };
+
+  it("a second re-run press while the first is flushing does not create a second re-run", async () => {
+    openThesis();
+    const flush = deferred<boolean>();
+    doc.flushOps.mockReturnValueOnce(flush.p);
+    api.createRerun.mockResolvedValue(dto("T", "uploading", { thesisId: "TH1", activeVersionId: "T-v2" }));
+    const first = S().beginRerun([]);
+    expect(await S().beginRerun([])).toBe(false);
+    flush.resolve(true);
+    await first;
+    expect(api.createRerun).toHaveBeenCalledTimes(1);
+  });
+
+  it("the guard holds after the screen is left and reopened: the second press still starts nothing", async () => {
+    openThesis();
+    const flush = deferred<boolean>();
+    doc.flushOps.mockReturnValueOnce(flush.p);
+    const first = S().beginRerun([]);
+    S().reset();
+    openThesis();
+    expect(await S().beginRerun([])).toBe(false);
+    flush.resolve(true);
+    await first;
+    expect(api.createRerun).not.toHaveBeenCalled();
+  });
+
+  it("a restore whose queue did not drain sends nothing and says so", async () => {
+    openThesis();
+    doc.flushOps.mockResolvedValueOnce(false);
+    expect(await S().restoreVersion("T-v1")).toBe("unsaved");
+    expect(api.restoreVersion).not.toHaveBeenCalled();
+    expect(S().errorCode).toBeNull();
+  });
+
+  it("a restore on a drained queue lands the project it returns", async () => {
+    openThesis();
+    api.restoreVersion.mockResolvedValueOnce(dto("T", "done", { thesisId: "TH1", originalVersionId: "T-v0", activeVersionId: "T-v3" }));
+    expect(await S().restoreVersion("T-v1")).toBe("restored");
+    expect(api.restoreVersion).toHaveBeenCalledWith("T-v1");
+    expect(S().project?.activeVersionId).toBe("T-v3");
+  });
+
+  it("a second restore while one is in flight sends nothing", async () => {
+    openThesis();
+    const first = deferred<RescueProjectDTO>();
+    api.restoreVersion.mockReturnValueOnce(first.p);
+    const a = S().restoreVersion("T-v1");
+    expect(await S().restoreVersion("T-v1")).toBe("busy");
+    first.resolve(dto("T", "done", { thesisId: "TH1" }));
+    expect(await a).toBe("restored");
+    expect(api.restoreVersion).toHaveBeenCalledTimes(1);
+  });
+
+  it("a failed restore is not recorded for the line's Retry, so Retry sends no restore", async () => {
+    openThesis();
+    api.restoreVersion.mockRejectedValueOnce(httpError(409, "rescue_wrong_stage"));
+    expect(await S().restoreVersion("T-v1")).toBe("failed");
+    expect(S().errorCode).toBeNull();
+    await S().retryLast();
+    expect(api.restoreVersion).toHaveBeenCalledTimes(1);
   });
 });

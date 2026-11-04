@@ -56,6 +56,12 @@ interface RescueV2State {
   begin(files: { uri: string; name: string; size: number }[], source: "picker" | "share"): Promise<boolean>;
   /** Screen 17: first `flushOps(thesisId)` (the thesis' queued index-addressed edits go to the server before the re-run can shift every index, P-66), then sets `upload` and `overlay='revisions'`, then `createRerun`, then every part against `activeVersionId`. No files: `source: "auto"`. */
   beginRerun(files: { uri: string; name: string; size: number }[]): Promise<boolean>;
+  /**
+   * Brings a version back (H6). It flushes the thesis' queued edits first, as a re-run does (P-66): when they did not reach the server,
+   * nothing is restored and the answer is `unsaved`. A failure is NOT recorded for the line's Retry: a restore is repeated only by its own
+   * dialog, after the student confirms again. A second restore while one is in flight answers `busy`.
+   */
+  restoreVersion(versionId: string): Promise<RestoreOutcome>;
   setScreenOpen(open: boolean): void;
   loadPages(versionId: string, from: number, to: number): Promise<void>;
   loadVersions(): Promise<void>;
@@ -108,6 +114,14 @@ const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringif
 
 /** Supervisor notes on their way to the server, by `${projectId}\n${text}`. */
 const notesInFlight = new Map<string, Promise<boolean>>();
+/**
+ * The project whose re-run or restore is being started (the flush, the create). Module-level, not in the store's state: it outlives the
+ * screen, so leaving and coming back does not let a second press start a second re-run or restore for the same project (items 7 and 10).
+ */
+let moving: string | null = null;
+
+/** What a restore came to: `unsaved` means the thesis' queued edits did not reach the server, so nothing was restored. */
+export type RestoreOutcome = "restored" | "unsaved" | "failed" | "busy";
 
 const INITIAL: Pick<RescueV2State,
   "config" | "projectId" | "project" | "firstLoad" | "openFailed" | "errorCode" | "errorInfo" | "nav" | "upload" | "screenOpen" | "pages" | "versions" | "edited" | "details"> = {
@@ -234,6 +248,50 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
     return true;
   };
 
+    // One re-run or restore at a time per project; the body is `startRerun`, shared with nothing else.
+    const startRerun = async (pid: string, project: RescueProjectDTO, files: { uri: string; name: string; size: number }[]): Promise<boolean> => {
+    const g = gen;
+    // Queued index-addressed edits must reach the server before the re-run shifts every index (P-66). A queue that did not drain, or a
+    // flush that threw, stops the re-run: the line says so, and its Retry flushes again.
+    const drained = project.thesisId
+      ? await useThesisDocStore.getState().flushOps(project.thesisId).then((ok) => ok === true, () => false)
+      : true;
+    // The student moved on while the edits were flushing: the re-run is not started for the project they left.
+    if (!live(g, pid)) return false;
+    if (!drained) {
+      last = { again: () => get().beginRerun(files) };
+      set({ errorCode: "edits_not_saved", errorInfo: null });
+      return false;
+    }
+    const source = files.length ? "upload" : "auto";
+    const sizeBytes = files.reduce((n, f) => n + f.size, 0);
+    pinned = null;
+    last = null;
+    set({
+      errorCode: null,
+      errorInfo: null,
+      upload: files.length ? { fraction: 0, fileName: files[0].name, sizeBytes, parts: files.length } : null,
+      nav: { ...get().nav, overlay: "revisions" },
+    });
+    let dto: RescueProjectDTO;
+    const s = ++issued.dto;
+    try {
+      dto = await api.createRerun(pid, source, files.length ? files.map((f) => ({ filename: f.name, sizeBytes: f.size })) : undefined);
+    } catch (e) {
+      if (live(g, pid)) {
+        last = { again: () => get().beginRerun(files) };
+        set({ upload: null, nav: { ...get().nav, overlay: null }, ...failure(e) });
+      }
+      return false;
+    }
+    if (claim("dto", g, pid, s)) land(dto);
+    if (source === "auto") {
+      if (live(g, pid)) set({ upload: null });
+      return true;
+    }
+    return sendParts(g, pid, dto.activeVersionId, files);
+    };
+
   return {
     ...INITIAL,
 
@@ -342,46 +400,39 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
     beginRerun: async (files) => {
       const { projectId: pid, project } = get();
       if (!pid || !project) return false;
-      const g = gen;
-      // Queued index-addressed edits must reach the server before the re-run shifts every index (P-66). A queue that did not drain, or a
-      // flush that threw, stops the re-run: the line says so, and its Retry flushes again.
-      const drained = project.thesisId
-        ? await useThesisDocStore.getState().flushOps(project.thesisId).then((ok) => ok === true, () => false)
-        : true;
-      // The student moved on while the edits were flushing: the re-run is not started for the project they left.
-      if (!live(g, pid)) return false;
-      if (!drained) {
-        last = { again: () => get().beginRerun(files) };
-        set({ errorCode: "edits_not_saved", errorInfo: null });
-        return false;
-      }
-      const source = files.length ? "upload" : "auto";
-      const sizeBytes = files.reduce((n, f) => n + f.size, 0);
-      pinned = null;
-      last = null;
-      set({
-        errorCode: null,
-        errorInfo: null,
-        upload: files.length ? { fraction: 0, fileName: files[0].name, sizeBytes, parts: files.length } : null,
-        nav: { ...get().nav, overlay: "revisions" },
-      });
-      let dto: RescueProjectDTO;
-      const s = ++issued.dto;
+      // A second press while the first flushes or creates starts nothing: the lock is for the project, whichever screen asked.
+      if (moving === pid) return false;
+      moving = pid;
       try {
-        dto = await api.createRerun(pid, source, files.length ? files.map((f) => ({ filename: f.name, sizeBytes: f.size })) : undefined);
-      } catch (e) {
-        if (live(g, pid)) {
-          last = { again: () => get().beginRerun(files) };
-          set({ upload: null, nav: { ...get().nav, overlay: null }, ...failure(e) });
+        return await startRerun(pid, project, files);
+      } finally {
+        if (moving === pid) moving = null;
+      }
+    },
+
+    restoreVersion: async (versionId) => {
+      const pid = get().projectId;
+      const project = get().project;
+      if (!pid || !project) return "failed";
+      if (moving === pid) return "busy";
+      moving = pid;
+      const g = gen;
+      try {
+        // Queued index-addressed edits must reach the server before the restore moves the thesis (P-66). If they cannot, nothing is restored.
+        if (project.thesisId) {
+          const drained = await useThesisDocStore.getState().flushOps(project.thesisId).then((ok) => ok === true, () => false);
+          if (!drained) return "unsaved";
         }
-        return false;
+        if (!live(g, pid)) return "failed";
+        const s = ++issued.dto;
+        const dto = await api.restoreVersion(versionId);
+        if (claim("dto", g, pid, s)) land(dto);
+        return "restored";
+      } catch {
+        return "failed";
+      } finally {
+        if (moving === pid) moving = null;
       }
-      if (claim("dto", g, pid, s)) land(dto);
-      if (source === "auto") {
-        if (live(g, pid)) set({ upload: null });
-        return true;
-      }
-      return sendParts(g, pid, dto.activeVersionId, files);
     },
 
     sendSupervisorNote: (text) => {
