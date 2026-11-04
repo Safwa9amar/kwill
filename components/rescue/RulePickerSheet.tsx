@@ -43,13 +43,19 @@ function PickerBody({ row, fields, busy, outOfRangeId, onEdit, onClose }: Omit<P
   const { isRTL } = useRTL();
   const own = fields.filter((f) => f.row === row);
   const refused = outOfRangeId !== null && own.some((f) => f.id === outOfRangeId);
-  // A save that failed for any other reason is named here too: the sheet covers the stage, where the shell's error line sits.
+  // A save that failed for any other reason is named here too: the sheet covers the stage, where the shell's error line sits. Only a save
+  // this sheet made counts: its failed edit stays on screen, so its value is not the server's. Another action's error is not this sheet's.
   const errorCode = useRescueV2Store((s) => s.errorCode);
+  const serverFields = useRescueV2Store((s) => s.project?.rules?.fields ?? null);
+  const unsaved = own.some((f) => {
+    const server = serverFields?.find((x) => x.id === f.id);
+    return server !== undefined && server.value !== f.value;
+  });
   return (
     <>
       <SheetTitle>{words.t(`rescueV2.rules.rows.${row}`)}</SheetTitle>
       {refused ? <SheetBody>{words.t("rescueV2.rules.outOfRange")}</SheetBody> : null}
-      {!refused && errorCode && !busy ? <SheetBody>{words.t("rescueV2.common.somethingWrong")}</SheetBody> : null}
+      {!refused && unsaved && errorCode && !busy ? <SheetBody>{words.t("rescueV2.common.somethingWrong")}</SheetBody> : null}
       {own.map((f) => (
         <FieldControl key={f.id} field={f} busy={busy} onEdit={(v) => onEdit(f.id, v)} />
       ))}

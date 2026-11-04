@@ -14,8 +14,13 @@ export interface PendingAnswer { questionKey: string; answer: AnswerValue }
 interface ConfirmUiState {
   /** The project these choices belong to. */
   key: string | null;
-  /** One call at a time across the three screens: a tap while one is in flight is refused, so a double tap never sends twice. */
+  /**
+   * One call at a time per project: a tap while one is in flight for the open project is refused, so a double tap never sends twice. `busy`
+   * is that for the open project only; another project's hung call does not disable this one's buttons.
+   */
   busy: boolean;
+  /** The projects with a call in flight, in the order they began. `end` releases the last one begun. */
+  calls: string[];
   rulesPending: Partial<Record<RescueRuleFieldId, RuleValue>>;
   pickerRow: RescueRuleRowId | null;
   answerPending: PendingAnswer | null;
@@ -25,10 +30,11 @@ interface ConfirmUiState {
   /** The field the cover field sheet is editing. */
   coverField: CoverRowId | null;
 
-  /** Starts clean for a different project. `busy` is never cleared here: a call in flight still ends itself. */
+  /** Starts clean for a different project. A call in flight for it stays in flight: `busy` follows the lock, not the screen. */
   ensure(key: string): void;
-  /** True when the call may start; false while another one is in flight. */
+  /** True when the call may start; false while another one is in flight for the open project. */
   begin(): boolean;
+  /** Ends the call begun last. Calls for one project end in the order they began; a call that ends before another project's still releases its own slot. */
   end(): void;
   setRulesPending(edits: Partial<Record<RescueRuleFieldId, RuleValue>>): void;
   setPickerRow(row: RescueRuleRowId | null): void;
@@ -38,9 +44,13 @@ interface ConfirmUiState {
   setCoverField(row: CoverRowId | null): void;
 }
 
+/** The key a call is held under when no project is open (the stores' own default). */
+const NO_KEY = "";
+
 export const useConfirmUi = create<ConfirmUiState>()((set, get) => ({
   key: null,
   busy: false,
+  calls: [],
   rulesPending: NO_EDITS,
   pickerRow: null,
   answerPending: null,
@@ -50,16 +60,24 @@ export const useConfirmUi = create<ConfirmUiState>()((set, get) => ({
 
   ensure: (key) => {
     if (get().key === key) return;
-    set({ key, rulesPending: NO_EDITS, pickerRow: null, answerPending: null, coverPending: null, coverMore: null, coverField: null });
+    set({
+      key, busy: get().calls.includes(key), rulesPending: NO_EDITS, pickerRow: null, answerPending: null, coverPending: null, coverMore: null,
+      coverField: null,
+    });
   },
 
   begin: () => {
-    if (get().busy) return false;
-    set({ busy: true });
+    const k = get().key ?? NO_KEY;
+    if (get().calls.includes(k)) return false;
+    const calls = [...get().calls, k];
+    set({ calls, busy: calls.includes(get().key ?? NO_KEY) });
     return true;
   },
 
-  end: () => set({ busy: false }),
+  end: () => {
+    const calls = get().calls.slice(0, -1);
+    set({ calls, busy: calls.includes(get().key ?? NO_KEY) });
+  },
 
   setRulesPending: (edits) => set({ rulesPending: edits }),
   setPickerRow: (row) => set({ pickerRow: row }),

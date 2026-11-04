@@ -35,7 +35,8 @@ function FieldBody({ row: rowId }: { row: CoverRowId }) {
   const { isRTL } = useRTL();
   const project = useRescueV2Store((s) => s.project);
   const busy = useConfirmUi((s) => s.busy);
-  const errorCode = useRescueV2Store((s) => s.errorCode);
+  // Only a save this sheet made says so here: another action's failure is on the shell's line, not on this sheet.
+  const [saveFailed, setSaveFailed] = useState(false);
   const row = coverRow(rowId);
   const cover = project?.cover ?? null;
   const current = cover?.fields ?? {};
@@ -58,6 +59,7 @@ function FieldBody({ row: rowId }: { row: CoverRowId }) {
       const value = row.kind === "text" ? text : row.kind === "list" ? list : jury;
       const fields = coverFieldsAfter(cover.fields, rowId, value);
       const ok = await useRescueV2Store.getState().apply(() => saveCover(pid, { fields }));
+      setSaveFailed(!ok);
       if (ok && useConfirmUi.getState().key === pid) {
         useConfirmUi.getState().setCoverField(null);
         useBottomSheet.getState().closeSheet("rescue-cover-field");
@@ -143,7 +145,7 @@ function FieldBody({ row: rowId }: { row: CoverRowId }) {
           </TouchableOpacity>
         </>
       ) : null}
-      {errorCode && !busy ? <SheetBody>{t("rescueV2.common.somethingWrong")}</SheetBody> : null}
+      {saveFailed && !busy ? <SheetBody>{t("rescueV2.common.somethingWrong")}</SheetBody> : null}
       <View style={styles.foot}>
         <Button title={t("rescueV2.cover.save")} onPress={() => { void save(); }} loading={busy} disabled={busy} />
       </View>
