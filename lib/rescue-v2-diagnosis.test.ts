@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RescueChipKey, RescueDotDTO } from "@/types/rescue-v2";
-import { chipTarget, chipsWithDots, firstPage, firstVisibleN, problemKey, problemSentence, visibleDots } from "./rescue-v2-diagnosis";
+import { chipTarget, chipsWithDots, firstPage, firstVisibleN, problemKey, problemSentence, spreadDots, visibleDots } from "./rescue-v2-diagnosis";
 
 const dot = (n: number, page: number, chip: RescueChipKey, topPct = 0.5): RescueDotDTO =>
   ({ n, chip, code: "margins", page, topPct, params: {} }) as RescueDotDTO;
@@ -104,5 +104,56 @@ describe("problemSentence", () => {
     expect(problemSentence(t, has(), "brand-new", {})).toBe("rescueV2.diagnosis.problems.generic|{}");
     expect(problemSentence(t, has("rescueV2.diagnosis.problems.section-empty"), "section-empty", { section: "annexes-2" }))
       .toBe("rescueV2.diagnosis.problems.generic|{}");
+  });
+});
+
+describe("spreadDots", () => {
+  const D = 14;
+  const gap = D + 6;
+  const top = (n: number, topPct: number) => ({ n, topPct }) as Pick<RescueDotDTO, "n" | "topPct">;
+
+  it("keeps same-side dots a gap apart when they would sit on top of each other", () => {
+    // Page-level problems all sit at 0.05; n = 1 and n = 3 are both on the left.
+    const at = spreadDots([top(1, 0.05), top(3, 0.05)], 1000, D);
+    expect(at.get(3)! - at.get(1)!).toBeGreaterThanOrEqual(gap);
+  });
+
+  it("does not move dots on different sides, or dots that are already apart", () => {
+    const at = spreadDots([top(1, 0.3), top(2, 0.3), top(3, 0.6)], 1000, D);
+    expect(at.get(1)).toBeCloseTo(300);
+    expect(at.get(2)).toBeCloseTo(300);
+    expect(at.get(3)).toBeCloseTo(600);
+  });
+
+  it("keeps a spread that would run off the bottom on the page", () => {
+    const at = spreadDots([top(1, 0.98), top(3, 0.98), top(5, 0.98), top(7, 0.98)], 1000, D);
+    for (const y of at.values()) {
+      expect(y).toBeGreaterThanOrEqual(D / 2);
+      expect(y).toBeLessThanOrEqual(1000 - D / 2);
+    }
+    const ys = [1, 3, 5, 7].map((n) => at.get(n)!).sort((a, b) => a - b);
+    for (let i = 1; i < ys.length; i++) expect(ys[i] - ys[i - 1]).toBeGreaterThanOrEqual(gap);
+  });
+
+  it("keeps a dot at the top edge on the page", () => {
+    const at = spreadDots([top(2, 0), top(4, 0)], 1000, D);
+    expect(at.get(2)).toBeGreaterThanOrEqual(D / 2);
+    expect(at.get(4)! - at.get(2)!).toBeGreaterThanOrEqual(gap);
+  });
+
+  it("spaces the dots evenly on the page when a side cannot hold them all at the gap", () => {
+    const dotsOnLeft = [1, 3, 5, 7, 9, 11].map((n) => top(n, 0.5));
+    const at = spreadDots(dotsOnLeft, 100, D);
+    const ys = [1, 3, 5, 7, 9, 11].map((n) => at.get(n)!).sort((a, b) => a - b);
+    for (const y of ys) {
+      expect(y).toBeGreaterThanOrEqual(D / 2);
+      expect(y).toBeLessThanOrEqual(100 - D / 2);
+    }
+    expect(ys[ys.length - 1] - ys[0]).toBeCloseTo(100 - D);
+  });
+
+  it("gives every dot a place, and an empty page gives none", () => {
+    expect([...spreadDots([], 1000, D).keys()]).toEqual([]);
+    expect(spreadDots([top(1, 0.5)], 1000, D).get(1)).toBeCloseTo(500);
   });
 });

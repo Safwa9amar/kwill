@@ -3,6 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { brand } from "@/constants/colors";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { hSelection } from "@/lib/haptics";
+import { spreadDots } from "@/lib/rescue-v2-diagnosis";
 import type { RescueDotDTO } from "@/types/rescue-v2";
 
 const DOT = 14;
@@ -25,6 +26,8 @@ interface Props {
  */
 export function DiagnosisDots({ dots, selectedN, onSelect, width, height, label }: Props) {
   const colors = useThemeColors();
+  // Same-side dots at one height would sit on each other and one could not be tapped: they are spread apart, within the page.
+  const centres = spreadDots(dots, height, DOT);
   return (
     <View pointerEvents="box-none" style={styles.layer}>
       <View style={{ width, height }} pointerEvents="box-none">
@@ -41,7 +44,7 @@ export function DiagnosisDots({ dots, selectedN, onSelect, width, height, label 
               onPress={() => { hSelection(); onSelect(d.n); }}
               style={[
                 styles.dot,
-                { top: d.topPct * height - DOT / 2, backgroundColor: colors.semanticError, borderColor: on ? colors.textPrimary : "transparent" },
+                { top: (centres.get(d.n) ?? d.topPct * height) - DOT / 2, backgroundColor: colors.semanticError, borderColor: on ? colors.textPrimary : "transparent" },
                 side,
               ]}
             >

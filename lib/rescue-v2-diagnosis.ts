@@ -61,3 +61,37 @@ export function problemSentence(
   }
   return t(problemKey(code, exists), params);
 }
+
+/**
+ * Each dot's centre in px from the top of a page `height` tall. Dots on the same side (odd `n` left, even `n` right) are kept at least a dot
+ * and a gap apart, pushed down in reading order and pulled back up at the bottom. A dot never leaves the page: a side that cannot hold its
+ * dots at that gap has them spaced evenly from the top edge to the bottom one.
+ */
+export function spreadDots(dots: Pick<RescueDotDTO, "n" | "topPct">[], height: number, dotSize: number): Map<number, number> {
+  const lo = dotSize / 2;
+  const hi = Math.max(lo, height - dotSize / 2);
+  const gap = dotSize + 6;
+  const out = new Map<number, number>();
+  for (const side of [0, 1]) {
+    const group = dots
+      .filter((d) => d.n % 2 === side)
+      .map((d) => ({ n: d.n, y: Math.min(hi, Math.max(lo, d.topPct * height)) }))
+      .sort((a, b) => a.y - b.y || a.n - b.n);
+    const ys = spreadSorted(group.map((g) => g.y), gap, lo, hi);
+    group.forEach((g, i) => out.set(g.n, ys[i]));
+  }
+  return out;
+}
+
+/** `ys` ascending, already inside [lo, hi]: the same order, each at least `gap` below the one before. */
+function spreadSorted(ys: number[], gap: number, lo: number, hi: number): number[] {
+  const m = ys.length;
+  if (m <= 1) return ys;
+  const span = hi - lo;
+  if ((m - 1) * gap > span) return ys.map((_, i) => lo + (span * i) / (m - 1));
+  const pos = [...ys];
+  for (let i = 1; i < m; i++) pos[i] = Math.max(pos[i], pos[i - 1] + gap);
+  pos[m - 1] = Math.min(pos[m - 1], hi);
+  for (let i = m - 2; i >= 0; i--) pos[i] = Math.min(pos[i], pos[i + 1] - gap);
+  return pos;
+}
