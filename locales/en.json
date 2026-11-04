@@ -610,6 +610,8 @@
     "manualPickScreenshot": "Choose a screenshot",
     "manualSubmit": "Submit for review",
     "manualSubmitFailedTitle": "Could not submit",
+    "manualPhotoPermissionTitle": "Photo access needed",
+    "manualPhotoPermissionMessage": "Allow photo access in Settings to attach your transfer screenshot.",
     "manualSubmittedTitle": "Submitted",
     "manualSubmittedBody": "We'll review your BaridiMob/CCP transfer and notify you once it's confirmed.",
     "manualSubmittedCta": "Back to plans",

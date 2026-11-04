@@ -70,10 +70,8 @@ export default function PaymentManualScreen() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       Alert.alert(
-        t("payment.manualPhotoPermissionTitle", { defaultValue: "Photo access needed" }),
-        t("payment.manualPhotoPermissionMessage", {
-          defaultValue: "Allow photo access in Settings to attach your transfer screenshot.",
-        }),
+        t("payment.manualPhotoPermissionTitle"),
+        t("payment.manualPhotoPermissionMessage"),
       );
       return;
     }
@@ -82,7 +80,7 @@ export default function PaymentManualScreen() {
     if (result.canceled) return;
     if (!result.assets?.[0]?.base64) {
       Alert.alert(
-        t("payment.manualPhotoPermissionTitle", { defaultValue: "Photo access needed" }),
+        t("payment.manualPhotoPermissionTitle"),
         t("payment.checkoutFailedBody"),
       );
       return;

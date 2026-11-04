@@ -610,6 +610,8 @@
     "manualPickScreenshot": "Choisir une capture d'ecran",
     "manualSubmit": "Soumettre pour verification",
     "manualSubmitFailedTitle": "Echec de l'envoi",
+    "manualPhotoPermissionTitle": "Accès aux photos nécessaire",
+    "manualPhotoPermissionMessage": "Autorisez l'accès aux photos dans les Réglages pour joindre la capture de votre virement.",
     "manualSubmittedTitle": "Envoye",
     "manualSubmittedBody": "Nous allons verifier votre virement BaridiMob/CCP et vous informer une fois confirme.",
     "manualSubmittedCta": "Retour aux offres",

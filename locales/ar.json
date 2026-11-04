@@ -610,6 +610,8 @@
     "manualPickScreenshot": "اختر لقطة شاشة",
     "manualSubmit": "إرسال للمراجعة",
     "manualSubmitFailedTitle": "تعذّر الإرسال",
+    "manualPhotoPermissionTitle": "نحتاج إذنًا للوصول إلى الصور",
+    "manualPhotoPermissionMessage": "فعِّل إذن الوصول إلى الصور من الإعدادات لإرفاق لقطة شاشة التحويل.",
     "manualSubmittedTitle": "تم الإرسال",
     "manualSubmittedBody": "سنتحقق من تحويلك عبر BaridiMob/CCP ونُعلمك فور تأكيده.",
     "manualSubmittedCta": "العودة إلى الخطط",
