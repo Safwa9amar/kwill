@@ -2,7 +2,8 @@ import React, { useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useThemeColors } from "@/hooks/useThemeColors";
-import { deleteRescueProject } from "@/lib/rescue-v2-api";
+import { deleteRescueProject, deleteUploadVersion } from "@/lib/rescue-v2-api";
+import { lostUploadTarget } from "@/lib/rescue-v2-lost-upload";
 import { scaleFor, STAGE_LAYOUT } from "@/lib/rescue-v2-layout";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
@@ -60,7 +61,7 @@ function Stage() {
  * converts, `pagesTotal` is 0 and the bar shimmers instead of showing a made-up percentage.
  *
  * A cold start can lose the upload (`phase='uploading'` with no `upload` in memory): the student is told, and can choose the file again.
- * That repeats the upload from v0 (deleting the project), so it needs no earlier call to repeat.
+ * A first upload repeats from v0 (deleting the project); a re-run deletes only its own version (`lostUploadTarget`).
  */
 function Sheet() {
   const { t } = useTranslation();
@@ -73,6 +74,7 @@ function Sheet() {
   const waiting = useRescueV2Store((s) => s.project?.waiting ?? null);
   const reset = useRescueV2Store((s) => s.reset);
 
+  const apply = useRescueV2Store((s) => s.apply);
   const [lostPending, setLostPending] = useState(false);
   const [lostFailed, setLostFailed] = useState(false);
   const gate = useRef(false);
@@ -107,13 +109,23 @@ function Sheet() {
   steps.push({ key: "understand", label: t("rescueV2.reading.stepUnderstand"), state: understanding ? "current" : "pending" });
 
   const retryLost = async () => {
-    if (gate.current || !id) return;
+    const cur = useRescueV2Store.getState().project;
+    if (gate.current || !cur) return;
     gate.current = true;
     setLostPending(true);
     setLostFailed(false);
     try {
-      await deleteRescueProject(id);
-      reset();
+      // Only what this upload made goes: a first upload deletes the project, a re-run deletes its own version and keeps every finished one.
+      const target = lostUploadTarget(cur);
+      if (target.kind === "project") {
+        await deleteRescueProject(target.projectId);
+        reset();
+      } else if (target.kind === "version") {
+        // The store lands the project the server answers with, so the student is back on the last good version. A failure is on the shell's line, with its Retry.
+        await apply(() => deleteUploadVersion(target.versionId));
+      } else {
+        setLostFailed(true);
+      }
     } catch {
       setLostFailed(true);
     } finally {
