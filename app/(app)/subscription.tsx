@@ -62,7 +62,9 @@ export default function SubscriptionScreen() {
       // fetched — a pending-review banner would name a way to pay.
       if (PURCHASES_HIDDEN) return;
       void fetchManualPaymentDetails().then(setManualDetails).catch(() => setManualDetails(null));
-      void fetchManualPaymentStatus().then(setManualStatus).catch(() => setManualStatus(null));
+      // The endpoint returns the one latest pending or rejected transfer of any kind. A rescue transfer belongs to its own screen, so it is
+      // read as nothing here: its pending state would otherwise hide this screen's plan and top-up buttons.
+      void fetchManualPaymentStatus().then((s) => setManualStatus(s?.kind === "rescue" ? null : s)).catch(() => setManualStatus(null));
     }, [refreshAll]),
   );
 
