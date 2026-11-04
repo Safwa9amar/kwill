@@ -81,6 +81,7 @@ function Stage() {
   const project = useRescueV2Store((st) => st.project);
   const setNav = useRescueV2Store((st) => st.setNav);
   const id = project?.id ?? null;
+  const versionId = project?.activeVersionId ?? project?.originalVersionId ?? null;
   const dots = project?.diagnosis?.dots ?? NO_DOTS;
   const v0 = project?.originalVersionId ?? null;
   const rtl = thesisIsRtl(project);
@@ -90,10 +91,10 @@ function Stage() {
   const goTo = useDiagnosisView((st) => st.goTo);
   const select = useDiagnosisView((st) => st.select);
 
-  // The view belongs to one project. A different project starts over; the same one keeps the student's place.
+  // The view belongs to one project and version. A different one (a re-run is a new version) starts over; the same one keeps the student's place.
   useEffect(() => {
-    if (id) useDiagnosisView.getState().ensure(id, dots);
-  }, [id, dots]);
+    if (id && versionId) useDiagnosisView.getState().ensure(id, versionId, dots);
+  }, [id, versionId, dots]);
 
   const layout = STAGE_LAYOUT.diagnosis;
   if (!project || !project.diagnosis || !v0 || layout.kind !== "three") return null;

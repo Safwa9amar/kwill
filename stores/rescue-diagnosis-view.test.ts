@@ -13,23 +13,34 @@ beforeEach(() => {
 
 describe("the diagnosis view", () => {
   it("opens on the first page holding a dot, with that page's first dot selected", () => {
-    V().ensure("p1", dots);
+    V().ensure("p1", "v1", dots);
     expect(V().page).toBe(2);
     expect(V().selectedN).toBe(1);
     expect(V().chip).toBeNull();
   });
 
   it("starts over for another project, and keeps the place for the same one", () => {
-    V().ensure("p1", dots);
+    V().ensure("p1", "v1", dots);
     V().goTo(4, dots);
-    V().ensure("p1", dots);
+    V().ensure("p1", "v1", dots);
     expect(V().page).toBe(4);
-    V().ensure("p2", dots);
+    V().ensure("p2", "v1", dots);
     expect(V().page).toBe(2);
   });
 
+  it("starts over for the same project at another version, so a re-run never keeps the old page or dot", () => {
+    V().ensure("p1", "v1", dots);
+    V().goTo(4, dots);
+    V().select(3);
+    V().pickChip("toc", dots);
+    V().ensure("p1", "v2", dots);
+    expect(V().page).toBe(2);
+    expect(V().chip).toBeNull();
+    expect(V().selectedN).toBe(1);
+  });
+
   it("a chip filters, jumps to the next page holding it, and selects its first dot", () => {
-    V().ensure("p1", dots);
+    V().ensure("p1", "v1", dots);
     V().pickChip("headings", dots);
     expect(V().chip).toBe("headings");
     expect(V().page).toBe(4);
@@ -37,7 +48,7 @@ describe("the diagnosis view", () => {
   });
 
   it("a chip picked again clears the filter and keeps the page", () => {
-    V().ensure("p1", dots);
+    V().ensure("p1", "v1", dots);
     V().pickChip("toc", dots);
     V().pickChip("toc", dots);
     expect(V().chip).toBeNull();
@@ -46,7 +57,7 @@ describe("the diagnosis view", () => {
   });
 
   it("a swipe to a page selects that page's first dot under the filter", () => {
-    V().ensure("p1", dots);
+    V().ensure("p1", "v1", dots);
     V().pickChip("headings", dots);
     V().goTo(2, dots);
     expect(V().selectedN).toBe(1);
