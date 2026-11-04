@@ -59,3 +59,12 @@ describe("shellShows", () => {
     expect(shellShows(null)).toBe(false);
   });
 });
+
+describe("the Revisions screen's own codes", () => {
+  it("leaves rescue_rerun_expired and rescue_rerun_daily_cap to the Revisions screen, with no shell line and no Retry", () => {
+    for (const code of ["rescue_rerun_expired", "rescue_rerun_daily_cap"]) {
+      expect(shellShows(code), code).toBe(false);
+      expect(canRetry(code), code).toBe(false);
+    }
+  });
+});

@@ -27,7 +27,11 @@ export function errorWord(code: string | null, partMb: number | null): ErrorWord
  * Codes a repeat of the same call cannot clear: the student is at a limit, the file is too big, the feature is off, or a rescue is already
  * running. The error line shows its word with no Retry, so a student is not invited into a loop. Close and back still work.
  */
-const NO_RETRY = new Set(["rescue_daily_limit", "rescue_too_large", "rescue_disabled", "rescue_one_in_progress"]);
+const NO_RETRY = new Set([
+  "rescue_daily_limit", "rescue_too_large", "rescue_disabled", "rescue_one_in_progress",
+  // The Revisions screen words these itself (`revisions.expired`, `revisions.dailyCap`): a repeat changes nothing.
+  "rescue_rerun_expired", "rescue_rerun_daily_cap",
+]);
 
 export function canRetry(code: string | null): boolean {
   return code === null || !NO_RETRY.has(code);
@@ -37,7 +41,11 @@ export function canRetry(code: string | null): boolean {
  * Codes a screen draws beside its own field or card (the rules' out-of-range line, the cover's missing fields). The shell line never repeats
  * them, so the same failure is not shown twice.
  */
-const SCREEN_OWNED = new Set(["rule_out_of_range", "cover_fields_missing"]);
+const SCREEN_OWNED = new Set([
+  "rule_out_of_range", "cover_fields_missing",
+  // Worded by the Revisions screen itself.
+  "rescue_rerun_expired", "rescue_rerun_daily_cap",
+]);
 
 /** True when the shell's one error line should show this code: there is a code, and no screen draws it itself. */
 export function shellShows(code: string | null): boolean {
