@@ -1,6 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import type { FilePayload } from "@/types/chat";
+import { safeFilename } from "@/lib/export-filename";
 
 // Where exports are staged before being handed to the OS. The cache directory
 // on purpose: once the student has saved or opened the file, our copy is
@@ -20,24 +21,6 @@ const UTI: Record<string, string> = {
   zip: "public.zip-archive",
   docx: "org.openxmlformats.wordprocessingml.document",
 };
-
-/**
- * A filename the filesystem will actually accept.
- *
- * Thesis titles are frequently Arabic, and the server's own filenames carry
- * bidi control characters (the export URL showed a run of %E2%80%8E — left-to-
- * right marks). Those are invisible, legal in a title, and a menace in a path,
- * so they come out along with anything that could change the directory.
- */
-function safeFilename(name: string, format: string): string {
-  const cleaned = name
-    .replace(/[‎‏‪-‮⁦-⁩]/g, "") // bidi controls
-    .replace(/[/\\:*?"<>|]/g, "-") // path + reserved characters
-    .replace(/\s+/g, " ")
-    .trim();
-  const base = cleaned || "thesis";
-  return /\.[a-z0-9]{2,5}$/i.test(base) ? base : `${base}.${format || "docx"}`;
-}
 
 /**
  * The parts of an export this actually reads.
