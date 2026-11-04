@@ -100,6 +100,7 @@ export default function PaymentManualScreen() {
     }
     inFlight.current = true;
     setSubmitting(true);
+    let sent = false;
     try {
       const common = { base64: image.base64, mimeType: image.mimeType, referenceNumber: reference.trim() };
       await submitManualPayment(
@@ -107,6 +108,7 @@ export default function PaymentManualScreen() {
           ? { ...common, kind: "rescue", projectId: rescueProjectId }
           : { ...common, plan: kind === "topup" ? undefined : plan, kind: kind === "topup" ? "topup" : undefined },
       );
+      sent = true;
       if (kind === "rescue" && rescueProjectId) {
         router.replace({ pathname: "/(app)/payment-manual-submitted", params: { rescue: rescueProjectId } } as never);
       } else {
@@ -115,8 +117,11 @@ export default function PaymentManualScreen() {
     } catch (e: any) {
       Alert.alert(t("payment.manualSubmitFailedTitle"), e?.message || t("payment.checkoutFailedBody"));
     } finally {
-      inFlight.current = false;
-      setSubmitting(false);
+      // A sent transfer keeps the lock: the screen is leaving, and the button must not re-enable for a second transfer.
+      if (!sent) {
+        inFlight.current = false;
+        setSubmitting(false);
+      }
     }
   };
 
