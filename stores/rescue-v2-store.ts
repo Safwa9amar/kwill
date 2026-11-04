@@ -31,6 +31,11 @@ interface RescueV2State {
    * project changed, or a part failed (its error is held instead, see `errorCode`).
    */
   upload: { fraction: number; fileName: string | null; sizeBytes: number; parts: number } | null;
+  /**
+   * The project asked for by `open` could not be read and none is on screen. The screen shows a failed state with Retry, never the upload
+   * screen that a missing project would otherwise draw.
+   */
+  openFailed: boolean;
   /** The living screen is mounted. Task A9 drops a push's banner for the project on it. */
   screenOpen: boolean;
   pages: Record<string, { count: number; byPage: Record<number, { hash: string; url: string }> }>;
@@ -39,8 +44,11 @@ interface RescueV2State {
   details: Record<string, RescueVersionDetailDTO>;
 
   loadConfig(): Promise<void>;
-  /** `fixture` is dev only (Step 11). */
-  open(projectId: string | null, fixture?: RescuePhase): Promise<void>;
+  /**
+   * `fixture` is dev only (Step 11). `view` is the overlay the caller asked for (`history` or `revisions`), applied once the project has
+   * landed, so a Retry of a failed open lands on the same view.
+   */
+  open(projectId: string | null, fixture?: RescuePhase, view?: string): Promise<void>;
   refresh(): Promise<void>;
   setNav(patch: Partial<RescueNav>): void;
   /** Picker or Share: creates the project, uploads every part. Returns false when refused. */
@@ -93,11 +101,12 @@ function navAfter(prev: RescueProjectDTO | null, dto: RescueProjectDTO, nav: Res
 const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 const INITIAL: Pick<RescueV2State,
-  "config" | "projectId" | "project" | "firstLoad" | "errorCode" | "errorInfo" | "nav" | "upload" | "screenOpen" | "pages" | "versions" | "edited" | "details"> = {
+  "config" | "projectId" | "project" | "firstLoad" | "openFailed" | "errorCode" | "errorInfo" | "nav" | "upload" | "screenOpen" | "pages" | "versions" | "edited" | "details"> = {
   config: null,
   projectId: null,
   project: null,
   firstLoad: false,
+  openFailed: false,
   errorCode: null,
   errorInfo: null,
   nav: INITIAL_NAV,
@@ -153,6 +162,7 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       errorCode: hold?.errorCode ?? null,
       errorInfo: hold?.errorInfo ?? null,
       firstLoad: false,
+      openFailed: false,
     });
   };
 
@@ -217,20 +227,25 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       try { set({ config: await api.getRescueConfig() }); } catch { /* read again on the next open */ }
     },
 
-    open: async (projectId, fixture) => {
+    open: async (projectId, fixture, view) => {
+      // The overlay a caller asked for is applied after the project lands: a phase change clears overlays (A1), so it cannot come first.
+      const applyView = () => {
+        if (view === "history") set((s) => ({ nav: { ...s.nav, overlay: "timeline" } }));
+        else if (view === "revisions") set((s) => ({ nav: { ...s.nav, overlay: "revisions" } }));
+      };
       if (__DEV__ && fixture) {
         gen += 1;
         pinned = null;
         last = null;
         const dto = RESCUE_FIXTURES[fixture];
-        set({ projectId: dto.id, project: dto, firstLoad: false, errorCode: null, errorInfo: null, nav: navAfter(get().project, dto, get().nav) });
+        set({ projectId: dto.id, project: dto, firstLoad: false, openFailed: false, errorCode: null, errorInfo: null, nav: navAfter(get().project, dto, get().nav) });
         return;
       }
       if (!projectId) {
         gen += 1;
         pinned = null;
         last = null;
-        set({ projectId: null, project: null, firstLoad: false, errorCode: null, errorInfo: null, versions: [], edited: null, upload: null });
+        set({ projectId: null, project: null, firstLoad: false, openFailed: false, errorCode: null, errorInfo: null, versions: [], edited: null, upload: null });
         return;
       }
       // Switching is immediate: the old project's replies stop landing from this line on.
@@ -244,6 +259,7 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
         projectId,
         project: first ? null : get().project,
         firstLoad: first,
+        openFailed: false,
         errorCode: hold?.errorCode ?? null,
         errorInfo: hold?.errorInfo ?? null,
         ...(switching ? { versions: [], edited: null, upload: null } : {}),
@@ -252,10 +268,14 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       const s = ++issued.dto;
       try {
         const dto = await api.getRescueProject(projectId);
-        if (claim("dto", g, projectId, s)) land(dto);
+        if (claim("dto", g, projectId, s)) { land(dto); applyView(); }
       } catch (e) {
-        // A failed open is repeated by a plain re-read: the project id is set, so refresh does it.
-        if (claim("dto", g, projectId, s)) { last = null; set({ firstLoad: false, ...failure(e) }); }
+        // A failed open is repeated as a whole, with the view it was asked for: the line's Retry and the failed screen's both come here.
+        if (claim("dto", g, projectId, s)) {
+          last = { again: () => get().open(projectId, fixture, view) };
+          // With a project already on screen, the failure is the line's only: the screen keeps what it shows.
+          set({ firstLoad: false, openFailed: get().project === null, ...failure(e) });
+        }
       }
     },
 

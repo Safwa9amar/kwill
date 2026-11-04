@@ -1,7 +1,10 @@
 import React, { useEffect } from "react";
-import { View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
+import { useTranslation } from "react-i18next";
 import { RescueSkeleton } from "@/components/skeletons/RescueSkeleton";
+import { Button } from "@/components/ui/Button";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRescuePolling } from "@/hooks/useRescuePolling";
 import { useRescueBack } from "@/hooks/useRescueBack";
 import type { RescuePhase } from "@/types/rescue-v2";
@@ -25,24 +28,24 @@ export function LivingScreen({ projectId, view, share, fixture }: Props) {
   useRescuePolling();
   const screen = useRescueScreen();
   const firstLoad = useRescueV2Store((s) => s.firstLoad);
+  const openFailed = useRescueV2Store((s) => s.openFailed);
   const animatedPosition = useSharedValue(0);
   useEffect(() => {
     useRescueV2Store.getState().setScreenOpen(true);
     return () => useRescueV2Store.getState().setScreenOpen(false);
   }, []);
-  // The view is applied after `open` resolves, not beside it: `open` is a phase change, and a phase change clears overlays (A1),
-  // so the first project load would erase it and the student would land on the result instead of the timeline. Tested from a cold load.
+  // `view` (the library's Redo or History chip) is applied by `open` once the project has landed, after the phase change that would clear it (A1),
+  // so a Retry of a failed open lands on the same view.
   useEffect(() => {
     const s = useRescueV2Store.getState();
     void s.loadConfig();
-    void s.open(projectId ?? null, fixture).then(() => {
-      if (view === "history") useRescueV2Store.getState().setNav({ overlay: "timeline" });
-      if (view === "revisions") useRescueV2Store.getState().setNav({ overlay: "revisions" });   // the library's Redo chip
-    });
+    void s.open(projectId ?? null, fixture, view);
   }, [projectId, fixture, view]);
   useRescueBack();                       // Android back: previous local step, else router.back()
   // The skeleton is a full page with no way out of it, so the chrome draws the close button over it: a slow first load can always be left.
   if (firstLoad) return <View style={{ flex: 1 }}><RescueSkeleton /><StageChrome screen={screen} /></View>;
+  // A project that could not be read is not a new rescue: it never falls through to the upload screen (the start).
+  if (openFailed) return <View style={{ flex: 1 }}><OpenFailed /><StageChrome screen={screen} /></View>;
   if (screen === "failure") {
     // A full page with no sheet. The chrome still draws the way out.
     return (
@@ -61,3 +64,21 @@ export function LivingScreen({ projectId, view, share, fixture }: Props) {
     </View>
   );
 }
+
+/** The failed state of an open that found no project: one calm line and Retry. Retry repeats the open with the view it was asked for. */
+function OpenFailed() {
+  const { t } = useTranslation();
+  const colors = useThemeColors();
+  const retryLast = useRescueV2Store((s) => s.retryLast);
+  return (
+    <View style={styles.failed}>
+      <Text style={[styles.failedText, { color: colors.textPrimary }]}>{t("rescueV2.common.openFailed")}</Text>
+      <Button title={t("rescueV2.common.retry")} onPress={() => { void retryLast(); }} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  failed: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 16 },
+  failedText: { fontSize: 15, lineHeight: 22, textAlign: "center" },
+});

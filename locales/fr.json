@@ -1593,6 +1593,7 @@
       "pageOf": "Page {{page}} sur {{total}}",
       "version": "Version {{n}}",
       "somethingWrong": "Un souci de notre côté, votre fichier est en sécurité. Réessayez dans un instant.",
+      "openFailed": "Impossible d'ouvrir cette reprise pour le moment. Vérifiez votre connexion, puis réessayez.",
       "waitingWord": "Votre tour approche. Vous pouvez fermer l'application : nous vous préviendrons.",
       "waitingBrain": "Nous lisons votre mémoire avec soin. Cela peut prendre quelques minutes, vous pouvez fermer l'application.",
       "etaMinutes": "environ {{minutes}} min",

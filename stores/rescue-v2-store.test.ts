@@ -512,3 +512,34 @@ describe("a re-run waits for the queued edits to reach the server (P-66)", () =>
     expect(S().errorCode).toBeNull();
   });
 });
+
+describe("a failed open never shows the upload screen (item 14)", () => {
+  it("a project that fails to open is marked as an open failure, with no project", async () => {
+    api.getRescueProject.mockRejectedValueOnce(httpError(502));
+    await S().open("A");
+    expect(S().projectId).toBe("A");
+    expect(S().project).toBeNull();
+    expect(S().openFailed).toBe(true);
+    expect(S().errorCode).toBe("server_unavailable");
+  });
+
+  it("Retry repeats the open and lands on the view that was asked for", async () => {
+    api.getRescueProject.mockRejectedValueOnce(httpError(502)).mockResolvedValueOnce(dto("A", "done"));
+    await S().open("A", undefined, "history");
+    expect(S().openFailed).toBe(true);
+    await S().retryLast();
+    expect(api.getRescueProject).toHaveBeenCalledTimes(2);
+    expect(S().project?.id).toBe("A");
+    expect(S().nav.overlay).toBe("timeline");
+    expect(S().openFailed).toBe(false);
+    expect(S().errorCode).toBeNull();
+  });
+
+  it("a failed refresh of a project already on screen does not replace it", async () => {
+    useRescueV2Store.setState({ projectId: "A", project: dto("A", "done") });
+    api.getRescueProject.mockRejectedValueOnce(httpError(502));
+    await S().open("A");
+    expect(S().project?.id).toBe("A");
+    expect(S().openFailed).toBe(false);
+  });
+});

@@ -1593,6 +1593,7 @@
       "pageOf": "Page {{page}} of {{total}}",
       "version": "Version {{n}}",
       "somethingWrong": "Something went wrong on our side, and your file is safe. Please try again shortly.",
+      "openFailed": "We couldn't open this rescue just now. Check your connection, then try again.",
       "waitingWord": "Your turn is coming. You can close the app; we'll notify you.",
       "waitingBrain": "We're reading your thesis carefully. This can take a few minutes, and you can safely close the app.",
       "etaMinutes": "about {{minutes}} min",
