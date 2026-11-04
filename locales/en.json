@@ -1689,6 +1689,8 @@
       "refusedDeposit": "This breaks the deposit rules, so we won't apply: {{label}}",
       "refusedUnsupported": "Noted, but we can't apply this: {{label}}",
       "waitGuide": "We're finishing reading the guide…",
+      "micLabel": "Voice input",
+      "micDenied": "Microphone/speech permission is needed to dictate.",
       "cta": "Continue",
       "skip": "Skip"
     },

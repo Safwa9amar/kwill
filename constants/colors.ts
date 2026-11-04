@@ -55,7 +55,7 @@ export const colors = {
     borderDefault: "#333346",
     borderSubtle: "#232338",
     // Rescue v2 (the one-screen rescue). The paper stays light in dark mode: it is paper.
-    rescueStageTop: "#17172A", rescueStageBottom: "#1B1B30", rescuePaper: "#FCFBF8",
+    rescueStageTop: "#17172A", rescueStageBottom: "#1B1B30", rescuePaper: "#FCFBF8", rescuePaperInk: "#2A2A36",
     brandWash: `rgba(${rgbTriplet(brand.primary)},0.18)`, successWash: "rgba(51,214,166,0.16)",
   },
   light: {
@@ -89,7 +89,7 @@ export const colors = {
     borderDefault: "#E0E0E6",
     borderSubtle: "#EDEDF0",
     // Rescue v2 (the one-screen rescue). The paper stays light in both themes: it is paper.
-    rescueStageTop: "#ECECF3", rescueStageBottom: "#F4F4F8", rescuePaper: "#FCFBF8",
+    rescueStageTop: "#ECECF3", rescueStageBottom: "#F4F4F8", rescuePaper: "#FCFBF8", rescuePaperInk: "#2A2A36",
     brandWash: `rgba(${rgbTriplet(brand.primary)},0.13)`, successWash: "rgba(38,184,140,0.13)",
   },
 } as const;

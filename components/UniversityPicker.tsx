@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { useThemeColors } from "@/hooks/useThemeColors";
 import { useUniversityStore } from "@/stores/university-store";
 import type { University } from "@/types/thesis";
 import { visualTextAlign } from "@/lib/rtl-layout";
+import { BottomSheetFlatList, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 
 /**
  * Searchable picker over the 130 Algerian institutions.
@@ -57,17 +58,30 @@ function byRelevance(a: University, b: University): number {
   return a.nameFr.localeCompare(b.nameFr);
 }
 
+/** The search field: gorhom's input inside a sheet (it keeps the keyboard above the field), the plain one everywhere else. */
+function SearchField({ sheet, ...props }: { sheet: boolean } & React.ComponentProps<typeof TextInput>) {
+  return sheet
+    ? <BottomSheetTextInput {...props} autoCorrect={false} spellCheck={false} />
+    : <TextInput {...props} autoCorrect={false} spellCheck={false} />;
+}
+
 export function UniversityPicker({
   value,
   onChange,
   onSkip,
   autoFocus,
+  sheet,
 }: {
   value: string | null;
   onChange: (id: string, university: University) => void;
   /** Lets a student whose institution genuinely is not listed carry on. */
   onSkip?: () => void;
   autoFocus?: boolean;
+  /**
+   * Inside a gorhom bottom sheet: the list and the field are gorhom's own, so the sheet scrolls the list and keeps the keyboard above the
+   * field. Without it the picker renders plain components, as every existing screen expects.
+   */
+  sheet?: boolean;
 }) {
   const colors = useThemeColors();
   const { t, i18n } = useTranslation();
@@ -145,15 +159,14 @@ export function UniversityPicker({
     <View style={styles.container}>
       <View style={[styles.searchBox, { backgroundColor: colors.bgInput, borderColor: colors.borderSubtle }]}>
         <Search size={16} color={colors.textPlaceholder} strokeWidth={2} />
-        <TextInput
+        <SearchField
+          sheet={!!sheet}
           value={query}
           onChangeText={setQuery}
           autoFocus={autoFocus}
           placeholder={t("university.searchPlaceholder")}
           placeholderTextColor={colors.textPlaceholder}
           style={[styles.searchInput, { color: colors.textPrimary, textAlign: visualTextAlign(isAr) }]}
-          autoCorrect={false}
-          spellCheck={false}
         />
         {query.length > 0 ? (
           <Pressable onPress={() => setQuery("")} hitSlop={8}>
@@ -171,18 +184,33 @@ export function UniversityPicker({
           <Text style={[styles.meta, { color: colors.semanticError }]}>{t("university.loadFailed")}</Text>
         </View>
       ) : (
-        <FlatList
-          data={results}
-          renderItem={renderItem}
-          keyExtractor={(u) => u.id}
-          keyboardShouldPersistTaps="handled"
-          style={styles.list}
-          ListEmptyComponent={
-            <View style={styles.centered}>
-              <Text style={[styles.meta, { color: colors.textSecondary }]}>{t("university.noResults")}</Text>
-            </View>
-          }
-        />
+        sheet ? (
+          <BottomSheetFlatList
+            data={results}
+            renderItem={renderItem}
+            keyExtractor={(u: University) => u.id}
+            keyboardShouldPersistTaps="handled"
+            style={styles.list}
+            ListEmptyComponent={
+              <View style={styles.centered}>
+                <Text style={[styles.meta, { color: colors.textSecondary }]}>{t("university.noResults")}</Text>
+              </View>
+            }
+          />
+        ) : (
+          <FlatList
+            data={results}
+            renderItem={renderItem}
+            keyExtractor={(u) => u.id}
+            keyboardShouldPersistTaps="handled"
+            style={styles.list}
+            ListEmptyComponent={
+              <View style={styles.centered}>
+                <Text style={[styles.meta, { color: colors.textSecondary }]}>{t("university.noResults")}</Text>
+              </View>
+            }
+          />
+        )
       )}
 
       {onSkip ? (

@@ -1689,6 +1689,8 @@
       "refusedDeposit": "Cela ne respecte pas les règles de dépôt, nous n'appliquerons donc pas : {{label}}",
       "refusedUnsupported": "C'est noté, mais nous ne pouvons pas l'appliquer : {{label}}",
       "waitGuide": "Nous finissons de lire le guide…",
+      "micLabel": "Saisie vocale",
+      "micDenied": "L'autorisation du microphone et de la reconnaissance vocale est nécessaire pour dicter.",
       "cta": "Continuer",
       "skip": "Passer"
     },

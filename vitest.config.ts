@@ -17,6 +17,8 @@ export default defineConfig({
       "lib/rescue-v2-layout.test.ts",
       "lib/rescue-v2-upload.test.ts",
       "lib/rescue-v2-locales.test.ts",
+      "lib/rescue-v2-pick.test.ts",
+      "lib/rescue-v2-errors.test.ts",
       "lib/rescue-v2-diagnosis.test.ts",
       "lib/rescue-v2-payment.test.ts",
       "stores/rescue-v2-store.test.ts",

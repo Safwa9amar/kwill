@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { backFor, type RescueScreen } from "@/lib/rescue-v2-screen";
+import { errorWord } from "@/lib/rescue-v2-errors";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
 import { BackPill, CloseButton } from "./ui";
 
@@ -19,7 +20,11 @@ export function StageChrome({ screen }: { screen: RescueScreen }) {
   const project = useRescueV2Store((s) => s.project);
   const errorCode = useRescueV2Store((s) => s.errorCode);
   const retryLast = useRescueV2Store((s) => s.retryLast);
+  const partMb = useRescueV2Store((s) => s.config?.limits.partMb ?? null);
   const hasBack = backFor(screen, nav, project) !== null;
+  // A step's own word where the code has one (lib/rescue-v2-errors); the generic line otherwise. A raw code is never shown.
+  const word = errorWord(errorCode, partMb);
+  const message = word ? t(`rescueV2.${word.key}`, word.params) : t("rescueV2.common.somethingWrong");
 
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { top: insets.top + 8 }]}>
