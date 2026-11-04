@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { hLight, hSelection } from "@/lib/haptics";
 import { removeNoteChip, resolveNoteConflict, sendNote, startDiagnosis } from "@/lib/rescue-v2-api";
+import { runNoteCta, waitForNote, type NoteReading } from "@/lib/rescue-v2-note-cta";
 import { scaleFor, STAGE_LAYOUT } from "@/lib/rescue-v2-layout";
 import { thesisIsRtl } from "@/lib/rescue-v2-screen";
 import { visualTextAlign } from "@/lib/rtl-layout";
@@ -154,9 +155,23 @@ function NotesSheet() {
   );
 }
 
+/** What the CTA reads from the store, now: the note's state and whether a conflict is open, for the project `pid`. */
+function readNote(pid: string): NoteReading {
+  const st = useRescueV2Store.getState();
+  const note = st.project?.note;
+  return {
+    parsing: note?.state === "parsing",
+    conflict: (note?.conflicts ?? []).some((c) => c.choice === null),
+    live: st.projectId === pid,
+  };
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 /**
- * The CTA sends a changed note first, then starts the diagnosis. Disabled while the note is being read, while a conflict is open (with the
- * reason beneath), and while the guide is still being read. `notes.skip` starts with the note as it was last saved.
+ * The CTA sends a changed note, waits while it is read (the same words as the sheet's line, and the button stays busy), then starts the
+ * diagnosis once. A conflict keeps the student here with the conflict buttons. Skip does the same: typed text is never dropped silently.
+ * Disabled while the note is being read, while a conflict is open (with the reason beneath), and while the guide is still being read.
  */
 function Foot() {
   const { t } = useTranslation();
@@ -168,6 +183,7 @@ function Foot() {
   const draftProject = useNoteDraft((d) => d.projectId);
   const draftText = useNoteDraft((d) => d.text);
   const [pending, setPending] = useState(false);
+  const [waiting, setWaiting] = useState(false);
   const gate = useRef(false);
 
   const parsing = note?.state === "parsing";
@@ -176,20 +192,30 @@ function Foot() {
   const blocked = !id || parsing || openConflict || guideReading || pending;
   const reason = openConflict ? t("rescueV2.notes.pickOne") : guideReading ? t("rescueV2.notes.waitGuide") : null;
 
-  const run = async (send: boolean) => {
+  const run = async () => {
     if (gate.current || blocked || !id) return;
     gate.current = true;
     setPending(true);
     try {
-      const saved = note?.text ?? "";
-      const text = draftProject === id && draftText !== null ? draftText : saved;
-      if (send && text !== saved) {
-        const sent = await apply(() => sendNote(id, text, "start"));
-        if (!sent) return;
-      }
-      await apply(() => startDiagnosis(id));
+      // The latest values, not the ones this render saw: a blur-send may have landed since.
+      const saved = useRescueV2Store.getState().project?.note?.text ?? "";
+      const draft = useNoteDraft.getState();
+      const text = draft.projectId === id && draft.text !== null ? draft.text : saved;
+      await runNoteCta(text !== saved, {
+        send: () => apply(() => sendNote(id, text, "start")),
+        wait: async () => {
+          setWaiting(true);
+          return waitForNote({
+            read: () => readNote(id),
+            refresh: () => useRescueV2Store.getState().refresh(),
+            sleep,
+          });
+        },
+        start: () => apply(() => startDiagnosis(id)),
+      });
     } finally {
       gate.current = false;
+      setWaiting(false);
       setPending(false);
     }
   };
@@ -199,14 +225,14 @@ function Foot() {
       {reason ? <Text style={[styles.fine, { color: colors.semanticWarning }]}>{reason}</Text> : null}
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ disabled: blocked }}
+        accessibilityState={{ disabled: blocked, busy: pending }}
         disabled={blocked}
-        onPress={() => { void run(true); }}
+        onPress={() => { void run(); }}
         style={[styles.cta, { backgroundColor: colors.brandPrimary, opacity: blocked ? 0.5 : 1 }]}
       >
-        <Text style={[styles.ctaText, { color: colors.bgCard }]}>{t("rescueV2.notes.cta")}</Text>
+        <Text style={[styles.ctaText, { color: colors.bgCard }]}>{t(waiting ? "rescueV2.notes.parsing" : "rescueV2.notes.cta")}</Text>
       </Pressable>
-      <Pressable accessibilityRole="button" disabled={blocked} onPress={() => { void run(false); }} hitSlop={8} style={styles.skip}>
+      <Pressable accessibilityRole="button" disabled={blocked} onPress={() => { void run(); }} hitSlop={8} style={styles.skip}>
         <Text style={[styles.skipText, { color: colors.textSecondary, opacity: blocked ? 0.5 : 1 }]}>{t("rescueV2.notes.skip")}</Text>
       </Pressable>
     </View>

@@ -25,6 +25,7 @@ export default defineConfig({
       "stores/rescue-v2-store.test.ts",
       "stores/rescue-payment-ui.test.ts",
       "stores/rescue-diagnosis-view.test.ts",
+      "lib/rescue-v2-note-cta.test.ts",
       "stores/rescue-note-draft.test.ts",
       "hooks/useRescueBack.test.ts",
       "components/workspace/docx-editor/bridge/**/*.test.ts",
