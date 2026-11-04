@@ -9,8 +9,7 @@ import { BackPill, CloseButton } from "./ui";
 
 /**
  * The way out of every step, and the one error line for the route. It sits at the leading corner, under the safe area, on every screen,
- * so no step draws its own. The error line's retry re-reads the project: the store keeps no record of the call that failed, and a read
- * that succeeds clears the line so the student can press the CTA again.
+ * so no step draws its own. The error line's retry repeats the call that failed (`retryLast`); with nothing recorded it re-reads the project.
  */
 export function StageChrome({ screen }: { screen: RescueScreen }) {
   const { t } = useTranslation();
@@ -19,7 +18,7 @@ export function StageChrome({ screen }: { screen: RescueScreen }) {
   const nav = useRescueV2Store((s) => s.nav);
   const project = useRescueV2Store((s) => s.project);
   const errorCode = useRescueV2Store((s) => s.errorCode);
-  const refresh = useRescueV2Store((s) => s.refresh);
+  const retryLast = useRescueV2Store((s) => s.retryLast);
   const hasBack = backFor(screen, nav, project) !== null;
 
   return (
@@ -28,7 +27,7 @@ export function StageChrome({ screen }: { screen: RescueScreen }) {
       {errorCode ? (
         <View style={[styles.error, { backgroundColor: colors.bgCard, borderColor: colors.borderDefault }]}>
           <Text numberOfLines={2} style={[styles.errorText, { color: colors.textPrimary }]}>{t("rescueV2.common.somethingWrong")}</Text>
-          <TouchableOpacity accessibilityRole="button" onPress={() => { void refresh(); }} hitSlop={8}>
+          <TouchableOpacity accessibilityRole="button" onPress={() => { void retryLast(); }} hitSlop={8}>
             <Text style={[styles.errorRetry, { color: colors.brandPrimary }]}>{t("rescueV2.common.retry")}</Text>
           </TouchableOpacity>
         </View>

@@ -4,6 +4,7 @@ import Animated, { runOnJS } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { layoutSpring } from "@/lib/motion";
 import { scaleFor, type StageLayout } from "@/lib/rescue-v2-layout";
+import { pageIsInRange, thesisIsRtl } from "@/lib/rescue-v2-screen";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
 import { PageImage } from "./PageImage";
 
@@ -26,13 +27,14 @@ const TURN_PX = 40;
 export function PageCarousel({ versionId, page, layout, onChange, interactive, overlay }: Props) {
   const { width } = useWindowDimensions();
   const s = scaleFor(width);
-  const rtl = useRescueV2Store((st) => st.project?.language === "ar");
-  const count = useRescueV2Store((st) => st.pages[versionId]?.count ?? 0);
+  const rtl = useRescueV2Store((st) => thesisIsRtl(st.project));
+  // null until the page list is loaded: an unknown count shows skeletons, a known zero shows none (fix 9).
+  const count = useRescueV2Store((st) => st.pages[versionId]?.count ?? null);
 
   const go = (delta: number) => {
     if (!onChange) return;
     const next = page + delta;
-    if (next < 1 || (count > 0 && next > count)) return;
+    if (next < 1 || (count !== null && next > count)) return;
     onChange(next);
   };
 
@@ -63,7 +65,7 @@ export function PageCarousel({ versionId, page, layout, onChange, interactive, o
     return null;
   }
   const ordered = rtl && layout.kind !== "big" ? [...slots].reverse() : slots;
-  const inRange = (p: number) => p >= 1 && (count === 0 || p <= count);
+  const inRange = (p: number) => pageIsInRange(p, count);
 
   return (
     <GestureDetector gesture={pan}>

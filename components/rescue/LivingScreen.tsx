@@ -41,7 +41,8 @@ export function LivingScreen({ projectId, view, share, fixture }: Props) {
     });
   }, [projectId, fixture, view]);
   useRescueBack();                       // Android back: previous local step, else router.back()
-  if (firstLoad) return <RescueSkeleton />;
+  // The skeleton is a full page with no way out of it, so the chrome draws the close button over it: a slow first load can always be left.
+  if (firstLoad) return <View style={{ flex: 1 }}><RescueSkeleton /><StageChrome screen={screen} /></View>;
   if (screen === "failure") {
     // A full page with no sheet. The chrome still draws the way out.
     return (
