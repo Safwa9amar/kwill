@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canRetry, errorWord } from "./rescue-v2-errors";
+import { canRetry, errorWord, shellShows } from "./rescue-v2-errors";
 
 describe("errorWord", () => {
   it("names the Start screen's own word for each code the upload path returns", () => {
@@ -44,5 +44,18 @@ describe("canRetry", () => {
       expect(canRetry(code), code).toBe(true);
     }
     expect(canRetry(null)).toBe(true);
+  });
+});
+
+describe("shellShows", () => {
+  it("leaves the codes a screen draws itself to that screen", () => {
+    expect(shellShows("rule_out_of_range")).toBe(false);
+    expect(shellShows("cover_fields_missing")).toBe(false);
+  });
+
+  it("shows the shell line for any other code, and none when there is no code", () => {
+    expect(shellShows("rescue_daily_limit")).toBe(true);
+    expect(shellShows("network")).toBe(true);
+    expect(shellShows(null)).toBe(false);
   });
 });

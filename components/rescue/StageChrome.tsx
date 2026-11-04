@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { backFor, type RescueScreen } from "@/lib/rescue-v2-screen";
-import { canRetry, errorWord } from "@/lib/rescue-v2-errors";
+import { canRetry, errorWord, shellShows } from "@/lib/rescue-v2-errors";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
 import { BackPill, CloseButton } from "./ui";
 
@@ -29,7 +29,7 @@ export function StageChrome({ screen }: { screen: RescueScreen }) {
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { top: insets.top + 8 }]}>
       {hasBack ? <BackPill /> : <CloseButton />}
-      {errorCode ? (
+      {shellShows(errorCode) ? (
         <View style={[styles.error, { backgroundColor: colors.bgCard, borderColor: colors.borderDefault }]}>
           <Text numberOfLines={2} style={[styles.errorText, { color: colors.textPrimary }]}>{message}</Text>
           {canRetry(errorCode) ? (

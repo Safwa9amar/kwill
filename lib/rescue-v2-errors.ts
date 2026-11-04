@@ -32,3 +32,14 @@ const NO_RETRY = new Set(["rescue_daily_limit", "rescue_too_large", "rescue_disa
 export function canRetry(code: string | null): boolean {
   return code === null || !NO_RETRY.has(code);
 }
+
+/**
+ * Codes a screen draws beside its own field or card (the rules' out-of-range line, the cover's missing fields). The shell line never repeats
+ * them, so the same failure is not shown twice.
+ */
+const SCREEN_OWNED = new Set(["rule_out_of_range", "cover_fields_missing"]);
+
+/** True when the shell's one error line should show this code: there is a code, and no screen draws it itself. */
+export function shellShows(code: string | null): boolean {
+  return code !== null && !SCREEN_OWNED.has(code);
+}
