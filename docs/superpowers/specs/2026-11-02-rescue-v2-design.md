@@ -73,6 +73,9 @@ Sources are listed in mockup `01`, section "Sources".
 | D-25 | **Production ships open-licensed fonts only (decided 2026-11-02).** Amiri, Noto Naskh Arabic, Scheherazade and Liberation Serif live in the server's assets with their licences. Windows-standard fonts (Times New Roman, Simplified Arabic…) are not shipped or embedded: every shop PC has them. A font that is neither embeddable nor Windows-standard is swapped, on the cover too, and the swap is listed in the change report. |
 | D-26 | **Moves are declared, then proven (decided 2026-11-02).** Regenerate may reorder only captions next to their object and bibliography entries the student agreed to sort. Prove reads the order back through the composed index map and fails if any other block changed relative order. |
 | D-27 | **Answer keys may be written by subagents (decided 2026-11-02; amends D-21).** Corpus Map and Review tasks are answered by Claude subagents, one per thesis, with Claude in the main session arbitrating. |
+| D-28 | **Renumbered captions are reported, never reconciled with the text (decided 2026-11-04).** A caption reference that goes stale or dangles after renumbering is listed for the student (`caption-references`, `caption-numbers-repeat`, `caption-double`). The rescue doesn't edit the sentence: the words are the student's. |
+| D-29 | **A title with no heading after it still gets a contents line (decided 2026-11-04).** `part` titles, text dividers and titles drawn in shapes get a TC field, so the contents shows them. This changes every thesis that has them. Word only collects TC fields with `\f` in the TOC and with visible runs. |
+| D-30 | **Large files update only contents and lists in Word (decided 2026-11-04).** Above 150 fields, updating them all takes more than 8 minutes, so other fields keep their cached values in the PDF. Page reviews check whether this leaves a wrong number on a page. If it does, this decision changes. |
 
 ---
 
