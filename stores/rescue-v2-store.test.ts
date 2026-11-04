@@ -348,3 +348,105 @@ describe("open(null) and the upload state (fix 7)", () => {
     expect(S().project?.id).toBe("A");
   });
 });
+
+describe("retryLast repeats what failed (fix 8)", () => {
+  it("a failed create is repeated with the same files", async () => {
+    api.createRescueProject.mockRejectedValueOnce(httpError(502)).mockResolvedValueOnce(dto("A", "uploading"));
+    up.uploadPart.mockResolvedValueOnce(dto("A", "reading"));
+    expect(await S().begin([f("a.docx")], "picker")).toBe(false);
+    expect(S().errorCode).toBe("server_unavailable");
+    await S().retryLast();
+    expect(api.createRescueProject).toHaveBeenCalledTimes(2);
+    expect(api.createRescueProject.mock.calls[1]).toEqual(api.createRescueProject.mock.calls[0]);
+    expect(S().projectId).toBe("A");
+    expect(S().errorCode).toBeNull();
+  });
+
+  it("a failed retry replaces the record, so the next retry repeats the retry", async () => {
+    api.createRescueProject
+      .mockRejectedValueOnce(httpError(502))
+      .mockRejectedValueOnce(httpError(409, "second_failure"))
+      .mockResolvedValueOnce(dto("A", "uploading"));
+    up.uploadPart.mockResolvedValueOnce(dto("A", "reading"));
+    await S().begin([f("a.docx")], "picker");
+    await S().retryLast();
+    expect(S().errorCode).toBe("second_failure");
+    await S().retryLast();
+    expect(api.createRescueProject).toHaveBeenCalledTimes(3);
+    expect(S().projectId).toBe("A");
+    expect(S().errorCode).toBeNull();
+  });
+
+  it("a failed page list is repeated for the same pages, and the error clears when it lands", async () => {
+    api.getRescueProject.mockResolvedValueOnce(dto("A", "done"));
+    await S().open("A");
+    api.getVersionPages
+      .mockRejectedValueOnce(httpError(500))
+      .mockResolvedValueOnce({ count: 3, pages: [{ page: 2, hash: "h2", url: "u2" }] });
+    await S().loadPages("A-v1", 2, 2);
+    expect(S().errorCode).toBe("server_unavailable");
+    await S().retryLast();
+    expect(api.getVersionPages).toHaveBeenLastCalledWith("A-v1", 2, 2);
+    expect(S().pages["A-v1"]?.byPage[2]?.hash).toBe("h2");
+    expect(S().errorCode).toBeNull();
+  });
+
+  it("a failed loadVersions is repeated", async () => {
+    api.getRescueProject.mockResolvedValueOnce(dto("A", "done"));
+    await S().open("A");
+    api.listVersions
+      .mockRejectedValueOnce(httpError(500))
+      .mockResolvedValueOnce({ versions: [{ id: "vA" }], edited: { edited: false, changedBlocks: null, afterVersionN: null } });
+    await S().loadVersions();
+    await S().retryLast();
+    expect(api.listVersions).toHaveBeenCalledTimes(2);
+    expect(S().versions).toEqual([{ id: "vA" }]);
+    expect(S().errorCode).toBeNull();
+  });
+
+  it("a failed apply is repeated with the same call", async () => {
+    api.getRescueProject.mockResolvedValueOnce(dto("A", "done"));
+    await S().open("A");
+    const call = vi.fn().mockRejectedValueOnce(httpError(409, "conflict")).mockResolvedValueOnce(dto("A", "done"));
+    expect(await S().apply(call)).toBe(false);
+    expect(S().errorCode).toBe("conflict");
+    await S().retryLast();
+    expect(call).toHaveBeenCalledTimes(2);
+    expect(S().errorCode).toBeNull();
+  });
+
+  it("a part that failed is re-sent from that part", async () => {
+    api.createRescueProject.mockResolvedValueOnce(dto("A", "uploading"));
+    up.uploadPart
+      .mockResolvedValueOnce(dto("A", "uploading"))
+      .mockRejectedValueOnce(httpError(502))
+      .mockResolvedValueOnce(dto("A", "reading"));
+    await S().begin([f("a.docx"), f("b.docx")], "picker");
+    expect(S().errorCode).toBe("server_unavailable");
+    await S().retryLast();
+    expect(up.uploadPart).toHaveBeenCalledTimes(3);
+    expect(up.uploadPart.mock.calls[2][1]).toBe(1);
+    expect(S().errorCode).toBeNull();
+  });
+
+  it("with nothing recorded, retryLast re-reads the project", async () => {
+    api.getRescueProject.mockResolvedValueOnce(dto("A", "reading"));
+    await S().open("A");
+    api.getRescueProject.mockResolvedValueOnce(dto("A", "reading"));
+    await S().retryLast();
+    expect(api.getRescueProject).toHaveBeenLastCalledWith("A");
+  });
+
+  it("a success clears the record: a later retry does not repeat an old failure", async () => {
+    api.getRescueProject.mockResolvedValueOnce(dto("A", "done"));
+    await S().open("A");
+    const call = vi.fn().mockRejectedValueOnce(httpError(409, "conflict"));
+    await S().apply(call);
+    api.getRescueProject.mockResolvedValueOnce(dto("A", "done"));
+    await S().refresh();
+    expect(S().errorCode).toBeNull();
+    api.getRescueProject.mockResolvedValueOnce(dto("A", "done"));
+    await S().retryLast();
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+});

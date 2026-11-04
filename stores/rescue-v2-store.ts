@@ -53,6 +53,11 @@ interface RescueV2State {
   loadDetail(versionId: string): Promise<void>;
   /** Wraps a mutation: keeps the DTO it returns, or records its `code` and `info` (a thrown error with no code is `network`). Cleared by the next success. */
   apply(call: () => Promise<RescueProjectDTO>): Promise<boolean>;
+  /**
+   * The Retry on the error line. Repeats the last failed create, page list, list of versions, part or apply, and clears the error if the repeat
+   * lands. With nothing recorded it re-reads the project. A failed repeat records itself in place of the one before.
+   */
+  retryLast(): Promise<void>;
   reset(): void;
 }
 
@@ -62,6 +67,8 @@ const PAGE_URL_TTL_MS = 50 * 60 * 1000;
 const fetchedAt = new Map<string, number>();
 
 type Failure = Pick<RescueV2State, "errorCode" | "errorInfo">;
+/** What repeats the failure now on the error line. Always the last failure's own; cleared with the error. */
+type Repeat = { again: () => Promise<unknown> } | null;
 
 /**
  * Three kinds of failure. A coded answer keeps its code. An answer with no code (a proxy's HTML page, a 2xx whose body is not JSON) is
@@ -116,6 +123,8 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
    * because the server is still waiting for the part. A retry or a phase change clears the mark (fix 2).
    */
   let pinned: { projectId: string; phase: RescuePhase | null; error: Failure } | null = null;
+  /** What Retry repeats for the error on the line (fix 8). Moves with `errorCode`: set by a failure, cleared when the error clears. */
+  let last: Repeat = null;
 
   /** Nothing has switched or been reset since `g`, and `pid` is still the open project. */
   const live = (g: number, pid: string | null) => g === gen && get().projectId === pid;
@@ -136,6 +145,7 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
   /** The one place a project DTO from the server lands. The server answered, so the last error is cleared, unless a local failure still holds. */
   const land = (dto: RescueProjectDTO) => {
     const hold = holdFor(dto.id, dto.phase);
+    if (!hold) last = null;
     set({
       project: dto,
       projectId: dto.id,
@@ -147,26 +157,33 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
   };
 
   /**
-   * A part of this device's upload failed. Pinned for the project and phase it failed in. Only the project still open shows it, so an
-   * upload that finishes after the student switched cannot put its error on another project.
+   * A part of this device's upload failed. Pinned for the project and phase it failed in, and repeated by Retry from that part. Only the
+   * project still open shows it, so an upload that finishes after the student switched cannot put its error on another project.
    */
-  const pinFailure = (g: number, pid: string, error: Failure) => {
+  const pinFailure = (g: number, pid: string, error: Failure, again: Repeat) => {
     if (!live(g, pid)) return;
     pinned = { projectId: pid, phase: get().project?.phase ?? null, error };
+    last = again;
     set({ upload: null, ...error });
   };
 
   /**
-   * Sends each file as one part of `versionId`, one request at a time (P-10). Progress is written only when the whole percent changes.
-   * A switch does not stop the sending, since the server is waiting for every part; it only stops the writes.
+   * Sends each file as one part of `versionId`, one request at a time (P-10), from file `from` on. Progress is written only when the whole
+   * percent changes. A switch does not stop the sending, since the server is waiting for every part; it only stops the writes.
    */
-  const sendParts = async (g: number, pid: string, versionId: string | null, files: { uri: string; name: string; size: number }[]): Promise<boolean> => {
+  const sendParts = async (
+    g: number,
+    pid: string,
+    versionId: string | null,
+    files: { uri: string; name: string; size: number }[],
+    from = 0,
+  ): Promise<boolean> => {
     if (!versionId) {
-      pinFailure(g, pid, { errorCode: "server_unavailable", errorInfo: null });
+      pinFailure(g, pid, { errorCode: "server_unavailable", errorInfo: null }, null);
       return false;
     }
     const n = files.length;
-    for (let i = 0; i < n; i++) {
+    for (let i = from; i < n; i++) {
       let lastPct = -1;
       const s = ++issued.dto;
       try {
@@ -178,7 +195,13 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
         });
         if (claim("dto", g, pid, s)) land(dto);
       } catch (e) {
-        pinFailure(g, pid, failure(e));
+        pinFailure(g, pid, failure(e), {
+          again: () => {
+            if (get().projectId !== pid) return Promise.resolve(false);
+            pinned = null;
+            return sendParts(gen, pid, versionId, files, i);
+          },
+        });
         return false;
       }
     }
@@ -198,6 +221,7 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       if (__DEV__ && fixture) {
         gen += 1;
         pinned = null;
+        last = null;
         const dto = RESCUE_FIXTURES[fixture];
         set({ projectId: dto.id, project: dto, firstLoad: false, errorCode: null, errorInfo: null, nav: navAfter(get().project, dto, get().nav) });
         return;
@@ -205,6 +229,7 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       if (!projectId) {
         gen += 1;
         pinned = null;
+        last = null;
         set({ projectId: null, project: null, firstLoad: false, errorCode: null, errorInfo: null, versions: [], edited: null, upload: null });
         return;
       }
@@ -214,6 +239,7 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       // A different project starts clean: its versions, its upload, and the old error go. The same project keeps its pinned failure.
       const first = get().project?.id !== projectId;
       const hold = switching ? null : holdFor(projectId, get().project?.phase ?? null);
+      if (!hold) last = null;
       set({
         projectId,
         project: first ? null : get().project,
@@ -228,7 +254,8 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
         const dto = await api.getRescueProject(projectId);
         if (claim("dto", g, projectId, s)) land(dto);
       } catch (e) {
-        if (claim("dto", g, projectId, s)) set({ firstLoad: false, ...failure(e) });
+        // A failed open is repeated by a plain re-read: the project id is set, so refresh does it.
+        if (claim("dto", g, projectId, s)) { last = null; set({ firstLoad: false, ...failure(e) }); }
       }
     },
 
@@ -244,11 +271,12 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
         if (get().firstLoad || !sameJson(get().project, dto)) land(dto);
         else {
           const hold = holdFor(dto.id, dto.phase);
+          if (!hold) last = null;
           const errorCode = hold?.errorCode ?? null;
           if (get().errorCode !== errorCode) set({ errorCode, errorInfo: hold?.errorInfo ?? null });
         }
       } catch (e) {
-        if (claim("dto", g, pid, s)) set(failure(e));
+        if (claim("dto", g, pid, s)) { last = null; set(failure(e)); }
       }
     },
 
@@ -258,6 +286,7 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       // A new project takes the place of whatever is open: replies asked under the old one stop landing from here on.
       gen += 1;
       pinned = null;
+      last = null;
       const g = gen;
       const sizeBytes = files.reduce((n, f) => n + f.size, 0);
       set({ errorCode: null, errorInfo: null, upload: { fraction: 0, fileName: files[0]?.name ?? null, sizeBytes, parts: files.length } });
@@ -265,7 +294,10 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       try {
         dto = await api.createRescueProject(files.map((f) => ({ filename: f.name, sizeBytes: f.size })), source);
       } catch (e) {
-        if (g === gen) set({ upload: null, ...failure(e) });
+        if (g === gen) {
+          last = { again: () => get().begin(files, source) };
+          set({ upload: null, ...failure(e) });
+        }
         return false;
       }
       if (g === gen) land(dto);
@@ -283,6 +315,7 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       const source = files.length ? "upload" : "auto";
       const sizeBytes = files.reduce((n, f) => n + f.size, 0);
       pinned = null;
+      last = null;
       set({
         errorCode: null,
         errorInfo: null,
@@ -294,7 +327,10 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       try {
         dto = await api.createRerun(pid, source, files.length ? files.map((f) => ({ filename: f.name, sizeBytes: f.size })) : undefined);
       } catch (e) {
-        if (live(g, pid)) set({ upload: null, nav: { ...get().nav, overlay: null }, ...failure(e) });
+        if (live(g, pid)) {
+          last = { again: () => get().beginRerun(files) };
+          set({ upload: null, nav: { ...get().nav, overlay: null }, ...failure(e) });
+        }
         return false;
       }
       if (claim("dto", g, pid, s)) land(dto);
@@ -321,8 +357,8 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       // Contiguous runs, at most 12 pages a request.
       const chunks: [number, number][] = [];
       for (const p of want) {
-        const last = chunks[chunks.length - 1];
-        if (last && p === last[1] + 1 && last[1] - last[0] < 11) last[1] = p;
+        const run = chunks[chunks.length - 1];
+        if (run && p === run[1] + 1 && run[1] - run[0] < 11) run[1] = p;
         else chunks.push([p, p]);
       }
       for (const [a, b] of chunks) {
@@ -340,7 +376,10 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
             return { pages: { ...s.pages, [versionId]: { count: res.count, byPage } } };
           });
         } catch (e) {
-          if (live(g, pid)) set(failure(e));
+          if (live(g, pid)) {
+            last = { again: () => get().loadPages(versionId, from, to) };
+            set(failure(e));
+          }
           return;
         }
       }
@@ -355,7 +394,10 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
         const r = await api.listVersions(pid);
         if (claim("versions", g, pid, s)) set({ versions: r.versions, edited: r.edited });
       } catch (e) {
-        if (claim("versions", g, pid, s)) set(failure(e));
+        if (claim("versions", g, pid, s)) {
+          last = { again: () => get().loadVersions() };
+          set(failure(e));
+        }
       }
     },
 
@@ -366,7 +408,10 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
         const d = await api.getVersion(versionId);
         if (live(g, pid)) set((s) => ({ details: { ...s.details, [versionId]: d } }));
       } catch (e) {
-        if (live(g, pid)) set(failure(e));
+        if (live(g, pid)) {
+          last = { again: () => get().loadDetail(versionId) };
+          set(failure(e));
+        }
       }
     },
 
@@ -379,14 +424,31 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
         if (claim("dto", g, pid, s)) land(dto);
         return true;
       } catch (e) {
-        if (claim("dto", g, pid, s)) set(failure(e));
+        if (claim("dto", g, pid, s)) {
+          last = { again: () => get().apply(call) };
+          set(failure(e));
+        }
         return false;
       }
+    },
+
+    retryLast: async () => {
+      const r = last;
+      if (!r) {
+        await get().refresh();
+        return;
+      }
+      last = null;
+      const code = get().errorCode;
+      await r.again();
+      // The repeat went through without a new failure: the error it was repeating is over. (A success that is a land has cleared it already.)
+      if (last === null && code !== null && get().errorCode === code) set({ errorCode: null, errorInfo: null });
     },
 
     reset: () => {
       gen += 1;
       pinned = null;
+      last = null;
       fetchedAt.clear();
       set({ ...INITIAL });
     },
