@@ -3,6 +3,9 @@ import { AppState } from "react-native";
 import { needsPolling } from "@/lib/rescue-v2-screen";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
 
+// One poll at a time, across every mount: a request slower than the 3 s tick must not stack a second poll behind it (its reply could land late).
+let pollInFlight = false;
+
 // Polls the open project every 3 s while a run is going on, in the foreground only (P-13). No SSE.
 export function useRescuePolling() {
   const polling = useRescueV2Store((s) => needsPolling(s.project));
@@ -15,7 +18,12 @@ export function useRescuePolling() {
   useEffect(() => {
     if (!polling) return;
     let timer: ReturnType<typeof setInterval> | null = null;
-    const start = () => { if (!timer) timer = setInterval(() => void refresh(), 3000); };
+    const poll = () => {
+      if (pollInFlight) return;
+      pollInFlight = true;
+      void refresh().finally(() => { pollInFlight = false; });
+    };
+    const start = () => { if (!timer) timer = setInterval(poll, 3000); };
     const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
     if (AppState.currentState === "active") start();
     const sub = AppState.addEventListener("change", (s) => (s === "active" ? start() : stop()));

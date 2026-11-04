@@ -17,6 +17,7 @@ export default defineConfig({
       "lib/rescue-v2-layout.test.ts",
       "lib/rescue-v2-upload.test.ts",
       "lib/rescue-v2-locales.test.ts",
+      "stores/rescue-v2-store.test.ts",
       "components/workspace/docx-editor/bridge/**/*.test.ts",
       "components/workspace/docx-editor/overlays/**/*.test.ts",
       "components/workspace/docx-editor/host/**/*.test.ts",
