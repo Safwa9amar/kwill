@@ -1759,7 +1759,7 @@
         "reference-error": "Un renvoi du texte ne mène plus à sa cible. Vérifiez-le dans votre fichier.",
         "caption-references": "Certains renvois du texte utilisent des numéros de légende qui ont changé. Vérifiez-les avec les nouveaux numéros.",
         "caption-numbers-repeat": "Certaines légendes portent le même numéro. Vérifiez-les une fois les numéros fixés.",
-        "caption-double": "Le numéro d'une légende est écrit deux fois. Gardez-en un seul.",
+        "caption-double": "Cet élément a deux légendes de suite. Gardez-en une seule.",
         "chapter-title-in-picture": "Le titre du chapitre est une image, il n'apparaît donc pas dans la table des matières. Saisissez le titre en texte pour qu'il y figure.",
         "generic": "Un point demande un coup d'œil. Vérifiez-le dans votre fichier.",
         "typography": "Les espaces autour de la ponctuation sont à ajuster. Nous les nettoierons sans changer vos mots."

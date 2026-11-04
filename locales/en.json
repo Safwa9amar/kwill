@@ -1759,7 +1759,7 @@
         "reference-error": "A reference in the text no longer leads to its target. Check it in your file.",
         "caption-references": "Some references in the text use caption numbers that have changed. Check them against the new numbers.",
         "caption-numbers-repeat": "Some captions share the same number. Check them once the numbers are set.",
-        "caption-double": "A caption has its number written twice. Keep one.",
+        "caption-double": "This item has two captions in a row. Keep one.",
         "chapter-title-in-picture": "A chapter title is a picture, so it can't appear in the contents. Type the title as text to show it there.",
         "generic": "Something here needs a look. Check it in your file.",
         "typography": "The spacing around punctuation needs tidying. We'll clean it without changing your words."
