@@ -1,4 +1,4 @@
-import { Directory, File, Paths } from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import type { FilePayload } from "@/types/chat";
 
@@ -12,6 +12,13 @@ const MIME: Record<string, string> = {
   pdf: "application/pdf",
   latex: "application/x-tex",
   tex: "application/x-tex",
+  zip: "application/zip",
+};
+
+const UTI: Record<string, string> = {
+  pdf: "com.adobe.pdf",
+  zip: "public.zip-archive",
+  docx: "org.openxmlformats.wordprocessingml.document",
 };
 
 /**
@@ -50,20 +57,32 @@ export type DownloadableExport = Pick<FilePayload, "url" | "filename" | "format"
  * the browser's history and address bar. Fetching it here keeps it inside the
  * app, and the student gets the file rather than a web page.
  *
- * Throws on failure so the caller can say what happened. The most likely cause
- * is an expired link: these are signed for one hour, so a card from an older
- * conversation will refuse.
+ * Throws on failure so the caller can say what happened. A reply that is not
+ * 2xx (an expired link is a 403) is a failure: its body is removed and nothing
+ * is shared, so the file is never reported as saved when it was not. The most
+ * likely cause is an expired link: these are signed for one hour, so a card from
+ * an older conversation will refuse.
  */
 export async function downloadExport(file: DownloadableExport): Promise<void> {
-  const dir = new Directory(Paths.cache, EXPORT_DIR);
-  if (!dir.exists) dir.create({ intermediates: true });
+  const format = (file.format || "docx").toLowerCase();
+  const base = FileSystem.cacheDirectory;
+  if (!base) throw new Error("no-cache-directory");
+  const dir = `${base}${EXPORT_DIR}/`;
+  if (!(await FileSystem.getInfoAsync(dir)).exists) {
+    await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+  }
 
-  const target = new File(dir, safeFilename(file.title?.trim() || file.filename, file.format));
+  const name = safeFilename(file.title?.trim() || file.filename, format);
+  const target = `${dir}${name}`;
   // A re-download of the same export must overwrite rather than land beside the
   // old copy as "thesis (1).docx".
-  if (target.exists) target.delete();
+  await FileSystem.deleteAsync(target, { idempotent: true });
 
-  const saved = await File.downloadFileAsync(file.url, target);
+  const res = await FileSystem.downloadAsync(file.url, target);
+  if (res.status < 200 || res.status > 299) {
+    await FileSystem.deleteAsync(target, { idempotent: true });
+    throw new Error(`export-fetch-failed-${res.status}`);
+  }
 
   if (!(await Sharing.isAvailableAsync())) {
     // No share sheet (rare — some Android builds). The file IS downloaded, so
@@ -71,9 +90,9 @@ export async function downloadExport(file: DownloadableExport): Promise<void> {
     throw new Error("sharing-unavailable");
   }
 
-  await Sharing.shareAsync(saved.uri, {
-    mimeType: MIME[(file.format || "docx").toLowerCase()] ?? "application/octet-stream",
-    dialogTitle: target.name,
-    UTI: file.format === "pdf" ? "com.adobe.pdf" : "org.openxmlformats.wordprocessingml.document",
+  await Sharing.shareAsync(res.uri, {
+    mimeType: MIME[format] ?? "application/octet-stream",
+    dialogTitle: name,
+    UTI: UTI[format] ?? UTI.docx,
   });
 }

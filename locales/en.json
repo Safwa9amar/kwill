@@ -1958,6 +1958,7 @@
       "packOmitted": "We couldn't prepare: {{files}}. You can rebuild them.",
       "packMissing": "We couldn't build your deposit pack this time. Your thesis is ready and checked.",
       "packRebuild": "Rebuild the pack",
+      "openFailed": "We couldn't open your thesis in Kwill. Please try again.",
       "share": "Share",
       "changed": "What changed? ({{count}})",
       "open": "Open in Kwill to keep writing",
@@ -1967,6 +1968,8 @@
       "downloadFailed": "The download didn't finish. Please try again."
     },
     "changed": {
+      "pageTag": "p.{{page}}",
+      "none": "Nothing needed changing in this version.",
       "title": "What changed",
       "more": "Show more",
       "groups": {

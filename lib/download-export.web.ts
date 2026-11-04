@@ -14,6 +14,7 @@ const MIME: Record<string, string> = {
   pdf: "application/pdf",
   latex: "application/x-tex",
   tex: "application/x-tex",
+  zip: "application/zip",
 };
 
 /** A filename the browser's download attribute will accept. Mirrors the native

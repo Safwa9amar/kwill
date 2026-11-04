@@ -15,6 +15,8 @@ interface Props {
   onChange?: (page: number) => void;
   interactive?: boolean;
   overlay?: ReactNode;
+  /** Drawn over the middle page only (a done badge, a brand outline). Three-page layouts only. */
+  midDecor?: ReactNode;
 }
 
 /** Points past which a horizontal drag turns the page. */
@@ -24,7 +26,7 @@ const TURN_PX = 40;
  * The pages of a version in a physical row: `direction: "ltr"` keeps the order on screen. An Arabic thesis reads right to left, so its
  * next page sits on the left. Pages are placed by their own sizes; a size change between steps springs (layoutSpring).
  */
-export function PageCarousel({ versionId, page, layout, onChange, interactive, overlay }: Props) {
+export function PageCarousel({ versionId, page, layout, onChange, interactive, overlay, midDecor }: Props) {
   const { width } = useWindowDimensions();
   const s = scaleFor(width);
   const rtl = useRescueV2Store((st) => thesisIsRtl(st.project));
@@ -76,6 +78,7 @@ export function PageCarousel({ versionId, page, layout, onChange, interactive, o
               {inRange(sl.page)
                 ? <PageImage versionId={versionId} page={sl.page} width={sl.w} height={sl.h} />
                 : <View style={{ width: sl.w, height: sl.h }} />}
+              {sl.key === "cur" && layout.kind === "three" ? midDecor : null}
             </Animated.View>
           ))}
         </View>
