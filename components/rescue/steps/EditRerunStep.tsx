@@ -11,9 +11,11 @@ import { Button } from "@/components/ui/Button";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRTL } from "@/hooks/useRTL";
 import { PURCHASES_HIDDEN } from "@/lib/purchases";
-import { getImpact, removeNoteChip, resolveNoteConflict, saveAnswer, sendNote } from "@/lib/rescue-v2-api";
+import { removeNoteChip, resolveNoteConflict, saveAnswer } from "@/lib/rescue-v2-api";
 import { coverLabelKey, groupRuleRows, missingRow, type RuleValue } from "@/lib/rescue-v2-confirm";
 import { impactLines } from "@/lib/rescue-v2-history";
+import { loadImpact } from "@/lib/rescue-v2-impact";
+import { runNoteCta, waitForNote, type NoteReading } from "@/lib/rescue-v2-note-cta";
 import { STAGE_LAYOUT } from "@/lib/rescue-v2-layout";
 import { thesisIsRtl } from "@/lib/rescue-v2-screen";
 import { visualRow, visualTextAlign } from "@/lib/rtl-layout";
@@ -29,21 +31,21 @@ import type { RescueStep } from "./index";
 
 type Section = "rules" | "notes" | "answers" | "cover";
 
-let impactSeq = 0;
+/** The project is still the open one: a read for another project is dropped (see `loadImpact`). */
+const isOpen = (pid: string) => () => useRescueV2Store.getState().projectId === pid;
 
-/**
- * Reads what the saved choices would redo. The server compares them with the last done version, so the answer survives leaving this screen.
- * The last request wins: a reply for another project, or one overtaken by a newer read, is dropped.
- */
-export async function loadImpact(pid: string): Promise<void> {
-  const seq = ++impactSeq;
-  try {
-    const value = await getImpact(pid);
-    if (seq === impactSeq && useRescueV2Store.getState().projectId === pid) useHistoryUi.getState().setImpact(pid, "ok", value);
-  } catch {
-    if (seq === impactSeq && useRescueV2Store.getState().projectId === pid) useHistoryUi.getState().setImpact(pid, "failed", null);
-  }
+/** What the note CTA reads now: the note's state and whether a conflict is open, for the project `pid`. */
+function readNote(pid: string): NoteReading {
+  const st = useRescueV2Store.getState();
+  const note = st.project?.note;
+  return {
+    parsing: note?.state === "parsing",
+    conflict: (note?.conflicts ?? []).some((c) => c.choice === null),
+    live: st.projectId === pid,
+  };
 }
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /** Screen H5's stage: three small pages of the current version, the first page the change touches outlined. */
 function Stage() {
@@ -142,27 +144,29 @@ function NotesEditor({ pid }: { pid: string }) {
   const rtl = useRescueV2Store((s) => thesisIsRtl(s.project));
   const note = useRescueV2Store((s) => s.project?.note ?? null);
   const apply = useRescueV2Store((s) => s.apply);
-  const [draft, setDraft] = useState("");
+  // The draft lives in the history store, so the CTA sends what the field holds (see EditFoot).
+  const draft = useHistoryUi((s) => (s.key === pid ? s.draft : ""));
+  const setDraft = useHistoryUi((s) => s.setDraft);
   const [focused, setFocused] = useState(false);
   const [pending, setPending] = useState(false);
   const gate = useRef(false);
-  const draftRef = useRef("");
-  draftRef.current = draft;
 
+  // A blur and the send already in flight for the same text are one send (`sendSupervisorNote`).
   const send = async (text: string) => {
-    if (!text || gate.current) return;
-    gate.current = true;
+    if (!text) return;
     setPending(true);
     try {
-      const ok = await apply(() => sendNote(pid, text, "supervisor"));
-      if (ok && draftRef.current.trim() === text) setDraft("");
+      await useRescueV2Store.getState().sendSupervisorNote(text);
     } finally {
-      gate.current = false;
       setPending(false);
     }
   };
-  // Closing the section unmounts the field without a blur: the draft still typed goes now.
-  useEffect(() => () => { const text = draftRef.current.trim(); if (text) void useRescueV2Store.getState().apply(() => sendNote(pid, text, "supervisor")); }, [pid]);
+  // Closing the section unmounts the field without a blur: the draft still typed goes now, unless that text is already on its way.
+  useEffect(() => () => {
+    const h = useHistoryUi.getState();
+    const text = h.key === pid ? h.draft.trim() : "";
+    if (text) void useRescueV2Store.getState().sendSupervisorNote(text);
+  }, [pid]);
 
   const withLock = async (call: () => Promise<unknown>) => {
     if (gate.current) return;
@@ -179,7 +183,7 @@ function NotesEditor({ pid }: { pid: string }) {
           multiline
           editable={!pending}
           value={draft}
-          onChangeText={setDraft}
+          onChangeText={(v) => setDraft(pid, v)}
           onFocus={() => setFocused(true)}
           onBlur={() => { setFocused(false); void send(draft.trim()); }}
           placeholder={t("rescueV2.revisions.supervisorPlaceholder")}
@@ -281,7 +285,7 @@ function EditSheet() {
   // The impact is read on opening and after each saved change (a 400 ms pause, so a run of taps reads once).
   useEffect(() => {
     if (!pid) return;
-    const timer = setTimeout(() => { void loadImpact(pid); }, 400);
+    const timer = setTimeout(() => { void loadImpact(pid, isOpen(pid)); }, 400);
     return () => clearTimeout(timer);
   }, [pid, project]);
 
@@ -353,17 +357,32 @@ function EditFoot() {
   const fine = value ? impactLines(value, sep).map((l) => t(`rescueV2.${l.key}`, l.params)).join(" ") : "";
   const missing = errorInfo?.missing ?? [];
   const missingRowId = errorCode === "cover_fields_missing" && missing.length > 0 ? missingRow(missing) : null;
+  const openConflict = project.note.conflicts.some((c) => c.choice === null);
   const reason = errorCode === "rescue_rerun_expired" ? t("rescueV2.revisions.expired")
     : errorCode === "rescue_rerun_daily_cap" ? t("rescueV2.revisions.dailyCap")
     : errorCode === "cover_fields_missing" ? (missingRowId ? t("rescueV2.cover.needed", { label: t(coverLabelKey(missingRowId)) }) : t("rescueV2.cover.titleMissing"))
+    : openConflict ? t("rescueV2.notes.pickOne")
     : null;
 
+  // The CTA sends a note still unsent, waits until it is read, then starts the re-run once: the same sequence as the notes screen (and
+  // Revisions), so the re-run never starts before the note reaches the server.
   const run = async () => {
     if (gate.current) return;
     gate.current = true;
     setBusy(true);
     try {
-      await beginRerun([]);
+      const saved = useRescueV2Store.getState().project?.note.text ?? "";
+      const now = useHistoryUi.getState();
+      const text = (now.key === pid ? now.draft : "").trim();
+      await runNoteCta(text !== "" && text !== saved, {
+        send: () => useRescueV2Store.getState().sendSupervisorNote(text),
+        wait: () => waitForNote({
+          read: () => readNote(pid),
+          refresh: () => useRescueV2Store.getState().refresh(),
+          sleep,
+        }),
+        start: () => beginRerun([]),
+      });
     } finally {
       gate.current = false;
       setBusy(false);
@@ -371,8 +390,7 @@ function EditFoot() {
   };
 
   const retry = () => {
-    useHistoryUi.getState().setImpact(pid, "loading", value);
-    void loadImpact(pid);
+    void loadImpact(pid, isOpen(pid));
   };
 
   return (

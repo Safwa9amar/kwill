@@ -3,6 +3,7 @@ import * as api from "@/lib/rescue-v2-api";
 import { uploadPart } from "@/lib/rescue-v2-upload";
 import { INITIAL_NAV, screenFor, type RescueNav } from "@/lib/rescue-v2-screen";
 import { RESCUE_FIXTURES } from "@/lib/rescue-v2-fixtures";
+import { useHistoryUi } from "@/stores/rescue-history-ui";
 import { useThesisDocStore } from "@/stores/thesis-doc-store";
 import type {
   RescueConfigDTO,
@@ -59,6 +60,11 @@ interface RescueV2State {
   loadPages(versionId: string, from: number, to: number): Promise<void>;
   loadVersions(): Promise<void>;
   loadDetail(versionId: string): Promise<void>;
+  /**
+   * Sends the supervisor's note. The same text sent again while its send is in flight is that same send: a blur and an unmount, or a CTA,
+   * never send it twice. A landed send clears the history draft that held the text.
+   */
+  sendSupervisorNote(text: string): Promise<boolean>;
   /** Wraps a mutation: keeps the DTO it returns, or records its `code` and `info` (a thrown error with no code is `network`). Cleared by the next success. */
   apply(call: () => Promise<RescueProjectDTO>): Promise<boolean>;
   /**
@@ -99,6 +105,9 @@ function navAfter(prev: RescueProjectDTO | null, dto: RescueProjectDTO, nav: Res
 }
 
 const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/** Supervisor notes on their way to the server, by `${projectId}\n${text}`. */
+const notesInFlight = new Map<string, Promise<boolean>>();
 
 const INITIAL: Pick<RescueV2State,
   "config" | "projectId" | "project" | "firstLoad" | "openFailed" | "errorCode" | "errorInfo" | "nav" | "upload" | "screenOpen" | "pages" | "versions" | "edited" | "details"> = {
@@ -153,6 +162,12 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
 
   /** The one place a project DTO from the server lands. The server answered, so the last error is cleared, unless a local failure still holds. */
   const land = (dto: RescueProjectDTO) => {
+    // A changed project's impact is no longer its answer: the impact is read again, and the CTA waits for that reply.
+    const prev = get().project;
+    if (!prev || prev.id !== dto.id || !sameJson(prev, dto)) {
+      const h = useHistoryUi.getState();
+      h.setImpact(dto.id, "loading", h.key === dto.id ? h.impact.value : null);
+    }
     const hold = holdFor(dto.id, dto.phase);
     if (!hold) last = null;
     set({
@@ -367,6 +382,24 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
         return true;
       }
       return sendParts(g, pid, dto.activeVersionId, files);
+    },
+
+    sendSupervisorNote: (text) => {
+      const pid = get().projectId;
+      if (!pid || !text) return Promise.resolve(false);
+      const k = `${pid}\n${text}`;
+      const inFlight = notesInFlight.get(k);
+      if (inFlight) return inFlight;
+      const sent = get().apply(() => api.sendNote(pid, text, "supervisor")).then((ok) => {
+        notesInFlight.delete(k);
+        if (ok) {
+          const h = useHistoryUi.getState();
+          if (h.key === pid && h.draft.trim() === text) h.setDraft(pid, "");
+        }
+        return ok;
+      });
+      notesInFlight.set(k, sent);
+      return sent;
     },
 
     setScreenOpen: (open) => set({ screenOpen: open }),

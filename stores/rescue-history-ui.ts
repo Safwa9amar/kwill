@@ -15,6 +15,7 @@ const CLEAR = {
   comparePage: 0,
   compare: { slot: null as string | null, state: "loading" as HistoryLoad, value: null as RescueCompareDTO | null },
   impact: { state: "loading" as HistoryLoad, value: null as RescueImpactDTO | null },
+  draft: "",
 };
 
 interface HistoryUiState {
@@ -32,6 +33,8 @@ interface HistoryUiState {
   compare: { slot: string | null; state: HistoryLoad; value: RescueCompareDTO | null };
   /** H5's impact for the project. */
   impact: { state: HistoryLoad; value: RescueImpactDTO | null };
+  /** H5's supervisor note as typed, not yet sent (the notes section's field, and the CTA that sends it). */
+  draft: string;
 
   select(key: string, id: string | null): void;
   setPage(key: string, versionId: string, page: number): void;
@@ -39,6 +42,7 @@ interface HistoryUiState {
   setComparePage(key: string, pair: string, index: number): void;
   setCompare(key: string, slot: string, state: HistoryLoad, value: RescueCompareDTO | null): void;
   setImpact(key: string, state: HistoryLoad, value: RescueImpactDTO | null): void;
+  setDraft(key: string, text: string): void;
   reset(): void;
 }
 
@@ -55,6 +59,7 @@ export const useHistoryUi = create<HistoryUiState>()((set) => {
     setComparePage: (key, pair, index) => scoped(key, { comparePair: pair, comparePage: index }),
     setCompare: (key, slot, state, value) => scoped(key, { compare: { slot, state, value } }),
     setImpact: (key, state, value) => scoped(key, { impact: { state, value } }),
+    setDraft: (key, text) => scoped(key, { draft: text }),
     reset: () => set({ key: null, ...CLEAR }),
   };
 });

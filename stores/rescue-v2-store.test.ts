@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   getVersionPages: vi.fn(),
   getVersion: vi.fn(),
   saveRules: vi.fn(),
+  sendNote: vi.fn(),
 }));
 const up = vi.hoisted(() => ({ uploadPart: vi.fn() }));
 vi.mock("@/lib/rescue-v2-api", () => api);
@@ -22,6 +23,7 @@ vi.mock("@/stores/thesis-doc-store", () => ({ useThesisDocStore: { getState: () 
 
 import type { RescueProjectDTO } from "@/types/rescue-v2";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
+import { useHistoryUi } from "@/stores/rescue-history-ui";
 
 const S = () => useRescueV2Store.getState();
 
@@ -541,5 +543,66 @@ describe("a failed open never shows the upload screen (item 14)", () => {
     await S().open("A");
     expect(S().project?.id).toBe("A");
     expect(S().openFailed).toBe(false);
+  });
+});
+
+describe("a supervisor note is sent once while it is in flight (item 11)", () => {
+  it("a second send of the same text while the first is in flight sends nothing new", async () => {
+    useRescueV2Store.setState({ projectId: "N", project: dto("N", "done") });
+    const first = deferred<RescueProjectDTO>();
+    api.sendNote.mockReturnValueOnce(first.p);
+    const a = S().sendSupervisorNote("Changer la marge");
+    const b = S().sendSupervisorNote("Changer la marge");
+    expect(api.sendNote).toHaveBeenCalledTimes(1);
+    first.resolve(dto("N", "done")); expect(await a).toBe(true); expect(await b).toBe(true);
+  });
+
+  it("a different text is sent on its own", async () => {
+    useRescueV2Store.setState({ projectId: "N", project: dto("N", "done") });
+    api.sendNote.mockResolvedValue(dto("N", "done"));
+    await Promise.all([S().sendSupervisorNote("une"), S().sendSupervisorNote("deux")]);
+    expect(api.sendNote).toHaveBeenCalledTimes(2);
+  });
+
+  it("once the send has landed, the same text may be sent again", async () => {
+    useRescueV2Store.setState({ projectId: "N", project: dto("N", "done") });
+    api.sendNote.mockResolvedValue(dto("N", "done"));
+    await S().sendSupervisorNote("encore");
+    await S().sendSupervisorNote("encore");
+    expect(api.sendNote).toHaveBeenCalledTimes(2);
+  });
+
+  it("a landed send clears the draft that held the same text", async () => {
+    useRescueV2Store.setState({ projectId: "N", project: dto("N", "done") });
+    useHistoryUi.getState().setDraft("N", "clear me");
+    api.sendNote.mockResolvedValue(dto("N", "done"));
+    await S().sendSupervisorNote("clear me");
+    expect(useHistoryUi.getState().draft).toBe("");
+  });
+
+  it("a failed send keeps the draft, so the student does not lose it", async () => {
+    useRescueV2Store.setState({ projectId: "N", project: dto("N", "done") });
+    useHistoryUi.getState().setDraft("N", "keep me");
+    api.sendNote.mockRejectedValueOnce(httpError(409, "note_parsing"));
+    expect(await S().sendSupervisorNote("keep me")).toBe(false);
+    expect(useHistoryUi.getState().draft).toBe("keep me");
+  });
+});
+
+describe("a changed project reads its impact again at once (item 12)", () => {
+  it("a project that changed marks its impact loading, so the CTA waits for the new reply", async () => {
+    useRescueV2Store.setState({ projectId: "I", project: dto("I", "done", { rules: null }) });
+    useHistoryUi.getState().setImpact("I", "ok", { scope: "pages", pages: [1], toc: false, nextN: 2, changedBlocks: 1 } as never);
+    api.getRescueProject.mockResolvedValueOnce(dto("I", "done", { rules: { fields: [] } }));
+    await S().refresh();
+    expect(useHistoryUi.getState().impact.state).toBe("loading");
+  });
+
+  it("a poll that changes nothing leaves the impact as it was", async () => {
+    useRescueV2Store.setState({ projectId: "I", project: dto("I", "done", { rules: null }) });
+    useHistoryUi.getState().setImpact("I", "ok", { scope: "pages", pages: [1], toc: false, nextN: 2, changedBlocks: 1 } as never);
+    api.getRescueProject.mockResolvedValueOnce(dto("I", "done", { rules: null }));
+    await S().refresh();
+    expect(useHistoryUi.getState().impact.state).toBe("ok");
   });
 });
