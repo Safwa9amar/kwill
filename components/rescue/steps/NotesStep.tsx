@@ -2,7 +2,6 @@ import React, { useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { useTranslation } from "react-i18next";
-import { create } from "zustand";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { hLight, hSelection } from "@/lib/haptics";
 import { removeNoteChip, resolveNoteConflict, sendNote, startDiagnosis } from "@/lib/rescue-v2-api";
@@ -11,6 +10,7 @@ import { thesisIsRtl } from "@/lib/rescue-v2-screen";
 import { visualTextAlign } from "@/lib/rtl-layout";
 import { getTextDirection } from "@/lib/text-direction";
 import { recognizerLang } from "@/lib/voice";
+import { useNoteDraft } from "@/stores/rescue-note-draft";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
 import { PageCarousel } from "../PageCarousel";
 import { SkeletonPage } from "../SkeletonPage";
@@ -18,26 +18,6 @@ import { NoteChips } from "../NoteChips";
 import { VoiceMic } from "../VoiceMic";
 import { SheetTitle } from "../ui";
 import type { RescueStep } from "./index";
-
-/**
- * What the student has typed and the dictation language, for the one project open. Shared by the sheet (which writes it) and the CTA (which
- * sends it), since gorhom renders those in two trees. A draft that belongs to another project is never read.
- */
-interface NoteDraft {
-  projectId: string | null;
-  text: string | null;
-  lang: string | null;
-  setText(projectId: string, text: string): void;
-  setLang(projectId: string, lang: string): void;
-}
-
-const useNoteDraft = create<NoteDraft>()((set) => ({
-  projectId: null,
-  text: null,
-  lang: null,
-  setText: (projectId, text) => set({ projectId, text }),
-  setLang: (projectId, lang) => set({ projectId, lang }),
-}));
 
 const LANG_WORD: Record<string, string> = { "ar-SA": "rescueV2.common.langAr", "fr-FR": "rescueV2.common.langFr", "en-US": "rescueV2.common.langEn" };
 
