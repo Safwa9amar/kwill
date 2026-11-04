@@ -5,7 +5,9 @@ import {
   backFor,
   isRunning,
   needsPolling,
+  pageIsInRange,
   screenFor,
+  thesisIsRtl,
   type RescueNav,
   type RescueScreen,
 } from "./rescue-v2-screen";
@@ -153,5 +155,47 @@ describe("backFor", () => {
     expect(backFor("result", base)).toBeNull();
     expect(backFor("reading", base)).toBeNull();
     expect(backFor("failure", base)).toBeNull();
+  });
+});
+
+describe("thesisIsRtl: the direction comes from the thesis' own text (fix 13)", () => {
+  const thesis = (title: string, language: RescueProjectDTO["language"]) => ({ title, language });
+
+  it("an Arabic title is RTL, whatever the language field says", () => {
+    expect(thesisIsRtl(thesis("مذكرة ماستر في القانون", "fr"))).toBe(true);
+    expect(thesisIsRtl(thesis("مذكرة ماستر في القانون", null))).toBe(true);
+  });
+
+  it("a Latin title is LTR even when the language field says ar", () => {
+    expect(thesisIsRtl(thesis("Mémoire de master", "ar"))).toBe(false);
+  });
+
+  it("with no title text, the language field is the only evidence left", () => {
+    expect(thesisIsRtl(thesis("", "ar"))).toBe(true);
+    expect(thesisIsRtl(thesis("", "fr"))).toBe(false);
+    expect(thesisIsRtl(thesis("", null))).toBe(false);
+  });
+
+  it("no project is LTR", () => {
+    expect(thesisIsRtl(null)).toBe(false);
+  });
+});
+
+describe("pageIsInRange: a version with no pages shows no skeletons (fix 9)", () => {
+  it("while the count is unknown every page is in range, so a skeleton shows", () => {
+    expect(pageIsInRange(1, null)).toBe(true);
+    expect(pageIsInRange(2, null)).toBe(true);
+  });
+
+  it("a version known to have zero pages has none in range", () => {
+    expect(pageIsInRange(1, 0)).toBe(false);
+    expect(pageIsInRange(2, 0)).toBe(false);
+  });
+
+  it("with pages, 1..count are in range and nothing beyond", () => {
+    expect(pageIsInRange(1, 3)).toBe(true);
+    expect(pageIsInRange(3, 3)).toBe(true);
+    expect(pageIsInRange(4, 3)).toBe(false);
+    expect(pageIsInRange(0, 3)).toBe(false);
   });
 });

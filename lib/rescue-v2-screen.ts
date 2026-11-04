@@ -68,3 +68,26 @@ export function screenFor(project: Pick<RescueProjectDTO, "phase" | "failure"> |
     case "done": return nav.overlay ?? "result";
   }
 }
+
+const ARABIC_SCRIPT = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
+const LATIN_LETTER = /[A-Za-zÀ-ɏ]/;
+
+/**
+ * Whether the thesis reads right to left. The decision lives here, in one place, because the server's `language` field is not reliable
+ * (a French thesis can say `ar`). The thesis' own title is the evidence: Arabic script means RTL, Latin letters mean LTR, and only a title
+ * with no letters at all leaves the language field to decide. S19 changes this rule, not its callers.
+ */
+export function thesisIsRtl(project: Pick<RescueProjectDTO, "title" | "language"> | null): boolean {
+  if (!project) return false;
+  if (ARABIC_SCRIPT.test(project.title)) return true;
+  if (LATIN_LETTER.test(project.title)) return false;
+  return project.language === "ar";
+}
+
+/**
+ * Whether a page slot should hold a page at all. `count` is null while the page list is not loaded: every page is then in range, so the
+ * slot shows a skeleton. Once loaded, a version with zero pages has no slot with a page, so nothing is ever skeleton-shaped for ever.
+ */
+export function pageIsInRange(page: number, count: number | null): boolean {
+  return page >= 1 && (count === null || page <= count);
+}
