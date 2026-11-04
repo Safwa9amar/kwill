@@ -17,7 +17,8 @@ const up = vi.hoisted(() => ({ uploadPart: vi.fn() }));
 vi.mock("@/lib/rescue-v2-api", () => api);
 vi.mock("@/lib/rescue-v2-upload", () => up);
 vi.mock("@/lib/rescue-v2-fixtures", () => ({ RESCUE_FIXTURES: {} }));
-vi.mock("@/stores/thesis-doc-store", () => ({ useThesisDocStore: { getState: () => ({ flushOps: async () => true }) } }));
+const doc = vi.hoisted(() => ({ flushOps: vi.fn() }));
+vi.mock("@/stores/thesis-doc-store", () => ({ useThesisDocStore: { getState: () => doc } }));
 
 import type { RescueProjectDTO } from "@/types/rescue-v2";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
@@ -44,6 +45,7 @@ const httpError = (status: number, code?: string) => Object.assign(new Error(`HT
 
 beforeEach(() => {
   vi.resetAllMocks();
+  doc.flushOps.mockResolvedValue(true);
   S().reset();
 });
 
@@ -462,5 +464,51 @@ describe("a failed student action is never hidden by a poll (apply exempt from t
     call.reject(httpError(409, "conflict"));
     await ap;
     expect(S().errorCode).toBe("conflict");
+  });
+});
+
+describe("a re-run waits for the queued edits to reach the server (P-66)", () => {
+  // An open thesis project whose re-run is about to be created. The flush is the thesis' queue, drained before the re-run shifts its indices.
+  const openThesis = () => {
+    useRescueV2Store.setState({ projectId: "T", project: dto("T", "done", { thesisId: "TH1", originalVersionId: "T-v0" }) });
+  };
+
+  it("does not create the re-run when the queue did not drain, and says so", async () => {
+    openThesis();
+    doc.flushOps.mockResolvedValueOnce(false);
+    expect(await S().beginRerun([f("rerun.docx")])).toBe(false);
+    expect(api.createRerun).not.toHaveBeenCalled();
+    expect(S().errorCode).toBe("edits_not_saved");
+    expect(S().upload).toBeNull();
+    expect(S().nav.overlay).toBeNull();
+  });
+
+  it("does not create the re-run when the flush throws", async () => {
+    openThesis();
+    doc.flushOps.mockRejectedValueOnce(new Error("boom"));
+    expect(await S().beginRerun([])).toBe(false);
+    expect(api.createRerun).not.toHaveBeenCalled();
+    expect(S().errorCode).toBe("edits_not_saved");
+  });
+
+  it("the Retry on the line flushes again and then starts the re-run", async () => {
+    openThesis();
+    doc.flushOps.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    api.createRerun.mockResolvedValueOnce(dto("T", "uploading", { thesisId: "TH1", activeVersionId: "T-v2" }));
+    await S().beginRerun([]);
+    expect(api.createRerun).not.toHaveBeenCalled();
+    await S().retryLast();
+    expect(doc.flushOps).toHaveBeenCalledTimes(2);
+    expect(api.createRerun).toHaveBeenCalledTimes(1);
+    expect(S().errorCode).toBeNull();
+    expect(S().project?.activeVersionId).toBe("T-v2");
+  });
+
+  it("a drained queue starts the re-run as before", async () => {
+    openThesis();
+    api.createRerun.mockResolvedValueOnce(dto("T", "uploading", { thesisId: "TH1", activeVersionId: "T-v2" }));
+    await S().beginRerun([]);
+    expect(api.createRerun).toHaveBeenCalledTimes(1);
+    expect(S().errorCode).toBeNull();
   });
 });

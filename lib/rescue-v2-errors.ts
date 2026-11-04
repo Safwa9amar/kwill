@@ -19,6 +19,7 @@ export function errorWord(code: string | null, partMb: number | null): ErrorWord
     case "note_parsing": return { key: "notes.parsing" };
     case "guide_reading": return { key: "notes.waitGuide" };
     case "note_conflict": return { key: "notes.pickOne" };
+    case "edits_not_saved": return { key: "revisions.editsNotSaved" };
     default: return null;
   }
 }

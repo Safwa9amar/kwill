@@ -308,10 +308,18 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       const { projectId: pid, project } = get();
       if (!pid || !project) return false;
       const g = gen;
-      // Queued index-addressed edits must reach the server before the re-run shifts every index (P-66).
-      if (project.thesisId) await useThesisDocStore.getState().flushOps(project.thesisId).catch(() => false);
+      // Queued index-addressed edits must reach the server before the re-run shifts every index (P-66). A queue that did not drain, or a
+      // flush that threw, stops the re-run: the line says so, and its Retry flushes again.
+      const drained = project.thesisId
+        ? await useThesisDocStore.getState().flushOps(project.thesisId).then((ok) => ok === true, () => false)
+        : true;
       // The student moved on while the edits were flushing: the re-run is not started for the project they left.
       if (!live(g, pid)) return false;
+      if (!drained) {
+        last = { again: () => get().beginRerun(files) };
+        set({ errorCode: "edits_not_saved", errorInfo: null });
+        return false;
+      }
       const source = files.length ? "upload" : "auto";
       const sizeBytes = files.reduce((n, f) => n + f.size, 0);
       pinned = null;

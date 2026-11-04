@@ -2043,7 +2043,8 @@
       "askReview": "Ask us to look at it",
       "reviewSent": "Got it, the team will look at the file.",
       "expired": "The re-run period for this thesis has ended.",
-      "dailyCap": "That's a lot of re-runs for one day. Come back tomorrow."
+      "dailyCap": "That's a lot of re-runs for one day. Come back tomorrow.",
+      "editsNotSaved": "Your latest edits are not saved yet. Try again in a moment."
     },
     "failure": {
       "title": "We didn't finish the repair",

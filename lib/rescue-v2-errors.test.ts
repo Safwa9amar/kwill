@@ -23,6 +23,7 @@ describe("errorWord", () => {
     expect(errorWord("note_parsing", 50)).toEqual({ key: "notes.parsing" });
     expect(errorWord("guide_reading", 50)).toEqual({ key: "notes.waitGuide" });
     expect(errorWord("note_conflict", 50)).toEqual({ key: "notes.pickOne" });
+    expect(errorWord("edits_not_saved", 50)).toEqual({ key: "revisions.editsNotSaved" });
   });
 
   it("returns null for a code with no word of its own, and for no code", () => {
@@ -40,7 +41,7 @@ describe("canRetry", () => {
   });
 
   it("offers Retry for a code a later try can clear, and for a failure with no code", () => {
-    for (const code of ["rescue_busy", "upload_stalled", "note_parsing", "note_conflict", "guide_reading", "network", "server_unavailable"]) {
+    for (const code of ["rescue_busy", "upload_stalled", "note_parsing", "note_conflict", "guide_reading", "edits_not_saved", "network", "server_unavailable"]) {
       expect(canRetry(code), code).toBe(true);
     }
     expect(canRetry(null)).toBe(true);

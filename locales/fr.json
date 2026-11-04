@@ -2043,7 +2043,8 @@
       "askReview": "Demander à l'équipe de regarder",
       "reviewSent": "Demande reçue, l'équipe examine le fichier.",
       "expired": "La période de reprise de ce mémoire est terminée.",
-      "dailyCap": "Beaucoup de reprises aujourd'hui. Revenez demain."
+      "dailyCap": "Beaucoup de reprises aujourd'hui. Revenez demain.",
+      "editsNotSaved": "Vos dernières modifications ne sont pas encore enregistrées. Réessayez dans un instant."
     },
     "failure": {
       "title": "Nous n'avons pas terminé",
