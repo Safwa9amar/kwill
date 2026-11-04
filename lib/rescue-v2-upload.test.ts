@@ -49,6 +49,24 @@ describe("uploadPart", () => {
     });
   });
 
+  it("a 502 with an HTML body and no code (a gateway's page) is server_unavailable, not a bare error", async () => {
+    h.createUploadTask.mockReturnValueOnce(task({ status: 502, body: "<html>502 Bad Gateway</html>" }));
+    await expect(uploadPart("v1", 0, "file:///a.docx", () => {})).rejects.toMatchObject({
+      status: 502,
+      code: "server_unavailable",
+    });
+  });
+
+  it("a 2xx with no JSON body is server_unavailable, never an empty DTO", async () => {
+    h.createUploadTask.mockReturnValueOnce(task({ status: 200, body: "" }));
+    await expect(uploadPart("v1", 0, "file:///a.docx", () => {})).rejects.toMatchObject({
+      status: 200,
+      code: "server_unavailable",
+    });
+    h.createUploadTask.mockReturnValueOnce(task({ status: 201, body: "<html>created</html>" }));
+    await expect(uploadPart("v1", 0, "file:///a.docx", () => {})).rejects.toMatchObject({ code: "server_unavailable" });
+  });
+
   describe("stall watchdog", () => {
     beforeEach(() => vi.useFakeTimers());
     afterEach(() => vi.useRealTimers());
@@ -64,6 +82,40 @@ describe("uploadPart", () => {
       const outcome = expect(p).rejects.toMatchObject({ code: "upload_stalled" });
       await vi.waitFor(() => expect(h.createUploadTask).toHaveBeenCalled());
       await vi.advanceTimersByTimeAsync(50_000);
+      await outcome;
+      expect(cancelAsync).toHaveBeenCalled();
+    });
+
+    it("on Android the cancel makes uploadAsync REJECT, and that still reports upload_stalled", async () => {
+      let fail!: (e: Error) => void;
+      const cancelAsync = vi.fn(async () => fail(new Error("cancelled")));
+      h.createUploadTask.mockReturnValueOnce({
+        uploadAsync: () => new Promise((_r, rej) => { fail = rej; }),
+        cancelAsync,
+      });
+      const p = uploadPart("v1", 0, "file:///a.docx", () => {});
+      const outcome = expect(p).rejects.toMatchObject({ code: "upload_stalled" });
+      await vi.waitFor(() => expect(h.createUploadTask).toHaveBeenCalled());
+      await vi.advanceTimersByTimeAsync(50_000);
+      await outcome;
+      expect(cancelAsync).toHaveBeenCalled();
+    });
+
+    it("once every byte is sent, the server gets 180 s to answer before the upload counts as stalled", async () => {
+      let release!: (v: null) => void;
+      let progress!: (p: { totalBytesSent: number; totalBytesExpectedToSend: number }) => void;
+      const cancelAsync = vi.fn(async () => release(null));
+      h.createUploadTask.mockImplementationOnce((_url, _uri, _opts, cb) => {
+        progress = cb;
+        return { uploadAsync: () => new Promise((r) => { release = r; }), cancelAsync };
+      });
+      const p = uploadPart("v1", 0, "file:///a.docx", () => {});
+      const outcome = expect(p).rejects.toMatchObject({ code: "upload_stalled" });
+      await vi.waitFor(() => expect(h.createUploadTask).toHaveBeenCalled());
+      progress({ totalBytesSent: 10, totalBytesExpectedToSend: 10 });
+      await vi.advanceTimersByTimeAsync(170_000);
+      expect(cancelAsync).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(20_000);
       await outcome;
       expect(cancelAsync).toHaveBeenCalled();
     });
