@@ -424,7 +424,8 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
         if (claim("dto", g, pid, s)) land(dto);
         return true;
       } catch (e) {
-        if (claim("dto", g, pid, s)) {
+        // A failed student action is shown whatever polls landed meanwhile: only a switch or reset drops it.
+        if (live(g, pid)) {
           last = { again: () => get().apply(call) };
           set(failure(e));
         }

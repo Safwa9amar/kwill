@@ -450,3 +450,17 @@ describe("retryLast repeats what failed (fix 8)", () => {
     expect(call).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("a failed student action is never hidden by a poll (apply exempt from the order check)", () => {
+  it("a poll that landed after the apply started does not hide the apply's failure", async () => {
+    api.getRescueProject.mockResolvedValueOnce(dto("A", "done"));
+    await S().open("A");
+    const call = deferred<RescueProjectDTO>();
+    const ap = S().apply(() => call.p);
+    api.getRescueProject.mockResolvedValueOnce(dto("A", "done"));
+    await S().refresh();
+    call.reject(httpError(409, "conflict"));
+    await ap;
+    expect(S().errorCode).toBe("conflict");
+  });
+});
