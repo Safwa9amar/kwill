@@ -49,3 +49,14 @@ describe("the payment view state", () => {
     expect(S().method).toBe("manual");
   });
 });
+
+describe("the refusal the continue answered with", () => {
+  it("is kept for the same project and forgotten for another", () => {
+    S().ensure("p1");
+    S().setRefusal("rescue_allowance_used");
+    S().ensure("p1");
+    expect(S().refusal).toBe("rescue_allowance_used");
+    S().ensure("p2");
+    expect(S().refusal).toBeNull();
+  });
+});

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RescueEntitlementDTO } from "@/types/rescue-v2";
-import { methodsFor, paymentView } from "./rescue-v2-payment";
+import { ALLOWANCE_USED, methodsFor, paymentNoteKey, paymentView } from "./rescue-v2-payment";
 
 type State = RescueEntitlementDTO["purchase"]["state"];
 const base = { ios: false, forSale: true, manualEnabled: true, cardEnabled: true };
@@ -58,5 +58,22 @@ describe("methodsFor", () => {
     expect(methodsFor({ manualEnabled: true, cardEnabled: true })).toEqual(["manual", "card"]);
     expect(methodsFor({ manualEnabled: false, cardEnabled: true })).toEqual(["card"]);
     expect(methodsFor({ manualEnabled: false, cardEnabled: false })).toEqual([]);
+  });
+});
+
+describe("paymentNoteKey", () => {
+  it("says the subscriber line when the continue was refused for another reason, or was not refused", () => {
+    expect(paymentNoteKey({ ios: false, refusal: null })).toBe("rescueV2.payment.subscriber");
+    expect(paymentNoteKey({ ios: false, refusal: "rescue_payment_required" })).toBe("rescueV2.payment.subscriber");
+  });
+
+  it("says this month's plan repairs are used, and not the subscriber line, after rescue_allowance_used (P-58)", () => {
+    expect(paymentNoteKey({ ios: false, refusal: ALLOWANCE_USED })).toBe("rescueV2.payment.allowanceUsed");
+    expect(ALLOWANCE_USED).toBe("rescue_allowance_used");
+  });
+
+  it("says nothing about money on iOS, whatever the refusal", () => {
+    expect(paymentNoteKey({ ios: true, refusal: null })).toBeNull();
+    expect(paymentNoteKey({ ios: true, refusal: ALLOWANCE_USED })).toBeNull();
   });
 });

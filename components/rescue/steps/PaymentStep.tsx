@@ -11,7 +11,7 @@ import { useRTL } from "@/hooks/useRTL";
 import { startCheckout } from "@/lib/api";
 import { hSuccess } from "@/lib/haptics";
 import { PURCHASES_HIDDEN } from "@/lib/purchases";
-import { GRANT_POLL_MS, RESCUE_RETURN_SCHEME, paymentView, type PaymentMethod, type PaymentView } from "@/lib/rescue-v2-payment";
+import { GRANT_POLL_MS, RESCUE_RETURN_SCHEME, paymentNoteKey, paymentView, type PaymentMethod, type PaymentView } from "@/lib/rescue-v2-payment";
 import { STAGE_LAYOUT } from "@/lib/rescue-v2-layout";
 import { usePaymentUi, type PaymentNotice } from "@/stores/rescue-payment-ui";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
@@ -204,6 +204,7 @@ function PayFoot() {
   const view = usePaymentView();
   const method = usePaymentUi((s) => s.method);
   const busy = usePaymentUi((s) => s.busy);
+  const refusal = usePaymentUi((s) => s.refusal);
   if (!project || !view) return null;
 
   const pay = (m: PaymentMethod) => {
@@ -234,10 +235,11 @@ function PayFoot() {
     return <Button title={t("rescueV2.payment.statusRefresh")} onPress={onRefresh} loading={busy} disabled={busy} />;
   }
   if (view.kind === "offer") {
+    const noteKey = paymentNoteKey({ ios: PURCHASES_HIDDEN, refusal });
     return (
       <View>
         <Button title={t("rescueV2.payment.cta")} onPress={() => pay(method ?? view.defaultMethod)} loading={busy} disabled={busy} />
-        <Text style={styles.fine}>{t("rescueV2.payment.subscriber")}</Text>
+        {noteKey ? <Text style={styles.fine}>{t(noteKey)}</Text> : null}
       </View>
     );
   }

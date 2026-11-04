@@ -43,10 +43,14 @@ export function ContinueFoot() {
     const ui = usePaymentUi.getState();
     ui.ensure(id);
     if (!ui.begin()) return;
+    ui.setRefusal(null);
     void apply(() =>
       continueRescue(id).catch((e: unknown) => {
         const current = useRescueV2Store.getState().project;
         if (!isPaymentRequired(e) || !current) throw e;
+        // The code is kept for the payment sheet: an allowance spent this month reads differently from a first purchase (P-58).
+        const code = (e as { code?: unknown }).code;
+        usePaymentUi.getState().setRefusal(typeof code === "string" ? code : null);
         useRescueV2Store.getState().setNav({ paying: true });
         // The same project, unchanged: the land clears the error, and the phase (still `diagnosed`) keeps `paying`.
         return current;

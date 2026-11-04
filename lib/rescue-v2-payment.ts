@@ -61,3 +61,15 @@ export function paymentView(input: {
       return { kind: "refundDue" };
   }
 }
+
+/** The 402 a plan's included rescues answer with once they are spent this month (P-58). */
+export const ALLOWANCE_USED = "rescue_allowance_used";
+
+/**
+ * The fine line under the payment CTA. A subscriber whose included repairs are spent is told so, not that the repair is in their plan. The
+ * refusal is the code the continue answered with (null when it was not refused). Nothing about money on iOS.
+ */
+export function paymentNoteKey(input: { ios: boolean; refusal: string | null }): "rescueV2.payment.subscriber" | "rescueV2.payment.allowanceUsed" | null {
+  if (input.ios) return null;
+  return input.refusal === ALLOWANCE_USED ? "rescueV2.payment.allowanceUsed" : "rescueV2.payment.subscriber";
+}

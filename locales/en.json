@@ -1802,6 +1802,7 @@
       "cardSub": "card",
       "cta": "Pay and start",
       "subscriber": "Subscribed? The repair is included in your plan",
+      "allowanceUsed": "This month's repairs in your plan are used.",
       "safe": "We won't change a word of your text · your original file stays kept",
       "confirming": "We're confirming your payment…",
       "underReviewTitle": "Your payment is being checked",
