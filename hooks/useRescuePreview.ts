@@ -1,33 +1,29 @@
-import { useCallback, useEffect, useState } from "react";
-import { getRescuePreview, type RescuePreviewDTO } from "@/lib/rescue-v2-api";
+import { useCallback, useEffect } from "react";
+import { getRescuePreview } from "@/lib/rescue-v2-api";
+import { usePreviewView, type PreviewStatus } from "@/stores/rescue-preview-view";
+import { useRescueV2Store } from "@/stores/rescue-v2-store";
 
-export type PreviewStatus = "idle" | "loading" | "ready" | "failed";
-
-type Entry = { key: string; status: Exclude<PreviewStatus, "idle"> ; data: RescuePreviewDTO | null };
+export type { PreviewStatus };
 
 /**
- * The watermarked preview of one project, read once per project. `enabled` is the project's `previewReady`: until then nothing is asked.
- * A reply for a project the student has left is dropped, and a failure is a visible state the screen can retry, never a silent blank.
+ * The watermarked preview of one project at its working version, read once per project and version and shared by every screen that shows it
+ * (the stage and the sheet), so a Retry in one reaches the other. `enabled` is the project's `previewReady`: until then nothing is asked.
+ * A reply for a project or version the student has left is dropped; a failure is a visible state the sheet can retry, never a silent blank.
  */
 export function useRescuePreview(projectId: string | null, enabled: boolean) {
-  const [entry, setEntry] = useState<Entry | null>(null);
-  const [attempt, setAttempt] = useState(0);
+  const working = useRescueV2Store((s) => s.project?.activeVersionId ?? s.project?.originalVersionId ?? null);
+  const pid = projectId && enabled && working ? projectId : null;
+  const vid = pid ? working : null;
 
   useEffect(() => {
-    if (!projectId || !enabled) return;
-    let alive = true;
-    setEntry({ key: projectId, status: "loading", data: null });
-    getRescuePreview(projectId).then(
-      (data) => { if (alive) setEntry({ key: projectId, status: "ready", data }); },
-      () => { if (alive) setEntry({ key: projectId, status: "failed", data: null }); },
-    );
-    return () => { alive = false; };
-  }, [projectId, enabled, attempt]);
+    if (!pid || !vid) { usePreviewView.getState().clear(); return; }
+    usePreviewView.getState().load(pid, vid, getRescuePreview);
+  }, [pid, vid]);
 
-  const retry = useCallback(() => setAttempt((a) => a + 1), []);
+  // The state only answers for the project and version it holds: another one reads as loading until its own read lands.
+  const status = usePreviewView((s) => (!pid ? "idle" : s.projectId === pid && s.versionId === vid ? s.status : "loading"));
+  const data = usePreviewView((s) => (pid && s.projectId === pid && s.versionId === vid && s.status === "ready" ? s.data : null));
+  const retry = useCallback(() => { usePreviewView.getState().retry(getRescuePreview); }, []);
 
-  // An entry for another project never answers for this one.
-  const current = entry && entry.key === projectId ? entry : null;
-  const status: PreviewStatus = !projectId || !enabled ? "idle" : current?.status ?? "loading";
-  return { status, data: current?.status === "ready" ? current.data : null, retry };
+  return { status, data, retry };
 }
