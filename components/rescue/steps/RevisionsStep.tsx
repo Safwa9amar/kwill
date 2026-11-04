@@ -29,9 +29,12 @@ function isForced(project: { phase: string; failure: { code: string } | null } |
   return project?.phase === "failed" && project.failure?.code === "not_same_thesis";
 }
 
-/** The dictation language for the note: the thesis' own, else the device's. */
-function dictationLang(language: "ar" | "fr" | "en" | null): string {
-  if (language === "ar") return "ar-SA";
+/**
+ * The dictation language for the note. Arabic is the thesis' direction (its title decides, `thesisIsRtl`), not its language field, which is
+ * unreliable. Left to right, the language field tells French from English, and the device's language is the last resort.
+ */
+function dictationLang(rtl: boolean, language: "ar" | "fr" | "en" | null): string {
+  if (rtl) return "ar-SA";
   if (language === "fr") return "fr-FR";
   if (language === "en") return "en-US";
   return recognizerLang();
@@ -190,7 +193,7 @@ function RevisionsSheet() {
     );
   }
 
-  const lang = dictationLang(language);
+  const lang = dictationLang(rtl, language);
   return (
     <>
       <View style={[styles.titleRow, { flexDirection: visualRow(isRTL) }]}>
