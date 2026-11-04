@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { errorWord } from "./rescue-v2-errors";
+import { canRetry, errorWord } from "./rescue-v2-errors";
 
 describe("errorWord", () => {
   it("names the Start screen's own word for each code the upload path returns", () => {
@@ -29,5 +29,20 @@ describe("errorWord", () => {
     expect(errorWord("network", 50)).toBeNull();
     expect(errorWord("server_unavailable", 50)).toBeNull();
     expect(errorWord(null, 50)).toBeNull();
+  });
+});
+
+describe("canRetry", () => {
+  it("offers no Retry for the codes a retry cannot change", () => {
+    for (const code of ["rescue_daily_limit", "rescue_too_large", "rescue_disabled", "rescue_one_in_progress"]) {
+      expect(canRetry(code), code).toBe(false);
+    }
+  });
+
+  it("offers Retry for a code a later try can clear, and for a failure with no code", () => {
+    for (const code of ["rescue_busy", "upload_stalled", "note_parsing", "note_conflict", "guide_reading", "network", "server_unavailable"]) {
+      expect(canRetry(code), code).toBe(true);
+    }
+    expect(canRetry(null)).toBe(true);
   });
 });

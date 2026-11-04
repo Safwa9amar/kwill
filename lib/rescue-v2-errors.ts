@@ -22,3 +22,13 @@ export function errorWord(code: string | null, partMb: number | null): ErrorWord
     default: return null;
   }
 }
+
+/**
+ * Codes a repeat of the same call cannot clear: the student is at a limit, the file is too big, the feature is off, or a rescue is already
+ * running. The error line shows its word with no Retry, so a student is not invited into a loop. Close and back still work.
+ */
+const NO_RETRY = new Set(["rescue_daily_limit", "rescue_too_large", "rescue_disabled", "rescue_one_in_progress"]);
+
+export function canRetry(code: string | null): boolean {
+  return code === null || !NO_RETRY.has(code);
+}

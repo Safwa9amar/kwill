@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { backFor, type RescueScreen } from "@/lib/rescue-v2-screen";
-import { errorWord } from "@/lib/rescue-v2-errors";
+import { canRetry, errorWord } from "@/lib/rescue-v2-errors";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
 import { BackPill, CloseButton } from "./ui";
 
@@ -31,10 +31,12 @@ export function StageChrome({ screen }: { screen: RescueScreen }) {
       {hasBack ? <BackPill /> : <CloseButton />}
       {errorCode ? (
         <View style={[styles.error, { backgroundColor: colors.bgCard, borderColor: colors.borderDefault }]}>
-          <Text numberOfLines={2} style={[styles.errorText, { color: colors.textPrimary }]}>{t("rescueV2.common.somethingWrong")}</Text>
-          <TouchableOpacity accessibilityRole="button" onPress={() => { void retryLast(); }} hitSlop={8}>
-            <Text style={[styles.errorRetry, { color: colors.brandPrimary }]}>{t("rescueV2.common.retry")}</Text>
-          </TouchableOpacity>
+          <Text numberOfLines={2} style={[styles.errorText, { color: colors.textPrimary }]}>{message}</Text>
+          {canRetry(errorCode) ? (
+            <TouchableOpacity accessibilityRole="button" onPress={() => { void retryLast(); }} hitSlop={8}>
+              <Text style={[styles.errorRetry, { color: colors.brandPrimary }]}>{t("rescueV2.common.retry")}</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       ) : null}
     </View>
