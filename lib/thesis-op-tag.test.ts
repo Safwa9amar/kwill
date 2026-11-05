@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ifMatchValue, tagOfRead, tagOfWrite } from "./thesis-op-tag";
+import { ifMatchValue, noteUntrackedWrite, onUntrackedWrite, tagOfRead, tagOfWrite, thesisOfWrite } from "./thesis-op-tag";
 
 describe("ifMatchValue", () => {
   it("quotes a known tag, and sends no header when no tag is known", () => {
@@ -35,5 +35,24 @@ describe("tagOfRead", () => {
     expect(tagOfRead({ docMode: "legacy-db", available: false })).toBeNull();
     expect(tagOfRead({ available: true, docHash: null })).toBeNull();
     expect(tagOfRead(undefined)).toBeNull();
+  });
+});
+
+describe("untracked writes", () => {
+  it("names the thesis of a path under /api/thesis/<id>/, and nothing else", () => {
+    expect(thesisOfWrite("/api/thesis/t1/chrome-op")).toBe("t1");
+    expect(thesisOfWrite("/api/thesis/t%201/ops")).toBe("t 1");
+    expect(thesisOfWrite("/api/thesis/t1")).toBeNull();
+    expect(thesisOfWrite("/api/rescue/projects")).toBeNull();
+  });
+
+  it("tells every listener which thesis was written, and stops after unsubscribe", () => {
+    const seen: string[] = [];
+    const off = onUntrackedWrite((id) => seen.push(id));
+    noteUntrackedWrite("/api/thesis/t1/chrome-op");
+    noteUntrackedWrite("/api/rescue/projects");
+    off();
+    noteUntrackedWrite("/api/thesis/t2/chrome-op");
+    expect(seen).toEqual(["t1"]);
   });
 });

@@ -18,7 +18,7 @@ import type { QuotaResponse, PlanCatalogue, SubscriptionState, PlanCode } from "
 import type { ThesisSource } from "@/types/source";
 import type { PlanPayload, PlanStepProgress } from "@/lib/plan-frames";
 import { byokHeaders, whenByokHydrated, useByokStore, isByokErrorCode } from "@/stores/byok-store";
-import { ifMatchValue } from "@/lib/thesis-op-tag";
+import { ifMatchValue, noteUntrackedWrite } from "@/lib/thesis-op-tag";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL
 
@@ -281,9 +281,21 @@ async function apiPostLong<T>(path: string, body: any, opts: LongPostOptions = {
   });
 }
 
+// A write under /api/thesis/<id>/ sent without an If-Match moves the server past the doc store's tag (P-66, lib/thesis-op-tag.ts), so
+// the store forgets that tag before and after: its next batch goes untagged, as before, instead of being refused with the queue in it.
+async function writeFetch(path: string, init: RequestInit): Promise<Response> {
+  if ((init.headers as Record<string, string> | undefined)?.["If-Match"]) return fetch(`${API_URL}${path}`, init);
+  noteUntrackedWrite(path);
+  try {
+    return await fetch(`${API_URL}${path}`, init);
+  } finally {
+    noteUntrackedWrite(path);
+  }
+}
+
 export async function apiPost<T>(path: string, body: any, signal?: AbortSignal, extraHeaders?: Record<string, string>): Promise<T> {
   const headers = { ...(await getAuthHeaders()), ...(extraHeaders ?? {}) };
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await writeFetch(path, {
     method: "POST",
     headers,
     body: JSON.stringify(body),
@@ -297,7 +309,7 @@ export async function apiPost<T>(path: string, body: any, signal?: AbortSignal, 
 
 export async function apiPut<T>(path: string, body: any): Promise<T> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await writeFetch(path, {
     method: "PUT",
     headers,
     body: JSON.stringify(body),
@@ -310,7 +322,7 @@ export async function apiPut<T>(path: string, body: any): Promise<T> {
 
 export async function apiPatch<T>(path: string, body: any): Promise<T> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await writeFetch(path, {
     method: "PATCH",
     headers,
     body: JSON.stringify(body),
@@ -323,7 +335,7 @@ export async function apiPatch<T>(path: string, body: any): Promise<T> {
 
 export async function apiDelete(path: string): Promise<void> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_URL}${path}`, { method: "DELETE", headers });
+  const response = await writeFetch(path, { method: "DELETE", headers });
   if (!response.ok) {
     await raiseApiError(response);
   }
@@ -332,7 +344,7 @@ export async function apiDelete(path: string): Promise<void> {
 /** A DELETE that answers with JSON. `apiDelete` discards the body; `apiDeleteWithBody` sends one. Rescue v2's three DELETEs answer with a project. */
 export async function apiDeleteJson<T>(path: string): Promise<T> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_URL}${path}`, { method: "DELETE", headers });
+  const response = await writeFetch(path, { method: "DELETE", headers });
   if (!response.ok) {
     await raiseApiError(response);
   }
@@ -341,7 +353,7 @@ export async function apiDeleteJson<T>(path: string): Promise<T> {
 
 async function apiDeleteWithBody<T>(path: string, body: any): Promise<T> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await writeFetch(path, {
     method: "DELETE",
     headers,
     body: JSON.stringify(body),

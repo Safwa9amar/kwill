@@ -4,7 +4,7 @@ import NetInfo from "@react-native-community/netinfo";
 import { getThesisDocument, getThesisHistory, type DocumentDTO } from "@/lib/api";
 import { getDocCache, setDocCache } from "@/lib/thesis-doc-cache";
 import { applyOpToDoc, editTextCoalesces, executeOp, isRetryableError, type ThesisOp } from "@/lib/thesis-ops";
-import { ifMatchValue, tagOfRead, tagOfWrite } from "@/lib/thesis-op-tag";
+import { ifMatchValue, onUntrackedWrite, tagOfRead, tagOfWrite } from "@/lib/thesis-op-tag";
 import { RESCUE_V2_ENABLED } from "@/lib/rescue-v2-enabled";
 import { rescueThesisIds } from "@/lib/rescue-v2-thesis-sync";
 import {
@@ -130,6 +130,8 @@ const restorePromises = new Map<string, Promise<void>>();
 // server or from a write's own answer, and cleared whenever the local doc is replaced by a document whose tag is not known. A batch sent
 // with this tag is refused by the server once any other writer has moved the document on. Module-level, not reactive.
 const opTags = new Map<string, string>();
+// A thesis write the store did not tag (a header band, a suggestion, a Lexical write-back) has moved the server on: forget the tag.
+onUntrackedWrite((thesisId) => opTags.delete(thesisId));
 /** The tag after a write: its answer's history tag, or none (then the next batch goes untagged, as before). */
 const rememberWrite = (thesisId: string, res: unknown) => {
   const tag = tagOfWrite(res);
@@ -288,7 +290,8 @@ export const useThesisDocStore = create<ThesisDocState>((set, get) => {
           const docx = !!surface.applyOp;
           if (docx) opTags.delete(thesisId);
           if (surface.applyOp && surface.flushEdits) await surface.flushEdits().catch(() => {});
-          const res = await executeOp(thesisId, item.op, docx ? null : ifMatchValue(opTags.get(thesisId)));
+          // Sent only with Rescue v2 on (D-19): with it off, the live editor's batches go exactly as they did before the tag existed.
+          const res = await executeOp(thesisId, item.op, docx || !RESCUE_V2_ENABLED ? null : ifMatchValue(opTags.get(thesisId)));
           rememberWrite(thesisId, docx ? null : res);
           await confirmOp(item.id);
           // Remove by identity (not blind shift) — belt-and-braces against any
