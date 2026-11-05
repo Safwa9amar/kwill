@@ -96,7 +96,22 @@
           }
         }
       ],
-      "expo-sharing",
+      [
+        "expo-sharing",
+        {
+          "android": {
+            "enabled": true,
+            "singleShareMimeTypes": ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+            "multipleShareMimeTypes": ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+          },
+          "ios": {
+            "enabled": true,
+            "extensionBundleIdentifier": "com.kwill.app.ShareExtension",
+            "appGroupId": "group.com.kwill.app",
+            "activationRule": { "supportsFileWithMaxCount": 12 }
+          }
+        }
+      ],
       [
         "expo-image-picker",
         {
