@@ -11,7 +11,7 @@ import { useRTL } from "@/hooks/useRTL";
 import { startCheckout } from "@/lib/api";
 import { hSuccess } from "@/lib/haptics";
 import { PURCHASES_HIDDEN } from "@/lib/purchases";
-import { GRANT_POLL_MS, RESCUE_RETURN_SCHEME, paymentNoteKey, paymentView, type PaymentMethod, type PaymentView } from "@/lib/rescue-v2-payment";
+import { GRANT_POLL_MS, RESCUE_RETURN_SCHEME, checkoutRefusal, paymentNoteKey, paymentReturn, paymentView, type PaymentMethod, type PaymentView } from "@/lib/rescue-v2-payment";
 import { STAGE_LAYOUT } from "@/lib/rescue-v2-layout";
 import { usePaymentUi, type PaymentNotice } from "@/stores/rescue-payment-ui";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
@@ -45,10 +45,12 @@ async function payByCard(projectId: string, locale: string) {
   try {
     const { checkoutUrl } = await startCheckout({ kind: "rescue", projectId }, locale);
     const r = await WebBrowser.openAuthSessionAsync(checkoutUrl, RESCUE_RETURN_SCHEME);
-    if (r.type !== "success" || !r.url.includes("payment-success")) {
+    // A return names its project (kwill://payment-<status>?rescue=<id>); a return for another project is not this one's answer.
+    const back = r.type === "success" ? paymentReturn(r.url, projectId) : "unfinished";
+    if (back !== "paid") {
       // Cancel or dismiss: nothing is decided here. The project is re-read, and a finished-but-unreturned payment still grants by webhook.
       await useRescueV2Store.getState().refresh();
-      if (r.type === "success") notify("payment.cardNotFinished");
+      if (back === "unfinished" && r.type === "success") notify("payment.cardNotFinished");
       return;
     }
     for (const wait of GRANT_POLL_MS) {
@@ -57,9 +59,16 @@ async function payByCard(projectId: string, locale: string) {
       const p = useRescueV2Store.getState().project;
       if (p?.id === projectId && p.entitlement.kind) { hSuccess(); return; }
     }
-  } catch {
-    // A failed checkout is named on the sheet, and the project is re-read so a state the server already moved is shown.
-    notify("payment.cardFailed");
+  } catch (e) {
+    // A refused checkout is said as the server means it (S14). Any other failure is the generic line; the project is re-read either way,
+    // so a state the server already moved is shown.
+    const code = (e as { code?: unknown } | null)?.code;
+    const refusal = typeof code === "string" ? checkoutRefusal(code) : null;
+    if (refusal) {
+      if (refusal.notice) notify(refusal.notice);
+    } else {
+      notify("payment.cardFailed");
+    }
     void useRescueV2Store.getState().refresh();
   }
 }

@@ -52,9 +52,11 @@ export function paymentView(input: {
       return { kind: "underReview" };
     case "rejected_manual":
       return { kind: "rejected", cta: defaultMethod !== null, defaultMethod };
-    // A pending card row is never retried from the app: a second checkout while the first can still be paid is a double charge.
-    // The server turns the row to `none` after 15 minutes (P-51), and the offer returns then.
+    // A card checkout still open is offered again: the server answers a second checkout with the same open URL (S14), so it is not a second
+    // charge. A paid row is being granted, so it is confirmed, never offered.
     case "pending_card":
+      if (!input.forSale || methods.length === 0) return { kind: "notForSale" };
+      return { kind: "offer", methods, defaultMethod: methods[0] };
     case "paid":
       return { kind: "confirming" };
     case "refund_due":
@@ -72,4 +74,31 @@ export const ALLOWANCE_USED = "rescue_allowance_used";
 export function paymentNoteKey(input: { ios: boolean; refusal: string | null }): "rescueV2.payment.subscriber" | "rescueV2.payment.allowanceUsed" | null {
   if (input.ios) return null;
   return input.refusal === ALLOWANCE_USED ? "rescueV2.payment.allowanceUsed" : "rescueV2.payment.subscriber";
+}
+
+/** The line a refused checkout earns. Null means the refresh alone says it (the sheet re-reads its own state). */
+export type CheckoutNotice = "payment.confirming" | "payment.notForSale" | "codes.rescue_included_by_plan";
+
+/**
+ * What a refused card checkout (a 409 from the server's checkout) means for the sheet, by its `code` (S14). A code not listed here is the
+ * generic failure, so the caller shows that.
+ */
+export function checkoutRefusal(code: string): { notice: CheckoutNotice | null } | null {
+  switch (code) {
+    case "rescue_payment_pending": return { notice: "payment.confirming" };
+    case "rescue_not_for_sale": return { notice: "payment.notForSale" };
+    case "rescue_included_by_plan": return { notice: "codes.rescue_included_by_plan" };
+    case "rescue_transfer_pending": case "rescue_transfer_approved": case "rescue_already_entitled": return { notice: null };
+    default: return null;
+  }
+}
+
+/**
+ * Where the browser came back to, for this project. The server's return page sends `kwill://payment-success?rescue=<id>` or
+ * `kwill://payment-failed?rescue=<id>` (the cancel). A return that names another project is `other`, so it is not this project's answer.
+ */
+export function paymentReturn(url: string, projectId: string): "paid" | "unfinished" | "other" {
+  const rescue = /[?&]rescue=([^&#]+)/.exec(url)?.[1];
+  if (rescue !== undefined && decodeURIComponent(rescue) !== projectId) return "other";
+  return /payment-success/.test(url) ? "paid" : "unfinished";
 }

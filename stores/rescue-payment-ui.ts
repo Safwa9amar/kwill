@@ -1,10 +1,10 @@
 import { create } from "zustand";
-import type { PaymentMethod } from "@/lib/rescue-v2-payment";
+import type { CheckoutNotice, PaymentMethod } from "@/lib/rescue-v2-payment";
 
 // The money actions of one project: the method the student picked, the line under the CTA, and the in-flight lock. The lock is set
 // synchronously by `begin`, so a second tap in the same frame is refused: a double tap must never start a second payment.
 
-export type PaymentNotice = "payment.cardNotFinished" | "payment.cardFailed";
+export type PaymentNotice = "payment.cardNotFinished" | "payment.cardFailed" | CheckoutNotice;
 
 interface PaymentUiState {
   key: string | null;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RescueEntitlementDTO } from "@/types/rescue-v2";
-import { ALLOWANCE_USED, methodsFor, paymentNoteKey, paymentView } from "./rescue-v2-payment";
+import { ALLOWANCE_USED, checkoutRefusal, methodsFor, paymentNoteKey, paymentReturn, paymentView } from "./rescue-v2-payment";
 
 type State = RescueEntitlementDTO["purchase"]["state"];
 const base = { ios: false, forSale: true, manualEnabled: true, cardEnabled: true };
@@ -40,8 +40,9 @@ describe("paymentView on Android", () => {
     expect(paymentView({ ...base, state: "rejected_manual", manualEnabled: false, cardEnabled: false })).toEqual({ kind: "rejected", cta: false, defaultMethod: null });
   });
 
-  it("keeps confirming while a card payment is pending, with no retry: a second checkout could be paid as well", () => {
-    expect(paymentView({ ...base, state: "pending_card" })).toEqual({ kind: "confirming" });
+  it("offers the card again while a card checkout is open: the server answers with the same open URL, so no second charge", () => {
+    expect(paymentView({ ...base, state: "pending_card" })).toEqual({ kind: "offer", methods: ["manual", "card"], defaultMethod: "manual" });
+    expect(paymentView({ ...base, state: "pending_card", forSale: false })).toEqual({ kind: "notForSale" });
   });
 
   it("confirms a paid payment that is not granted yet, with no CTA", () => {
@@ -75,5 +76,36 @@ describe("paymentNoteKey", () => {
   it("says nothing about money on iOS, whatever the refusal", () => {
     expect(paymentNoteKey({ ios: true, refusal: null })).toBeNull();
     expect(paymentNoteKey({ ios: true, refusal: ALLOWANCE_USED })).toBeNull();
+  });
+});
+
+describe("checkoutRefusal", () => {
+  it("says a payment being confirmed, a price off, or a plan that covers the repair, and refreshes the rest", () => {
+    expect(checkoutRefusal("rescue_payment_pending")).toEqual({ notice: "payment.confirming" });
+    expect(checkoutRefusal("rescue_not_for_sale")).toEqual({ notice: "payment.notForSale" });
+    expect(checkoutRefusal("rescue_included_by_plan")).toEqual({ notice: "codes.rescue_included_by_plan" });
+    for (const code of ["rescue_transfer_pending", "rescue_transfer_approved", "rescue_already_entitled"]) {
+      expect(checkoutRefusal(code), code).toEqual({ notice: null });
+    }
+  });
+
+  it("leaves any other code to the generic failure", () => {
+    expect(checkoutRefusal("rescue_too_large")).toBeNull();
+  });
+});
+
+describe("paymentReturn", () => {
+  const P = "11111111-2222-3333-4444-555555555555";
+  it("reads the server's success return for this project as paid", () => {
+    expect(paymentReturn(`kwill://payment-success?rescue=${P}`, P)).toBe("paid");
+  });
+
+  it("reads the cancel return (payment-failed) as unfinished, never paid", () => {
+    expect(paymentReturn(`kwill://payment-failed?rescue=${P}`, P)).toBe("unfinished");
+    expect(paymentReturn("kwill://payment-failed", P)).toBe("unfinished");
+  });
+
+  it("ignores a return that names another project", () => {
+    expect(paymentReturn("kwill://payment-success?rescue=other-id", P)).toBe("other");
   });
 });
