@@ -163,6 +163,21 @@ describe("packNames and packView", () => {
     expect(v?.share).toBe(true);
   });
 
+  it("says the zip was too large with no share and no rebuild, and every file still there (P-64)", () => {
+    const v = packView(pack({ state: "ready", omitted: [{ kind: "zip", reason: "zip-too-large" }] }), known);
+    expect(v).toMatchObject({ mode: "ready", zipTooLarge: true, share: false, rebuild: false, omitted: null });
+    expect(v?.files).toEqual(["rescueV2.result.packFiles.thesis-pdf", "rescueV2.result.packFiles.thesis-docx"]);
+  });
+
+  it("keeps the zip out of a partial pack's omitted names, and still offers a rebuild for what it can add", () => {
+    const v = packView(pack({
+      state: "partial",
+      omitted: [{ kind: "zip", reason: "zip-too-large" }, { kind: "abstract-sheet", reason: "render-failed" }],
+    }), known);
+    expect(v).toMatchObject({ mode: "partial", zipTooLarge: true, share: false, rebuild: true });
+    expect(v?.omitted).toEqual(["rescueV2.result.packFiles.abstract-sheet"]);
+  });
+
   it("offers no share and a rebuild for a missing pack", () => {
     const v = packView(pack({ state: "missing", files: [] }), known);
     expect(v).toMatchObject({ mode: "missing", share: false, rebuild: true });

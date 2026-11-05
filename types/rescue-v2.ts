@@ -226,8 +226,11 @@ export interface RescuePackDTO {
   state: "ready" | "partial" | "missing";
   /** Kinds in the zip, in pack order: thesis-pdf, thesis-docx, abstract-sheet, integrity-declaration, deposit-authorisation, cd-note. */
   files: string[];
-  /** Left out and worth saying: the rules' own choices (pdf-only, not-required) never appear here. */
-  omitted: { kind: string; reason: "no-abstracts" | "render-failed" | "missing" }[];
+  /**
+   * Left out and worth saying: the rules' own choices (pdf-only, not-required) never appear here. `kind: "zip"` with
+   * `reason: "zip-too-large"` means the whole pack's zip was not built (P-64): every file still ships by itself, and no rebuild is offered.
+   */
+  omitted: { kind: string; reason: "no-abstracts" | "render-failed" | "missing" | "zip-too-large" }[];
 }
 
 export interface RescueVersionSummaryDTO {

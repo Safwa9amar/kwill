@@ -1960,6 +1960,7 @@
       "packNoAbstracts": "Pas de fiche des résumés : nous n'avons pas trouvé de résumé dans votre mémoire.",
       "packOmitted": "Nous n'avons pas pu préparer : {{files}}. Vous pouvez les reconstruire.",
       "packMissing": "Nous n'avons pas pu préparer le dossier de dépôt cette fois. Votre mémoire est prêt et vérifié.",
+      "packZipTooLarge": "Le fichier zip était trop volumineux pour être créé ; tous vos fichiers sont ici.",
       "packRebuild": "Reconstruire le dossier",
       "openFailed": "Nous n'avons pas pu ouvrir votre mémoire dans Kwill. Réessayez.",
       "share": "Partager",

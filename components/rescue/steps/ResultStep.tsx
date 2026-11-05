@@ -137,6 +137,7 @@ function ResultSheet() {
             <Text style={[styles.packLine, { color: colors.textPrimary }, align]}>{pack.files.map((k) => t(k)).join(" · ")}</Text>
           ) : null}
           {pack.noAbstracts ? <Text style={[styles.muted, { color: colors.textSecondary }, align]}>{t("rescueV2.result.packNoAbstracts")}</Text> : null}
+          {pack.zipTooLarge ? <Text style={[styles.packLine, { color: colors.textPrimary }, align]}>{t("rescueV2.result.packZipTooLarge")}</Text> : null}
           {pack.mode === "partial" && pack.omitted ? (
             <Text style={[styles.packLine, { color: colors.textPrimary }, align]}>{t("rescueV2.result.packOmitted", { files: pack.omitted.map((k) => t(k)).join(" · ") })}</Text>
           ) : null}

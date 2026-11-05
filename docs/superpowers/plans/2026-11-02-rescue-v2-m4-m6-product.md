@@ -629,7 +629,8 @@ export interface RescuePackDTO {
   /** Kinds in the zip, in pack order: thesis-pdf, thesis-docx, abstract-sheet, integrity-declaration, deposit-authorisation, cd-note. */
   files: string[];
   /** Left out and worth saying: the rules' own choices (pdf-only, not-required) never appear here. */
-  omitted: { kind: string; reason: "no-abstracts" | "render-failed" | "missing" }[];
+  omitted: { kind: string; reason: "no-abstracts" | "render-failed" | "missing" | "zip-too-large" }[];
+  // Note (app, 2026-11-05): `kind: "zip"` with `reason: "zip-too-large"` is added by P-64. The whole zip was not built: no share and no rebuild for it, and screen 15 says so with every file still there to share.
 }
 
 export interface RescueVersionSummaryDTO {

@@ -1960,6 +1960,7 @@
       "packNoAbstracts": "No abstract sheet: we found no abstracts in your thesis.",
       "packOmitted": "We couldn't prepare: {{files}}. You can rebuild them.",
       "packMissing": "We couldn't build your deposit pack this time. Your thesis is ready and checked.",
+      "packZipTooLarge": "The zip was too large to build; your files are all here.",
       "packRebuild": "Rebuild the pack",
       "openFailed": "We couldn't open your thesis in Kwill. Please try again.",
       "share": "Share",

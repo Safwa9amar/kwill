@@ -131,25 +131,32 @@ export interface PackView {
   omitted: string[] | null;
   /** The no-abstracts line, which needs no rebuild. */
   noAbstracts: boolean;
-  /** A share button: there is a deposit file to fetch. */
+  /** The zip was too large to build (P-64): said on its own line, with every file there to share one by one. */
+  zipTooLarge: boolean;
+  /** A share button: there is a deposit zip to fetch. Never true with the zip too large. */
   share: boolean;
-  /** The rebuild button. */
+  /** The rebuild button. A rebuild cannot make the zip smaller, so the zip never offers one. */
   rebuild: boolean;
 }
 
 export function packView(pack: RescuePackDTO | null, exists: (key: string) => boolean): PackView | null {
   if (!pack) return null;
   const noAbstracts = pack.omitted.some((o) => o.reason === "no-abstracts");
-  const fixable = pack.omitted.filter((o) => o.reason !== "no-abstracts").map((o) => o.kind);
+  const zipTooLarge = pack.omitted.some((o) => o.kind === "zip" && o.reason === "zip-too-large");
+  // The zip is not a file a rebuild can add, so it takes no part in the rebuild decision and no name in the omitted line.
+  const fixable = pack.omitted.filter((o) => o.reason !== "no-abstracts" && o.reason !== "zip-too-large").map((o) => o.kind);
   const omitted = packNames(fixable, exists);
-  if (pack.state === "missing") return { mode: "missing", files: [], omitted: null, noAbstracts, share: false, rebuild: true };
-  if (pack.state === "ready") return { mode: "ready", files: packNames(pack.files, exists), omitted: null, noAbstracts, share: true, rebuild: false };
+  if (pack.state === "missing") return { mode: "missing", files: [], omitted: null, noAbstracts, zipTooLarge, share: false, rebuild: true };
+  if (pack.state === "ready") {
+    return { mode: "ready", files: packNames(pack.files, exists), omitted: null, noAbstracts, zipTooLarge, share: !zipTooLarge, rebuild: false };
+  }
   return {
     mode: "partial",
     files: packNames(pack.files, exists),
     omitted: omitted.length > 0 ? omitted : null,
     noAbstracts,
-    share: true,
+    zipTooLarge,
+    share: !zipTooLarge,
     rebuild: true,
   };
 }
