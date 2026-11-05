@@ -1584,6 +1584,10 @@
   "rescueV2": {
     "drawerRow": "Rescue my thesis",
     "unavailable": "The repair isn't available right now. Please try later.",
+    "notify": {
+      "publishHeldTitle": "Your rescue is ready",
+      "publishHeldBody": "Your rescue is ready, but your thesis changed meanwhile; open History to choose."
+    },
     "codes": {
       "rescue_included_by_plan": "Your plan already includes this repair.",
       "rescue_guide_type": "The guide must be a PDF, a JPEG or a PNG.",

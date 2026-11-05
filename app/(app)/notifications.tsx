@@ -32,6 +32,8 @@ import { Card } from "@/components/ui/Card";
 import { NotificationsSkeleton } from "@/components/skeletons/NotificationsSkeleton";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNotificationStore } from "@/stores/notification-store";
+import { RESCUE_V2_ENABLED } from "@/lib/rescue-v2-enabled";
+import { isPublishHeld, notifyRoute } from "@/lib/rescue-v2-notify";
 import type {
   AppNotification,
   NotificationType,
@@ -145,7 +147,7 @@ export default function NotificationsScreen() {
       if (!item.isRead) markAsRead(item.id);
       const route = item.data?.route;
       if (typeof route === "string") {
-        router.push(route as never);
+        router.push(notifyRoute(route, item.data, RESCUE_V2_ENABLED) as never);
       }
     },
     [markAsRead, router]
@@ -166,6 +168,10 @@ export default function NotificationsScreen() {
     ({ item }: { item: AppNotification }) => {
       const { Icon, color } = iconFor(item.type, colors);
       const unread = !item.isRead;
+      // A held publish carries the app's own words (plan P-45 and §1.8): the server's copy is the fallback for every other event.
+      const held = isPublishHeld(item.data);
+      const title = held ? t("rescueV2.notify.publishHeldTitle") : item.title;
+      const description = held ? t("rescueV2.notify.publishHeldBody") : item.description;
       return (
         <ReanimatedSwipeable
           friction={2}
@@ -195,17 +201,17 @@ export default function NotificationsScreen() {
                         unread && { fontFamily: "Inter_600SemiBold" },
                       ]}
                       numberOfLines={1}>
-                      {item.title}
+                      {title}
                     </Text>
                     {unread && (
                       <View style={[styles.dot, { backgroundColor: color }]} />
                     )}
                   </View>
-                  {item.description ? (
+                  {description ? (
                     <Text
                       style={[styles.notifDesc, { color: colors.textSecondary }]}
                       numberOfLines={2}>
-                      {item.description}
+                      {description}
                     </Text>
                   ) : null}
                   <Text
@@ -219,7 +225,7 @@ export default function NotificationsScreen() {
         </ReanimatedSwipeable>
       );
     },
-    [colors, handlePress, relativeTime, renderRightActions]
+    [colors, handlePress, relativeTime, renderRightActions, t]
   );
 
   const sections = groupByTime(notifications).map((g) => ({

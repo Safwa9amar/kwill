@@ -24,6 +24,8 @@ import { useRescueStore } from "@/stores/rescue-store";
 import { forceCloseDrawer, useNavDrawerStore } from "@/stores/nav-drawer-store";
 import { listTheses } from "@/lib/api";
 import { registerForPushNotificationsAsync, addNotificationListeners } from "@/lib/push-notifications";
+import { notifyRoute } from "@/lib/rescue-v2-notify";
+import { RESCUE_V2_ENABLED } from "@/lib/rescue-v2-enabled";
 import { useAuthDeepLink } from "@/lib/auth-deeplink";
 import { AuthLinkOverlay } from "@/components/AuthLinkOverlay";
 import { RootErrorBoundary } from "@/components/RootErrorBoundary";
@@ -242,7 +244,7 @@ export default function RootLayout() {
       else if (status === "verdict") router.replace("/(app)/rescue-verdict" as any);
     })().catch(() => {});
 
-    const cleanup = addNotificationListeners((route) => router.push(route as never));
+    const cleanup = addNotificationListeners((route, data) => router.push(notifyRoute(route, data, RESCUE_V2_ENABLED) as never));
     return cleanup;
   }, [isAuthenticated]);
 

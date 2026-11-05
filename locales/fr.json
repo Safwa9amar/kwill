@@ -1584,6 +1584,10 @@
   "rescueV2": {
     "drawerRow": "Sauver mon mémoire",
     "unavailable": "La remise en forme n'est pas disponible pour le moment. Réessayez plus tard.",
+    "notify": {
+      "publishHeldTitle": "Votre réparation est prête",
+      "publishHeldBody": "Votre réparation est prête, mais votre mémoire a changé entre-temps ; ouvrez l'historique pour choisir."
+    },
     "codes": {
       "rescue_included_by_plan": "Votre forfait inclut déjà cette réparation.",
       "rescue_guide_type": "Le guide doit être un PDF, un JPEG ou un PNG.",

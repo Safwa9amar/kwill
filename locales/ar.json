@@ -1584,6 +1584,10 @@
   "rescueV2": {
     "drawerRow": "أنقذ مذكرتك",
     "unavailable": "الإصلاح غير متاح الآن. جرّب لاحقًا.",
+    "notify": {
+      "publishHeldTitle": "إصلاحك جاهز",
+      "publishHeldBody": "إصلاحك جاهز، لكن مذكرتك تغيّرت في الأثناء؛ افتح السجل لتختار."
+    },
     "codes": {
       "rescue_included_by_plan": "خطتك تشمل هذا الإصلاح بالفعل.",
       "rescue_guide_type": "يجب أن يكون الدليل ملف PDF أو JPEG أو PNG.",
