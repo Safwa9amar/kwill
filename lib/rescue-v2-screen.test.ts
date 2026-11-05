@@ -158,22 +158,27 @@ describe("backFor", () => {
   });
 });
 
-describe("thesisIsRtl: the direction comes from the thesis' own text (fix 13)", () => {
-  const thesis = (title: string, language: RescueProjectDTO["language"]) => ({ title, language });
+describe("thesisIsRtl: the detected language decides, the title only until one is detected", () => {
+  const thesis = (title: string | null, language: RescueProjectDTO["language"]) => ({ title: title as string, language });
 
-  it("an Arabic title is RTL, whatever the language field says", () => {
-    expect(thesisIsRtl(thesis("مذكرة ماستر في القانون", "fr"))).toBe(true);
+  it("a detected Arabic thesis is RTL, whatever its title says", () => {
+    expect(thesisIsRtl(thesis("Mémoire de master", "ar"))).toBe(true);
+  });
+
+  it("a detected French or English thesis is LTR, even with an Arabic title", () => {
+    expect(thesisIsRtl(thesis("مذكرة ماستر في القانون", "fr"))).toBe(false);
+    expect(thesisIsRtl(thesis("مذكرة ماستر في القانون", "en"))).toBe(false);
+  });
+
+  it("with no language yet, an Arabic title is RTL and a Latin one is LTR", () => {
     expect(thesisIsRtl(thesis("مذكرة ماستر في القانون", null))).toBe(true);
+    expect(thesisIsRtl(thesis("Mémoire de master", null))).toBe(false);
   });
 
-  it("a Latin title is LTR even when the language field says ar", () => {
-    expect(thesisIsRtl(thesis("Mémoire de master", "ar"))).toBe(false);
-  });
-
-  it("with no title text, the language field is the only evidence left", () => {
-    expect(thesisIsRtl(thesis("", "ar"))).toBe(true);
-    expect(thesisIsRtl(thesis("", "fr"))).toBe(false);
+  it("handles a missing title, with no language, as no evidence: LTR", () => {
+    expect(thesisIsRtl(thesis(null, null))).toBe(false);
     expect(thesisIsRtl(thesis("", null))).toBe(false);
+    expect(thesisIsRtl(thesis(null, "ar"))).toBe(true);
   });
 
   it("no project is LTR", () => {

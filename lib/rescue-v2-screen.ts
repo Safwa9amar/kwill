@@ -70,18 +70,17 @@ export function screenFor(project: Pick<RescueProjectDTO, "phase" | "failure"> |
 }
 
 const ARABIC_SCRIPT = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
-const LATIN_LETTER = /[A-Za-zÀ-ɏ]/;
 
 /**
- * Whether the thesis reads right to left. The decision lives here, in one place, because the server's `language` field is not reliable
- * (a French thesis can say `ar`). The thesis' own title is the evidence: Arabic script means RTL, Latin letters mean LTR, and only a title
- * with no letters at all leaves the language field to decide. S19 changes this rule, not its callers.
+ * Whether the thesis reads right to left. The server now sends the language it detected from the file, so that decides once it is set. While
+ * it is null (nothing detected yet), the title's own script is the only evidence: Arabic script is RTL, anything else is LTR. A missing title
+ * (null, or empty) counts as no evidence.
  */
 export function thesisIsRtl(project: Pick<RescueProjectDTO, "title" | "language"> | null): boolean {
   if (!project) return false;
-  if (ARABIC_SCRIPT.test(project.title)) return true;
-  if (LATIN_LETTER.test(project.title)) return false;
-  return project.language === "ar";
+  if (project.language === "ar") return true;
+  if (project.language === "fr" || project.language === "en") return false;
+  return ARABIC_SCRIPT.test(project.title ?? "");
 }
 
 /**
