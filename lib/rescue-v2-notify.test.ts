@@ -12,6 +12,16 @@ describe("notifyRoute", () => {
     expect(notifyRoute("/(app)/rescue?projectId=p1", { projectId: "p1" }, true)).toBe("/(app)/rescue?projectId=p1");
   });
 
+  it("opens the library for a rescue notice with no project, such as a refund for a deleted project", () => {
+    expect(notifyRoute("/(app)/rescue?projectId=", { projectId: "", event: "refundDone" }, true)).toBe("/(app)/rescue/library");
+    expect(notifyRoute("/(app)/rescue", { event: "refundDone" }, true)).toBe("/(app)/rescue/library");
+    expect(notifyRoute("/(app)/rescue", { projectId: null, event: "publishHeld" }, true)).toBe("/(app)/rescue/library");
+  });
+
+  it("keeps the old route for such a notice while the release flag is off", () => {
+    expect(notifyRoute("/(app)/rescue", { event: "refundDone" }, false)).toBe("/(app)/rescue");
+  });
+
   it("never changes a non-rescue route", () => {
     expect(notifyRoute("/(app)/chat", { event: "publishHeld", projectId: "p1" }, true)).toBe("/(app)/chat");
   });
