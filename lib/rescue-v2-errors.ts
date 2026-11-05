@@ -7,7 +7,29 @@ export interface ErrorWord {
   params?: { mb: number };
 }
 
+/**
+ * Codes a student can meet, each worded under `rescueV2.codes.<code>` in ar, fr and en. The shell's line shows these; a screen that draws a
+ * code itself (see SCREEN_OWNED) still has its own line.
+ */
+export const STUDENT_CODES = [
+  "rescue_included_by_plan", "rescue_guide_type", "rescue_guide_pages", "rescue_note_too_long", "rescue_note_limit",
+  "rescue_guide_limit", "rescue_samples_limit", "rescue_storage_full", "rescue_locked", "rescue_run_active", "rescue_wrong_stage",
+  "rescue_questions_open", "rescue_cannot_restore_original", "rescue_no_file", "rescue_empty", "rescue_entitled",
+  "rescue_has_thesis", "rescue_payment_pending", "rescue_allowance_used", "rescue_payment_required", "rescue_not_entitled",
+] as const;
+
+/**
+ * Codes a student should not meet: a client built a request the server cannot take, or the screen asked for a step that does not exist
+ * for this thesis. They get the generic line (`common.somethingWrong`), never a raw code. The server's `rescue_*` codes are the same list
+ * on both sides, so a new one defaults to the generic line too.
+ */
+export const DEVELOPER_CODES = [
+  "rule_unknown_field", "rules_invalid", "length_required", "rescue_invalid_role", "rescue_unknown_question",
+  "rescue_invalid_order", "rescue_cover_choice", "rescue_not_done",
+] as const;
+
 export function errorWord(code: string | null, partMb: number | null): ErrorWord | null {
+  if (code !== null && (STUDENT_CODES as readonly string[]).includes(code)) return { key: `codes.${code}` };
   switch (code) {
     case "not_docx": return { key: "start.notDocx" };
     case "rescue_too_large": return partMb === null ? null : { key: "start.tooLarge", params: { mb: partMb } };
@@ -32,6 +54,11 @@ const NO_RETRY = new Set([
   "rescue_daily_limit", "rescue_too_large", "rescue_disabled", "rescue_one_in_progress",
   // The Revisions screen words these itself (`revisions.expired`, `revisions.dailyCap`): a repeat changes nothing.
   "rescue_rerun_expired", "rescue_rerun_daily_cap",
+  // A file the student must replace, a daily cap, a limit already reached, or a state a repeat cannot move: the word says what to do.
+  "rescue_guide_type", "rescue_guide_pages", "rescue_note_too_long", "rescue_note_limit", "rescue_guide_limit", "rescue_samples_limit",
+  "rescue_storage_full", "rescue_run_active", "rescue_wrong_stage", "rescue_questions_open", "rescue_cannot_restore_original",
+  "rescue_empty", "rescue_no_file", "rescue_entitled", "rescue_has_thesis", "rescue_allowance_used", "rescue_payment_required",
+  "rescue_not_entitled",
 ]);
 
 export function canRetry(code: string | null): boolean {
@@ -44,6 +71,8 @@ export function canRetry(code: string | null): boolean {
  */
 const SCREEN_OWNED = new Set([
   "rule_out_of_range", "cover_fields_missing",
+  // A 402 from Continue opens the payment sheet, which words it (paymentNoteKey); the shell never shows it.
+  "rescue_payment_required",
   // Worded by the Revisions screen itself.
   "rescue_rerun_expired", "rescue_rerun_daily_cap",
 ]);

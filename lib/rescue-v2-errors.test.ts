@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canRetry, errorWord, shellShows } from "./rescue-v2-errors";
+import { canRetry, DEVELOPER_CODES, errorWord, shellShows, STUDENT_CODES } from "./rescue-v2-errors";
 
 describe("errorWord", () => {
   it("names the Start screen's own word for each code the upload path returns", () => {
@@ -67,5 +67,31 @@ describe("the Revisions screen's own codes", () => {
       expect(shellShows(code), code).toBe(false);
       expect(canRetry(code), code).toBe(false);
     }
+  });
+});
+
+describe("the codes a student can meet", () => {
+  it("words each one under codes.<code>, so no raw code is shown", () => {
+    for (const code of STUDENT_CODES) {
+      expect(errorWord(code, 50), code).toEqual({ key: `codes.${code}` });
+    }
+  });
+
+  it("gives the generic line, with no word, for each developer code", () => {
+    for (const code of DEVELOPER_CODES) {
+      expect(errorWord(code, 50), code).toBeNull();
+      expect(shellShows(code), code).toBe(true);
+    }
+  });
+
+  it("offers no Retry for a limit, a file to replace, or a state a repeat cannot move", () => {
+    for (const code of ["rescue_guide_type", "rescue_note_limit", "rescue_guide_limit", "rescue_samples_limit", "rescue_storage_full",
+      "rescue_run_active", "rescue_wrong_stage", "rescue_entitled", "rescue_allowance_used", "rescue_not_entitled"]) {
+      expect(canRetry(code), code).toBe(false);
+    }
+  });
+
+  it("leaves the payment's 402 to the payment sheet, which words it", () => {
+    expect(shellShows("rescue_payment_required")).toBe(false);
   });
 });

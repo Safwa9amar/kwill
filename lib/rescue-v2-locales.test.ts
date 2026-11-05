@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { STUDENT_CODES } from "./rescue-v2-errors";
 
 // The rescue screens' words, held to one shape in ar, fr and en. The locale files
 // hold duplicate keys elsewhere, so they are read as text for the `rescueV2`
@@ -106,6 +107,13 @@ describe("rescueV2 locale parity", () => {
         (code) => !all[lang].words.has(`diagnosis.problems.${code}`),
       );
       expect(missing, `${lang}: diagnosis.problems lines missing`).toEqual([]);
+    }
+  });
+
+  it("has a line for every code a student can meet, in each language", () => {
+    for (const lang of LANGS) {
+      const missing = STUDENT_CODES.filter((code) => !all[lang].words.has(`codes.${code}`));
+      expect(missing, `${lang}: codes lines missing`).toEqual([]);
     }
   });
 
