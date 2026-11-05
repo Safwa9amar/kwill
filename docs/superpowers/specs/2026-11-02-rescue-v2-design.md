@@ -52,8 +52,8 @@ Sources are listed in mockup `01`, section "Sources".
 | D-4 | **No cover in the file → Kwill creates one** from the university catalogue plus fields read from the file (title; supervisor from the thanks page), asking only for what is missing. |
 | D-5 | **A messy cover → two finished covers side by side** (theirs cleaned in place, the university standard), fields read from the old cover and confirmed in one tap. The student picks. |
 | D-6 | **Rules, in priority order:** the department guide (PDF or photo, read by the brain) → the catalogue profile → the Algerian default. Shown on one editable screen. |
-| D-7 | **Free diagnosis; the repair is a one-time purchase per thesis**, included for subscribers. The price is set in the dashboard, never hardcoded. |
-| D-8 | **Typographic cleanup only, never words.** Spacing around ؟ : ; ! « », parentheses direction in RTL, digit consistency, tatweel, quotes. Every change is listed in the change report. |
+| D-7 | **Free diagnosis; the repair is a one-time purchase per thesis**, included for subscribers (up to two a month, D-41). The price is set in the dashboard, never hardcoded. |
+| D-8 | **Typographic cleanup only, never words** (narrowed by D-38). Spacing around ؟ : ; ! « », parentheses direction in RTL, digit consistency, tatweel, quotes. Every change is listed in the change report. |
 | D-9 | **Mobile app first**; web after `feat/web-version` merges. |
 | D-10 | **The free preview** is two pages really repaired (the cover and the first chapter opening), watermarked. |
 | D-11 | **Corpus:** the 6 theses on disk, plus the theses in the user's Gmail that students sent for mise en page, growing to about 20 (ar/fr/en; sciences, humanities, law, STAPS; with and without a cover; with equations, tables and figures; **split into parts and single-file**). Gmail attachments are listed first (file, sender, size) and downloaded only after the user confirms each batch. They live only in the gitignored lab folder. |
@@ -63,7 +63,7 @@ Sources are listed in mockup `01`, section "Sources".
 | D-15 | **Next services, in season order:** SPSS field study → similarity pre-check → defense pack (decision 4, option A). |
 | D-16 | **UX direction B, "Living thesis"** (§9). |
 | D-17 | **Student notes:** an optional free-text or voice note at the start, and "what did your supervisor ask?" on every re-run (§6). |
-| D-18 | **History page:** every version kept, viewable, comparable, downloadable, restorable; choices editable and re-runnable (§9.3). |
+| D-18 | **History page:** every version kept, viewable, comparable, downloadable, restorable (the original excepted, D-37); choices editable and re-runnable (§9.3). |
 | D-19 | **One release.** Nothing ships piece by piece. Everything is built and verified on localhost with the session brain; the production brain is the last milestone; then server, engine, app and dashboard ship together. |
 | D-20 | **A thesis split into several files is merged into one.** The student picks all the parts at once; Kwill proposes the order (cover, front matter, introduction, chapters, conclusion, bibliography, annexes) and flags a file that *continues* the one before it (a chapter written across two files); the student confirms or drags to reorder; then the parts are merged **without adding anything**: no title headings, no page breaks, no normalisation (Regenerate does all of that). |
 | D-21 | **Implementation is subagent-driven:** a fresh implementer per plan task, a reviewer after each, Claude arbitrates. Corpus rescues (the session brain) stay with Claude in the main session. |
@@ -76,6 +76,19 @@ Sources are listed in mockup `01`, section "Sources".
 | D-28 | **Renumbered captions are reported, never reconciled with the text (decided 2026-11-04).** A caption reference that goes stale or dangles after renumbering is listed for the student (`caption-references`, `caption-numbers-repeat`, `caption-double`). The rescue doesn't edit the sentence: the words are the student's. |
 | D-29 | **A title with no heading after it still gets a contents line (decided 2026-11-04).** `part` titles, text dividers and titles drawn in shapes get a TC field, so the contents shows them. This changes every thesis that has them. Word only collects TC fields with `\f` in the TOC and with visible runs. |
 | D-30 | **Large files update only contents and lists in Word (decided 2026-11-04).** Above 150 fields, updating them all takes more than 8 minutes, so other fields keep their cached values in the PDF. Page reviews check whether this leaves a wrong number on a page. If it does, this decision changes. |
+| D-31 | **Screen 2's part thumbnails are text mini pages (decided 2026-11-05; plan P-26).** Each part shows its own opening text, not a rendered image: a real thumbnail is one more Word conversion per part before anything is confirmed. |
+| D-32 | **Voice uses the phone's recogniser (decided 2026-11-05; plan P-27; departs from §6).** Voice in screens 5 and 17 uses the device recogniser, not `POST /api/stt`, and the transcript comes back as editable text and chips, so a bad transcription is seen and fixed. |
+| D-33 | **A re-run's new questions show their excerpt, not a zoomed page (decided 2026-11-05; plan P-29; departs from §9.2 #11 on re-runs only).** A new block has no rendered page yet; rendering the source to zoom would cost two Word conversions on a rare path. Old answers carry over by block key, so nothing is asked twice. |
+| D-34 | **A diagnosis-only project expires after 30 days; a project with a thesis is kept until the thesis is deleted (decided 2026-11-05; plan P-34; departs from §7's v0 rule for an unpaid thesis).** The student can delete a project at any time, and deleting the account sweeps both kinds, because the file is a student's thesis held for free. |
+| D-35 | **A re-run redoes only what changed, except Word (decided 2026-11-05; plan P-41; narrows §7 and the §11 row).** Map (changed blocks), Ask (new questions) and Review (the pages that differ from the last version) are partial. Reset, Regenerate and every Word render are whole, because a page number, a TOC entry and pagination are only true of the whole file. Brain cost scales with what changed; Word time scales with the thesis. |
+| D-36 | **Work files keep each block's index beside its key (decided 2026-11-05; plan P-42; departs from §7's 'indices are never stored').** An index means a position in that version's own immutable source or output and is never read across versions; matching between versions uses keys only. Reset, Prove and the change report need positions, and re-deriving them would re-parse the file each time. |
+| D-37 | **The original is downloadable, never restorable (decided 2026-11-05; plan P-44; departs from D-18 for v0).** An original never passed Prove, so restoring it would put an unproven version on top. A student who wants it back uploads it as a re-run, which proves it. A split thesis's original also offers each part as uploaded. |
+| D-38 | **D-8's cleanup is spacing around punctuation, tatweel and collapsed spaces (decided 2026-11-05; plan P-46; narrows D-8).** Parentheses direction, digit consistency and quote shapes are left as the student typed them, and mixed digits are detected but never fixed: each changes a character where the right answer depends on meaning (a citation, an ISBN, Latin inside Arabic). |
+| D-39 | **One structure check for every format in v1 (decided 2026-11-05; plan P-47; departs from §4 until real profiles exist, §15).** For IMRAD and 1275 only the cover, the contents and the bibliography are required; introduction and conclusion are recommended. Nobody has verified those section lists, and saying less is honest. |
+| D-40 | **A re-run must be the same thesis (decided 2026-11-05; plan P-57; replaces the plan's P-18).** A project keeps an anchor, the inventory of the file it was paid for (rebased only by staff). A re-run passes when at least 40% of the anchor's long blocks are still in the new file and at least 60% of the new file's long blocks are traceable to the anchor or the last version. Otherwise `not_same_thesis`: no refund, no attempt spent, and the student may ask for a look from Support. This is what makes D-13's 'same thesis' a check, not a promise. |
+| D-41 | **A subscription includes two rescues a month (decided 2026-11-05; plan P-58; departs from D-7's 'included for subscribers' without a cap).** `rescue.plan_rescues_per_30d` (default 2) per student over a rolling 30 days, counted from an append-only ledger, so deleting a project gives nothing back. Past it, the student buys the rescue like anyone else. 2500 DZD a month makes unlimited permanent rescues a way round the price. |
+| D-42 | **Free limits count from the ledger that survives deletion (decided 2026-11-05; plan P-59).** Three new projects per student per 24 hours, ten note parses a day, five guide reads, six cover sample renders (entitled projects only). Counting live rows let create, diagnose and delete loops run Word and the model for nothing. |
+| D-43 | **Storage is bounded (decided 2026-11-05; plan P-64; departs from §7's 'all versions are kept').** The newest done version keeps its pack's zip; a finished version removes the previous zip and its work files, and keeps its .docx, PDF, page images and inventories. A project stops at `rescue.project_max_mb` with a readable `rescue_storage_full`. A zip past the object limit is skipped with `omitted: zip-too-large`, and screen 15 shares the files one by one. The upload limit is `rescue.max_object_mb` ÷ 2.5, as P-64 has it; the release checklist holds the open question of raising it to the real object limit. |
 
 ---
 
@@ -122,7 +135,7 @@ FREE ─────────────────────────
 
 **One role per block, with a confidence:** cover, dedication, thanks, abbreviations, abstract-ar/fr/en, typed-toc, typed-list (figures/tables), divider-page, part, h1–h4, body, quote, list-item, figure, table, equation, caption-figure, caption-table, bibliography-heading, bibliography-entry, annex-heading, annex-body, junk.
 
-**Document format:** classic, IMRAD or 1275 business-model. Each has its own required section structure.
+**Document format:** classic, IMRAD or 1275 business-model. Each has its own required section structure (v1 checks one structure for all formats, D-39).
 
 Low-confidence roles become questions, at most 5, each dismissible and each with "let Kwill decide".
 
@@ -149,7 +162,7 @@ Low-confidence roles become questions, at most 5, each dismissible and each with
 
 ## 6. Student notes
 
-The student knows things no file shows. An optional note, typed or dictated with the existing STT route, in Arabic or French:
+The student knows things no file shows. An optional note, typed or dictated (the phone's recogniser, D-32), in Arabic or French:
 
 - **Can:** formatting wishes ("French quotes in Times 12"), structure hints ("chapter 3 is the applied part"), exceptions ("no number on the dedication"), "keep my tables as they are".
 - **Shown back:** Kwill shows how it read each line as removable chips. Rules that came from the note are tagged "from your note" on the rules screen.
@@ -167,7 +180,7 @@ The student knows things no file shows. An optional note, typed or dictated with
 ```
 rescue_projects   one per rescued thesis — the standing choices
   id, user_id, thesis_id (the rescued thesis in the library)
-  original_paths text[]    v0 bytes — one per uploaded part, never deleted
+  original_paths text[]    v0 bytes — one per uploaded part, never deleted for a thesis with a rescue (a diagnosis-only project expires, D-34)
   part_order jsonb         confirmed order + continuesPrevious flags (split theses)
   university_id, norm_profile_id, guide_path?
   rules jsonb              resolved (guide → catalogue → default) + student edits
@@ -190,14 +203,14 @@ rescue_versions   immutable, one row per version (the timeline)
   created_at
 ```
 
-**blockKey.** A hash of the block's normalised text plus a little neighbour context, so two identical "خلاصة" headings get different keys. Indices are never stored (CLAUDE.md: indices shift).
+**blockKey.** A hash of the block's normalised text plus a little neighbour context, so two identical "خلاصة" headings get different keys. Indices are never read across versions (CLAUDE.md: indices shift); a version's own work files keep each block's index beside its key (D-36).
 
 **Re-run diff.** The new file's blocks are matched against the last version's map by blockKey:
 - unchanged blocks keep their role and their answer, and the brain never sees them again;
 - only new or edited blocks go to Map;
-- Review re-converts only the pages those blocks landed on.
+- Review looks only at the pages that differ from the last version (D-35). Reset, Regenerate and every Word render run over the whole file, because a page number, a TOC entry and pagination are only true of the whole file.
 
-Cost scales with what changed, not with thesis size.
+Brain cost scales with what changed, not with thesis size. Word time still scales with the thesis (D-35).
 
 **Cost per version.** Every brain call is tagged with the version id as `turn_id` in `ai_usage_log`, giving the exact cost of a first rescue and of each re-run. This is the pricing data.
 
@@ -207,7 +220,7 @@ Cost scales with what changed, not with thesis size.
 
 **Runner.** A server job runs one stage at a time and saves `stage_state` after each. Brain turns run **outside** `withThesisLock`, because the tools lock themselves. Progress reaches the app live; a push goes out on done or failed (existing FCM). The app resumes from the project state on a cold start.
 
-**Storage.** About 5 MB per version. All versions are kept until the student deletes the thesis; deleting the thesis sweeps them (extend the existing delete sweep).
+**Storage.** About 5 MB per version. All versions are kept until the student deletes the thesis, except the zip and work files of a superseded version, which are pruned (D-43); deleting the thesis sweeps them (extend the existing delete sweep).
 
 ---
 
@@ -255,7 +268,7 @@ Mockup `03` draws all of them except screen 2, "Your parts", which was added aft
 | # | Screen | Notes |
 |---|---|---|
 | 1 | Start | Pick one file or **several parts at once**. Reached from the drawer, a home card, or **Share → Kwill** from WhatsApp/Telegram. Share needs native intent config (app.json) and therefore a new binary; it is part of the single release. |
-| 2 | Your parts | Split theses only. The parts as page thumbnails in the proposed order with their roles; "continues the part above" shown as a joined pair; drag to reorder; confirm |
+| 2 | Your parts | Split theses only. The parts as text mini pages (D-31) in the proposed order with their roles; "continues the part above" shown as a joined pair; drag to reorder; confirm |
 | 3 | Reading | Real pages appear as they're converted |
 | 4 | Which rules | University prefilled from the profile; department guide optional |
 | 5 | Your notes | Optional, skippable; chips; conflicts asked (§6) |
@@ -264,7 +277,7 @@ Mockup `03` draws all of them except screen 2, "Your parts", which was added aft
 | 8 | After preview | The before/after switch; 2 pages really repaired, watermarked |
 | 9 | Payment | BaridiMob/CCP (manual) or card (Chargily); subscribers skip. **iOS shows status only** and sends the student to `/pay` by email (App Store 3.1.1) |
 | 10 | Rules | Editable rows; margins drawn live on their page; "from your note" tags |
-| 11 | Question | The page zooms to the exact line; 2 answers + "let Kwill decide" |
+| 11 | Question | The page zooms to the exact line; 2 answers + "let Kwill decide". A re-run's new questions show their excerpt instead (D-33) |
 | 12 | Cover | Two finished covers; fields confirmed |
 | 13 | Repairing | Pages turn from grey to finished; step bar; time left; safe to close |
 | 14 | Done | Push notification |
@@ -306,7 +319,7 @@ One route `app/(app)/rescue/` driven by the project/version state, so a cold sta
 | Every corpus thesis (~20) rescued, every page approved | lab + review notes |
 | 0 content lost | Prove, every run |
 | Opens in Word with no repair prompt, fonts embedded | Word oracle |
-| A re-run after an edit redoes only changed pages, asks no repeated question | corpus re-run tests |
+| A re-run after an edit: Map, Ask and Review only for what changed; Reset, Regenerate and Word whole (D-35); asks no repeated question; pages within ±1 | corpus re-run tests |
 | History: view, compare, restore, edit + re-run work; nothing deleted | app walk + tests |
 | Honest failure: a forced Prove failure gives a refund and leaves the original untouched | test + app walk |
 | `npx tsc --noEmit` + vitest green in kwill, kwill-server, mdocxengine | CI |
