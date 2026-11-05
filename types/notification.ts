@@ -1,6 +1,6 @@
 export type NotificationType =
   | "ai_complete" | "export" | "payment" | "system"
-  | "grammar" | "template" | "subscription" | "welcome";
+  | "grammar" | "template" | "subscription" | "welcome" | "rescue" | "tasks_complete";
 
 export interface NotificationData {
   route?: string;        // expo-router path to navigate to on tap

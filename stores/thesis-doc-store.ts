@@ -5,6 +5,8 @@ import { getThesisDocument, getThesisHistory, type DocumentDTO } from "@/lib/api
 import { getDocCache, setDocCache } from "@/lib/thesis-doc-cache";
 import { applyOpToDoc, editTextCoalesces, executeOp, isRetryableError, type ThesisOp } from "@/lib/thesis-ops";
 import { ifMatchValue, tagOfRead, tagOfWrite } from "@/lib/thesis-op-tag";
+import { RESCUE_V2_ENABLED } from "@/lib/rescue-v2-enabled";
+import { rescueThesisIds } from "@/lib/rescue-v2-thesis-sync";
 import {
   newOpId,
   enqueueOp,
@@ -779,7 +781,26 @@ NetInfo.addEventListener((state) => {
 // App going to background = the user stopped composing. Force-flush every thesis
 // with locally-held edits so work syncs even if the app is later killed (and the
 // durable SQLite queue still covers the case where this window is cut short).
+// Back in front: a thesis a repair may have changed while the app was away is re-read (P-66). Only the documents held open here are, and only
+// when a rescue project points at them. Foreground is the app's, not one screen's, so this is one lookup per focus.
+function revalidateOpenRescueTheses(): void {
+  if (!RESCUE_V2_ENABLED) return;
+  const open = Object.entries(useThesisDocStore.getState().byId)
+    .filter(([, d]) => d?.available === true)
+    .map(([id]) => id);
+  if (open.length === 0) return;
+  rescueThesisIds()
+    .then((ids) => {
+      for (const id of ids) if (open.includes(id)) void useThesisDocStore.getState().revalidate(id);
+    })
+    .catch((err) => console.warn("[rescue] thesis sync on focus failed", err));
+}
+
 AppState.addEventListener("change", (st) => {
+  if (st === "active") {
+    revalidateOpenRescueTheses();
+    return;
+  }
   if (st !== "background") return;
   for (const [thesisId, p] of pumps) {
     if (p.queue.length > 0) void useThesisDocStore.getState().flushOps(thesisId, { timeoutMs: 20_000 });

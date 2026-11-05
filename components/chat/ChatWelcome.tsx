@@ -4,6 +4,8 @@ import { useRouter } from "expo-router";
 import { BookOpen, Sparkles } from "lucide-react-native";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRTL } from "@/hooks/useRTL";
+import { RescueHomeCard } from "@/components/rescue/RescueHomeCard";
+import { RESCUE_V2_ENABLED } from "@/lib/rescue-v2-enabled";
 
 // The welcome artwork. Everything below is sized off the image's own aspect
 // ratio, so a different picture needs no other change.
@@ -46,6 +48,9 @@ export function ChatWelcome() {
       <Text style={[styles.body, { color: colors.textSecondary }]}>
         {t("chat.welcome.body")}
       </Text>
+
+      {/* Rescue v2's card, under the body text and above the two doors. Off in a release build. */}
+      {RESCUE_V2_ENABLED ? <RescueHomeCard /> : null}
 
       {/* The one line above can only ever hint. This opens the full account of
           what it can do and how to ask for it — an outline button, because the

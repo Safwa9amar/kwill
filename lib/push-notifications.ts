@@ -8,7 +8,19 @@ import type * as NotificationsModule from "expo-notifications";
 import type { NotificationData } from "@/types/notification";
 import { registerPushToken, unregisterPushToken } from "@/lib/api";
 import { useNotificationStore } from "@/stores/notification-store";
+import { useThesisDocStore } from "@/stores/thesis-doc-store";
 import { brand } from "@/constants/colors";
+import { RESCUE_V2_ENABLED } from "@/lib/rescue-v2-enabled";
+import { notifyRoute } from "@/lib/rescue-v2-notify";
+import { rescueThesisIds } from "@/lib/rescue-v2-thesis-sync";
+
+/** The screen the student is looking at decides whether its push still shows (plan A9 step 4). Set by the screen that owns it. */
+let bannerFilter: ((data: NotificationData | undefined) => boolean) | null = null;
+
+/** Hides the banner, list entry and sound of a push that the open screen already shows; null restores them all. */
+export function setPushBannerFilter(fn: ((data: NotificationData | undefined) => boolean) | null): void {
+  bannerFilter = fn;
+}
 
 // expo-notifications removed remote push from Expo Go in SDK 53 and THROWS on
 // import there (Android). So we never load it statically — instead require it
@@ -25,12 +37,20 @@ function getNotifications(): typeof NotificationsModule | null {
     // SDK 56: NotificationBehavior uses shouldShowBanner / shouldShowList
     // (replacing the deprecated shouldShowAlert), plus shouldPlaySound / shouldSetBadge.
     notificationsModule!.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-      }),
+      handleNotification: async (notification) => {
+        let hide = false;
+        try {
+          hide = bannerFilter?.(notification.request.content.data as NotificationData | undefined) === true;
+        } catch {
+          hide = false;
+        }
+        return {
+          shouldShowBanner: !hide,
+          shouldShowList: !hide,
+          shouldPlaySound: !hide,
+          shouldSetBadge: true,
+        };
+      },
     });
   } catch (err) {
     console.warn("[push] expo-notifications unavailable", err);
@@ -146,6 +166,39 @@ export async function unregisterCurrentPushToken(): Promise<void> {
 }
 
 /**
+ * The push that launched the app, once. The listener below only hears taps on a running app. A rescue route is resolved the same way the
+ * tap resolves it (plan A9 step 4).
+ */
+export function consumeColdStartNotificationRoute(): string | null {
+  const Notifications = getNotifications();
+  if (!Notifications) return null;
+  try {
+    const last = Notifications.getLastNotificationResponse();
+    const data = last?.notification.request.content.data as NotificationData | undefined;
+    const route = data?.route;
+    if (typeof route !== "string") return null;
+    Notifications.clearLastNotificationResponse();
+    return notifyRoute(route, data, RESCUE_V2_ENABLED);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A rescue push says a repair finished or changed a thesis, so that thesis is re-read: the open workspace must not keep a copy the repair
+ * moved on from (P-66). Only with the release flag on.
+ */
+function syncRescueThesisFor(data: NotificationData | undefined): void {
+  if (!RESCUE_V2_ENABLED) return;
+  const route = data?.route;
+  const projectId = data?.projectId;
+  if (typeof route !== "string" || !route.startsWith("/(app)/rescue") || typeof projectId !== "string") return;
+  rescueThesisIds(projectId)
+    .then((ids) => { for (const id of ids) void useThesisDocStore.getState().revalidate(id); })
+    .catch((err) => console.warn("[rescue] thesis sync after a push failed", err));
+}
+
+/**
  * Subscribes to foreground arrival and tap-response events.
  * - On foreground arrival: refetch the authoritative list from the server.
  * - On tap: refetch, then route via onTapRoute if the payload carries a route.
@@ -162,9 +215,10 @@ export function addNotificationListeners(
   let responseSub: NotificationsModule.EventSubscription | undefined;
 
   try {
-    receivedSub = Notifications.addNotificationReceivedListener(() => {
+    receivedSub = Notifications.addNotificationReceivedListener((notification) => {
       try {
         useNotificationStore.getState().fetchNotifications();
+        syncRescueThesisFor(notification.request.content.data as NotificationData | undefined);
       } catch (err) {
         console.warn("[push] fetchNotifications (received) failed", err);
       }
@@ -178,6 +232,7 @@ export function addNotificationListeners(
       try {
         const data = response.notification.request.content.data as NotificationData;
         useNotificationStore.getState().fetchNotifications();
+        syncRescueThesisFor(data);
         if (data?.route) {
           onTapRoute(data.route, data);
         }

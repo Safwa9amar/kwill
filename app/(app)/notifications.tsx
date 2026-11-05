@@ -24,6 +24,7 @@ import {
   PartyPopper,
   CheckCheck,
   Trash2,
+  FileCheck,
 } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import { useThemeColors } from "@/hooks/useThemeColors";
@@ -60,6 +61,8 @@ function iconFor(
       return { Icon: Crown, color: colors.semanticWarning };
     case "welcome":
       return { Icon: PartyPopper, color: colors.brandPrimary };
+    case "rescue":
+      return { Icon: FileCheck, color: colors.brandPrimary };
     case "system":
     default:
       return { Icon: Bell, color: colors.textSecondary };

@@ -48,6 +48,7 @@ import { AvatarPicker } from "@/components/AvatarPicker";
 import { ThesisOutlinePanel } from "@/components/workspace/ThesisOutlinePanel";
 import { listTheses } from "@/lib/api";
 import { guardThesisLimit } from "@/lib/thesis-limit";
+import { RESCUE_V2_ENABLED } from "@/lib/rescue-v2-enabled";
 
 // Two cuts of the same art. The original's "will" is white — it disappears on
 // the light theme, which is why the drawer used to fall back to plain type there
@@ -299,6 +300,13 @@ function AppIndex() {
       label: t("drawer.templates"),
       onPress: () => go(() => router.push("/(app)/browse-templates" as any)),
     },
+    // Rescue v2's door (P-35). The library decides what the student sees: no project yet, the start screen. Off in a release build.
+    ...(RESCUE_V2_ENABLED ? [{
+      key: "rescue-v2",
+      icon: LifeBuoy,
+      label: t("rescueV2.drawerRow"),
+      onPress: () => go(() => router.push("/(app)/rescue/library" as any)),
+    } satisfies Row] : []),
     {
       key: "import",
       icon: FolderUp,

@@ -26,6 +26,7 @@ import { listTheses } from "@/lib/api";
 import { registerForPushNotificationsAsync, addNotificationListeners } from "@/lib/push-notifications";
 import { notifyRoute } from "@/lib/rescue-v2-notify";
 import { RESCUE_V2_ENABLED } from "@/lib/rescue-v2-enabled";
+import { useRescueColdStart } from "@/hooks/useRescueColdStart";
 import { useAuthDeepLink } from "@/lib/auth-deeplink";
 import { AuthLinkOverlay } from "@/components/AuthLinkOverlay";
 import { RootErrorBoundary } from "@/components/RootErrorBoundary";
@@ -257,6 +258,7 @@ export default function RootLayout() {
   // silently dropped — which would strand the student on the chat with an
   // unchanged password.
   useAuthDeepLink(appReady && fontsLoaded);
+  useRescueColdStart(appReady && fontsLoaded && isAuthenticated);
 
   if (!appReady || !fontsLoaded) return null;
 
