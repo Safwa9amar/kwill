@@ -2023,6 +2023,8 @@
         "typo_space_after_punct": "Espace après la ponctuation, endroits : {{count}}",
         "typo_collapse_spaces": "Espaces en trop, endroits : {{count}}",
         "front_page_unnumbered": "Votre page de dédicace ou de remerciements reste sans numéro.",
+        "basmala_unnumbered": "La page de la basmala reste sans numéro de page.",
+        "direction_set": "Sens d'écriture fixé, endroits : {{count}}",
         "other_change": "Autres changements : {{count}}"
       }
     },

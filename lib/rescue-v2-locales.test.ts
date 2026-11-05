@@ -108,4 +108,22 @@ describe("rescueV2 locale parity", () => {
       expect(missing, `${lang}: diagnosis.problems lines missing`).toEqual([]);
     }
   });
+
+  it("has a line for every change code the server emits, in each language (D-8)", () => {
+    // The codes ~/kwill-server src/lib/rescue/pipeline/change-events.ts and change-report.ts emit. A code the server adds
+    // needs a line here and in every language, or the change list shows a raw key.
+    const CHANGE_CODES = [
+      "cover_generated", "cover_cleaned", "toc_real", "toc_rebuilt", "toc_added", "list_added", "heading_real",
+      "captions_real", "caption_number_added", "caption_word_as_label", "caption_renumbered", "captions_moved",
+      "chapters_new_page", "page_numbers", "running_heads", "rules_applied", "empty_removed", "manual_breaks_removed",
+      "review_fixes", "divider_added", "frame_added", "front_page_unnumbered", "basmala_unnumbered", "direction_set",
+      "references_sorted", "notes_converted", "fonts_embedded", "font_swapped", "comments_removed", "other_change",
+      "typo_space_before_punct", "typo_space_after_comma", "typo_tatweel", "typo_nbsp_before_punct",
+      "typo_nbsp_after_guillemet", "typo_space_after_punct", "typo_collapse_spaces",
+    ] as const;
+    for (const lang of LANGS) {
+      const missing = CHANGE_CODES.filter((code) => !all[lang].words.has(`changed.items.${code}`));
+      expect(missing, `${lang}: changed.items lines missing`).toEqual([]);
+    }
+  });
 });

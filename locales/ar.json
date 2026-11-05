@@ -2023,6 +2023,8 @@
         "typo_space_after_punct": "مسافة بعد علامة الترقيم · المواضع: {{count}}",
         "typo_collapse_spaces": "مسافات زائدة · المواضع: {{count}}",
         "front_page_unnumbered": "تبقى صفحة الإهداء أو الشكر دون رقم صفحة.",
+        "basmala_unnumbered": "تبقى صفحة البسملة دون رقم صفحة.",
+        "direction_set": "ضبطنا اتجاه الكتابة · المواضع: {{count}}",
         "other_change": "تغييرات أخرى · العدد: {{count}}"
       }
     },

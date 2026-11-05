@@ -2023,6 +2023,8 @@
         "typo_space_after_punct": "Space after punctuation, places: {{count}}",
         "typo_collapse_spaces": "Extra spaces, places: {{count}}",
         "front_page_unnumbered": "Your dedication or thanks page stays without a page number.",
+        "basmala_unnumbered": "The basmala page stays without a page number.",
+        "direction_set": "Writing direction set, places: {{count}}",
         "other_change": "Other changes: {{count}}"
       }
     },
