@@ -2154,7 +2154,9 @@
       "bodyEdited": "Vous avez modifié votre mémoire dans Kwill depuis la dernière version. Nous gardons ces modifications : le bouton Annuler de l'éditeur les ramène.",
       "confirm": "Restaurer",
       "cancel": "Annuler",
-      "failed": "La restauration n'a pas abouti. Réessayez dans un instant."
+      "failed": "La restauration n'a pas abouti. Réessayez dans un instant.",
+      "choicesReset": "Les choix que vous avez enregistrés depuis seront remis comme dans cette version.",
+      "unsaved": "Vos dernières modifications ne sont pas encore enregistrées : rien n'a été restauré. Réessayez dans un instant."
     }
   },
   "errors": {

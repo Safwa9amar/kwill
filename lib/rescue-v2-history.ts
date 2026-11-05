@@ -42,12 +42,29 @@ export type VersionAction = "pdf" | "word" | "compare" | "changed" | "open" | "r
 
 /**
  * What a version sheet offers. A version that is not finished shows only its meta. The original is downloadable and comparable, never
- * restorable (P-44), so its editing actions are not offered either.
+ * restorable (P-44), so its editing actions are not offered either. The current version is already the one in place: nothing to restore.
  */
-export function versionActions(v: Pick<RescueVersionSummaryDTO, "kind" | "status">): VersionAction[] {
+export function versionActions(v: Pick<RescueVersionSummaryDTO, "kind" | "status">, current = false): VersionAction[] {
   if (v.status !== "done") return [];
   if (v.kind === "original") return ["pdf", "word", "compare"];
-  return ["pdf", "word", "compare", "changed", "open", "restore"];
+  const actions: VersionAction[] = ["pdf", "word", "compare", "changed", "open", "restore"];
+  return current ? actions.filter((a) => a !== "restore") : actions;
+}
+
+/**
+ * Whether the restore dialog says that the student's saved choices will be set back. Hidden only when a fresh read says there is nothing to
+ * redo. While the read is out, or when it failed, the line shows: a choice that may be reset is never passed over in silence.
+ */
+export function restoreImpactLine(impact: { state: "loading" | "ok" | "failed"; value: { scope: string } | null } | null): boolean {
+  return !(impact?.state === "ok" && impact.value?.scope === "none");
+}
+
+/**
+ * Whether the restore dialog warns that the student edited in the workspace. The project's flag can be stale, so a fresh read counts too; a
+ * read that failed shows the warning rather than hide it.
+ */
+export function editedWarningShown(projectEdited: boolean, read: { edited: boolean } | null, refreshFailed: boolean): boolean {
+  return projectEdited || read?.edited === true || refreshFailed;
 }
 
 export type PillKey = "ready" | "diagnosed" | "working" | "failed";

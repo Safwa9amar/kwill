@@ -110,7 +110,8 @@ function VersionSheet() {
   const isCurrent = project.currentVersion?.id === v.id;
   const isSplitOriginal = v.kind === "original" && project.parts.length > 1;
   const thesisId = project.thesisId;
-  const actions = versionActions(v);
+  // The current version is the one in place: it offers no restore.
+  const actions = versionActions(v, isCurrent);
   const date = dayLabel(v.createdAt, i18n.language);
 
   const download = async (key: string, kind: "pdf" | "docx" | "part", index?: number) => {
@@ -217,7 +218,6 @@ function VersionSheet() {
           versionId={v.id}
           versionN={v.n}
           nextN={nextVersionN(versions)}
-          editedInKwill={project.editedInKwill}
           thesisId={thesisId}
           onClose={() => setRestoreOpen(false)}
         />

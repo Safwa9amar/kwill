@@ -10,6 +10,8 @@ import {
   rowMetaKey,
   changesOnPage,
   versionActions,
+  editedWarningShown,
+  restoreImpactLine,
 } from "./rescue-v2-history";
 import type { RescueChangeItemDTO, RescueImpactDTO, RescueVersionSummaryDTO } from "@/types/rescue-v2";
 
@@ -150,5 +152,51 @@ describe("nextVersionN", () => {
 describe("dayLabel", () => {
   it("names the day of a timestamp, read at midday so no timezone moves it", () => {
     expect(dayLabel("2026-11-09T12:00:00Z", "en")).toContain("9");
+  });
+});
+
+describe("restore on the current version (item 8)", () => {
+  it("the current version offers no restore: it is already the one in place", () => {
+    expect(versionActions({ kind: "rerun", status: "done" }, true)).toEqual(["pdf", "word", "compare", "changed", "open"]);
+  });
+
+  it("an older version still offers restore", () => {
+    expect(versionActions({ kind: "rerun", status: "done" }, false)).toContain("restore");
+  });
+});
+
+describe("the restore dialog's line about the saved choices (item 8)", () => {
+  it("is not shown when a fresh read says there is nothing to redo", () => {
+    expect(restoreImpactLine({ state: "ok", value: { scope: "none" } as never })).toBe(false);
+  });
+
+  it("is shown when the choices would redo something", () => {
+    expect(restoreImpactLine({ state: "ok", value: { scope: "pages" } as never })).toBe(true);
+    expect(restoreImpactLine({ state: "ok", value: { scope: "all" } as never })).toBe(true);
+  });
+
+  it("is shown while the read is out, and when it failed: never silent for a choice that may be reset", () => {
+    expect(restoreImpactLine({ state: "loading", value: null })).toBe(true);
+    expect(restoreImpactLine({ state: "failed", value: null })).toBe(true);
+    expect(restoreImpactLine(null)).toBe(true);
+  });
+});
+
+describe("the restore dialog's warning about edits in the workspace (item 9)", () => {
+  it("shows when the project says the student edited", () => {
+    expect(editedWarningShown(true, null, false)).toBe(true);
+  });
+
+  it("shows when a fresh read says the student edited since the last version", () => {
+    expect(editedWarningShown(false, { edited: true }, false)).toBe(true);
+  });
+
+  it("shows when the refresh failed, rather than hiding a warning it could not check", () => {
+    expect(editedWarningShown(false, { edited: false }, true)).toBe(true);
+  });
+
+  it("is hidden only when nothing says edited and the read is fine", () => {
+    expect(editedWarningShown(false, { edited: false }, false)).toBe(false);
+    expect(editedWarningShown(false, null, false)).toBe(false);
   });
 });

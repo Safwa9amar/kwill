@@ -64,7 +64,8 @@ interface RescueV2State {
   restoreVersion(versionId: string): Promise<RestoreOutcome>;
   setScreenOpen(open: boolean): void;
   loadPages(versionId: string, from: number, to: number): Promise<void>;
-  loadVersions(): Promise<void>;
+  /** True when the list was read (or was asked for under a project that has since moved on); false when the read failed. */
+  loadVersions(): Promise<boolean>;
   loadDetail(versionId: string): Promise<void>;
   /**
    * Sends the supervisor's note. The same text sent again while its send is in flight is that same send: a blur and an unmount, or a CTA,
@@ -499,17 +500,19 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
 
     loadVersions: async () => {
       const pid = get().projectId;
-      if (!pid) return;
+      if (!pid) return false;
       const g = gen;
       const s = ++issued.versions;
       try {
         const r = await api.listVersions(pid);
         if (claim("versions", g, pid, s)) set({ versions: r.versions, edited: r.edited });
+        return true;
       } catch (e) {
         if (claim("versions", g, pid, s)) {
           last = { again: () => get().loadVersions() };
           set(failure(e));
         }
+        return false;
       }
     },
 

@@ -2154,7 +2154,9 @@
       "bodyEdited": "You edited your thesis in Kwill since the last version. We keep those edits: the undo button in the editor brings them back.",
       "confirm": "Bring it back",
       "cancel": "Cancel",
-      "failed": "We couldn't bring it back just now. Please try again shortly."
+      "failed": "We couldn't bring it back just now. Please try again shortly.",
+      "choicesReset": "The choices you saved since then will be set back to this version's.",
+      "unsaved": "Your latest edits are not saved yet, so nothing was brought back. Try again in a moment."
     }
   },
   "errors": {

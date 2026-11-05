@@ -674,3 +674,14 @@ describe("a re-run or a restore is started once, and restore never repeats from 
     expect(api.restoreVersion).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("loadVersions answers whether the read landed (items 8 and 9)", () => {
+  it("answers true when the list is read, and false when it failed", async () => {
+    useRescueV2Store.setState({ projectId: "L", project: dto("L", "done") });
+    api.listVersions.mockResolvedValueOnce({ versions: [], edited: { edited: true, changedBlocks: 2, afterVersionN: 1 } });
+    expect(await S().loadVersions()).toBe(true);
+    expect(S().edited?.edited).toBe(true);
+    api.listVersions.mockRejectedValueOnce(httpError(502));
+    expect(await S().loadVersions()).toBe(false);
+  });
+});
