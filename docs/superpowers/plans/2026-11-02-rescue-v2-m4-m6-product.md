@@ -877,6 +877,13 @@ export interface RescueCost {
 }
 ```
 
+**Server additions to the second block (S21, the server's `src/lib/rescue/pipeline/contract.ts`).** The first block is unchanged on both sides: the server's copy and `types/rescue-v2.ts` match it word for word. The second block grew as the server was built, on purpose:
+- **S5** (`020e0c8`): `ResetWork` gains `pageArt`, `source` and `junkKeptOnPurpose`; `RegenWork` gains `proof` (RegenerateProof, null when regenerate failed); `RegenOutput` gains `error?`; `FinalRender.pdf` and `pageMap` are nullable (null when the render failed; `renderError` says why).
+- **S18** (`8032af2`): `RescueStageState` gains `editedSinceLast` (P-28, P-67) and `neighbours` (the re-run diff's source keys); `render` paths and `review` gain nullable and `stored`/`scope` fields (`StoredFix`); new `StoredFinalMap` (`rescue_versions.final_map`) and `RescueSettings` (a version's frozen settings, with `costTurnIds` and `overrideSameThesis`, P-57's staff rebase).
+- Not from S5 or S18, and not in this block: `RescueStageState.coverPage` came with S2 (read_cover's page, kept for cover_samples). It is server-side and the app does not read it.
+
+The app's copy does not carry these additions: they describe server-side state only.
+
 ### 1.4 Endpoints
 
 **Everything under `/api/rescue-v2`:** Supabase Bearer through the existing `authMiddleware`; `userId = c.get("userId")`; every row is owner-scoped and another student's id answers 404. Bodies are JSON unless marked raw. Errors are `{ "error": "<English, for logs>", "code": "<machine code>" }`; the app keys its copy on `code`. Every route except `/config` first checks `rescue.enabled` and answers 503 `rescue_disabled`. A `:vid` always means a version of a project the caller owns. `GET /versions/:a/compare/:b` takes both ids through `getOwnedVersion` and they must share a `project_id`, else 404.
