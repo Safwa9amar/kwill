@@ -152,8 +152,9 @@ describe("cover helpers", () => {
     expect(coverFieldsAfter(base, "title", "  Nouveau titre ")).toEqual({ title: "Nouveau titre", students: ["Étudiant fictif"] });
     expect(coverFieldsAfter(base, "title", "   ")).toEqual({ students: ["Étudiant fictif"] });
     expect(coverFieldsAfter(base, "students", ["", " Second "])).toEqual({ title: "Titre", students: ["Second"] });
-    expect(coverFieldsAfter(base, "jury", [{ name: "Président fictif", rank: " " }])).toEqual({
-      title: "Titre", students: ["Étudiant fictif"], jury: [{ name: "Président fictif" }],
+    // The jury is never sent: the server drops it, so a jury the file gave the screen is stripped from every save.
+    expect(coverFieldsAfter({ ...base, jury: [{ name: "Président fictif" }] }, "year", "2026 / 2027")).toEqual({
+      title: "Titre", students: ["Étudiant fictif"], academicYear: "2026 / 2027",
     });
     expect(coverFieldsAfter(base, "year", "2026 / 2027")).toEqual({ title: "Titre", students: ["Étudiant fictif"], academicYear: "2026 / 2027" });
   });

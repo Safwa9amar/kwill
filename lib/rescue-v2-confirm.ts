@@ -107,11 +107,15 @@ export const COVER_MORE_ROWS: CoverRow[] = [
   { id: "subtitle", field: "subtitle", kind: "text" },
   { id: "field", field: "field", kind: "text" },
   { id: "coSupervisor", field: "coSupervisor", kind: "text" },
-  { id: "jury", field: "jury", kind: "jury" },
 ];
+/**
+ * Not on screen and never sent. The server drops `fields.jury` (the cover's jury is not printed yet), so these rows wait for it; their
+ * words stay in the locales for later.
+ */
+export const COVER_HIDDEN_ROWS: CoverRow[] = [{ id: "jury", field: "jury", kind: "jury" }];
 
 export function coverRow(id: CoverRowId): CoverRow {
-  const row = [...COVER_PRIMARY_ROWS, ...COVER_MORE_ROWS].find((r) => r.id === id);
+  const row = [...COVER_PRIMARY_ROWS, ...COVER_MORE_ROWS, ...COVER_HIDDEN_ROWS].find((r) => r.id === id);
   if (!row) throw new Error(`unknown cover row ${id}`);
   return row;
 }
@@ -182,5 +186,7 @@ export function coverFieldsAfter(
     if (members.length) next[row.field] = members;
     else delete next[row.field];
   }
+  // The server drops the jury, so it is never sent back, even when the fields the screen holds carry one from the file.
+  delete next.jury;
   return next as RescueCoverFieldsDTO;
 }
