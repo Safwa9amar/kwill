@@ -2022,6 +2022,7 @@
         "typo_nbsp_after_guillemet": "Espace après le guillemet, endroits : {{count}}",
         "typo_space_after_punct": "Espace après la ponctuation, endroits : {{count}}",
         "typo_collapse_spaces": "Espaces en trop, endroits : {{count}}",
+        "front_page_unnumbered": "Votre page de dédicace ou de remerciements reste sans numéro.",
         "other_change": "Autres changements : {{count}}"
       }
     },

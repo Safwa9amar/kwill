@@ -2022,6 +2022,7 @@
         "typo_nbsp_after_guillemet": "Space after a French quote mark, places: {{count}}",
         "typo_space_after_punct": "Space after punctuation, places: {{count}}",
         "typo_collapse_spaces": "Extra spaces, places: {{count}}",
+        "front_page_unnumbered": "Your dedication or thanks page stays without a page number.",
         "other_change": "Other changes: {{count}}"
       }
     },

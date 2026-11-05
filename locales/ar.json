@@ -2022,6 +2022,7 @@
         "typo_nbsp_after_guillemet": "مسافة بعد علامة الاقتباس · المواضع: {{count}}",
         "typo_space_after_punct": "مسافة بعد علامة الترقيم · المواضع: {{count}}",
         "typo_collapse_spaces": "مسافات زائدة · المواضع: {{count}}",
+        "front_page_unnumbered": "تبقى صفحة الإهداء أو الشكر دون رقم صفحة.",
         "other_change": "تغييرات أخرى · العدد: {{count}}"
       }
     },
