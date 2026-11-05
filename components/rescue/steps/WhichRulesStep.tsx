@@ -9,6 +9,7 @@ import { UniversityPicker } from "@/components/UniversityPicker";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { PURCHASES_HIDDEN } from "@/lib/purchases";
 import { removeGuide, updateSetup, uploadGuide } from "@/lib/rescue-v2-api";
+import { guideMime } from "@/lib/rescue-v2-pick";
 import { scaleFor, STAGE_LAYOUT } from "@/lib/rescue-v2-layout";
 import { useBottomSheet } from "@/stores/bottom-sheet-store";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
@@ -213,7 +214,8 @@ function GuideSheet() {
       const res = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.8 });
       if (res.canceled || !res.assets?.[0]) return;
       const a = res.assets[0];
-      await send(a.uri, a.fileName ?? "guide.jpg", a.mimeType ?? "image/jpeg", 0);
+      const name = a.fileName ?? "guide.jpg";
+      await send(a.uri, name, guideMime(name, a.mimeType), 0);
     } catch {
       setFailure(t("rescueV2.whichRules.guideFailed"));
     }
@@ -225,7 +227,7 @@ function GuideSheet() {
       const res = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "image/*"], multiple: false, copyToCacheDirectory: true });
       if (res.canceled || !res.assets?.[0]) return;
       const a = res.assets[0];
-      await send(a.uri, a.name, a.mimeType ?? "application/pdf", a.size ?? 0);
+      await send(a.uri, a.name, guideMime(a.name, a.mimeType), a.size ?? 0);
     } catch {
       setFailure(t("rescueV2.whichRules.guideFailed"));
     }

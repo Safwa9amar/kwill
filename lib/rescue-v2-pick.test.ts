@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keepDocx, partsRefusal } from "./rescue-v2-pick";
+import { guideMime, keepDocx, partsRefusal } from "./rescue-v2-pick";
 
 const MB = 1024 * 1024;
 const LIMITS = { partMb: 50, parts: 12, totalMb: 120 };
@@ -45,5 +45,25 @@ describe("partsRefusal", () => {
 
   it("treats an unknown size (0) as fitting", () => {
     expect(partsRefusal([part(0)], LIMITS)).toBeNull();
+  });
+});
+
+describe("guideMime", () => {
+  it("names the real type from the file's extension first", () => {
+    expect(guideMime("guide.PDF", "application/octet-stream")).toBe("application/pdf");
+    expect(guideMime("photo.jpeg", null)).toBe("image/jpeg");
+    expect(guideMime("scan.png", undefined)).toBe("image/png");
+  });
+
+  it("falls back to the picker's MIME type when the name has no known extension", () => {
+    expect(guideMime("guide", "application/pdf; charset=binary")).toBe("application/pdf");
+    expect(guideMime("guide", "image/jpg")).toBe("image/jpeg");
+  });
+
+  it("passes a type the guide cannot have through, so the server refuses it", () => {
+    expect(guideMime("notes.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")).toBe(
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    );
+    expect(guideMime("unknown", null)).toBe("");
   });
 });

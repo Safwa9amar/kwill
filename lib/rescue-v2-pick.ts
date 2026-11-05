@@ -34,3 +34,16 @@ export function partsRefusal(
   if (total > limits.totalMb * MB) return { key: "tooLarge", mb: limits.totalMb };
   return null;
 }
+
+/**
+ * The real Content-Type of a guide file (P-10, §1.4). The name's extension decides first, then the picker's MIME type; `image/jpg` is read as
+ * JPEG. A type the guide cannot have is returned as the picker gave it, and the server refuses it with `rescue_guide_type`, so nothing guesses.
+ */
+export function guideMime(name: string, mime: string | null | undefined): string {
+  const ext = /\.([a-z0-9]+)$/i.exec(name)?.[1]?.toLowerCase();
+  if (ext === "pdf") return "application/pdf";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "png") return "image/png";
+  const m = (mime ?? "").split(";")[0].trim().toLowerCase();
+  return m === "image/jpg" ? "image/jpeg" : m;
+}
