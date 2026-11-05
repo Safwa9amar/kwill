@@ -1766,6 +1766,8 @@ All pure, no document parsing. Inputs are what the stages saved.
 | `layout.numbering` | `page_numbers` | numbering | null | 1 |
 | `layout.headers` | `running_heads` | numbering | null | n |
 | `layout.sections` | `chapters_new_page` | pages | null | n |
+| `sectionFinish.basmalaUnnumbered` (D-8) | `basmala_unnumbered` | pages | the first `basmala` block | n |
+| `roles.directionSet` (D-8) | `direction_set` | typography | null | n |
 | `styles.stylesSet`, `layout.geometrySections` | `rules_applied` | pages | null | 1 |
 | `reset.deleted` | `empty_removed` | pages | next surviving block | 1 each |
 | `reset.pageBreakBlocks` | `manual_breaks_removed` | pages | that block | 1 each |
