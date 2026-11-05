@@ -18,6 +18,7 @@ export default defineConfig({
       "lib/rescue-v2-upload.test.ts",
       "lib/rescue-v2-locales.test.ts",
       "lib/rescue-v2-pick.test.ts",
+      "lib/thesis-op-tag.test.ts",
       "lib/rescue-v2-errors.test.ts",
       "lib/rescue-v2-lost-upload.test.ts",
       "lib/thesis-open-check.test.ts",

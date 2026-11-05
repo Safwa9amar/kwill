@@ -18,6 +18,7 @@ import type { QuotaResponse, PlanCatalogue, SubscriptionState, PlanCode } from "
 import type { ThesisSource } from "@/types/source";
 import type { PlanPayload, PlanStepProgress } from "@/lib/plan-frames";
 import { byokHeaders, whenByokHydrated, useByokStore, isByokErrorCode } from "@/stores/byok-store";
+import { ifMatchValue } from "@/lib/thesis-op-tag";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL
 
@@ -280,8 +281,8 @@ async function apiPostLong<T>(path: string, body: any, opts: LongPostOptions = {
   });
 }
 
-export async function apiPost<T>(path: string, body: any, signal?: AbortSignal): Promise<T> {
-  const headers = await getAuthHeaders();
+export async function apiPost<T>(path: string, body: any, signal?: AbortSignal, extraHeaders?: Record<string, string>): Promise<T> {
+  const headers = { ...(await getAuthHeaders()), ...(extraHeaders ?? {}) };
   const response = await fetch(`${API_URL}${path}`, {
     method: "POST",
     headers,
@@ -2083,11 +2084,20 @@ export async function editThesisParagraphs(
 // under a single thesis lock, exactly like the per-op routes — turning N round-trips
 // into one. Echoes the mutated document so the caller reconciles without a re-GET.
 // `ops` is the durable ThesisOp[] shape (typed loosely here to avoid a circular import).
+// `ifMatch` is the document tag the batch was built against (P-66, lib/thesis-op-tag.ts): the server refuses a batch whose copy has moved on
+// (412). Absent: the batch goes as it always has.
 export async function applyThesisOps(
   thesisId: string,
   ops: unknown[],
+  ifMatch?: string | null,
 ): Promise<{ ok: true; applied: number; skipped: string[]; document?: DocumentDTO; history?: HistoryStateDTO }> {
-  return apiPost<{ ok: true; applied: number; skipped: string[]; document?: DocumentDTO; history?: HistoryStateDTO }>(`/api/thesis/${thesisId}/ops`, { ops });
+  const tag = ifMatchValue(ifMatch);
+  return apiPost<{ ok: true; applied: number; skipped: string[]; document?: DocumentDTO; history?: HistoryStateDTO }>(
+    `/api/thesis/${thesisId}/ops`,
+    { ops },
+    undefined,
+    tag ? { "If-Match": tag } : undefined,
+  );
 }
 
 // Direct (non-AI) header/footer/section-break edits for the writer's chrome-band

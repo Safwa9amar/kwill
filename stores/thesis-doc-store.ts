@@ -4,6 +4,7 @@ import NetInfo from "@react-native-community/netinfo";
 import { getThesisDocument, getThesisHistory, type DocumentDTO } from "@/lib/api";
 import { getDocCache, setDocCache } from "@/lib/thesis-doc-cache";
 import { applyOpToDoc, editTextCoalesces, executeOp, isRetryableError, type ThesisOp } from "@/lib/thesis-ops";
+import { ifMatchValue, tagOfRead, tagOfWrite } from "@/lib/thesis-op-tag";
 import {
   newOpId,
   enqueueOp,
@@ -122,6 +123,23 @@ const isRouting = (thesisId: string): boolean => (routing.get(thesisId) ?? 0) > 
 // Pump starts are gated on it so a restore can never splice older disk ops into
 // a queue whose head is already in flight (which would misorder the replay).
 const restorePromises = new Map<string, Promise<void>>();
+
+// The document tag (P-66, lib/thesis-op-tag.ts) of the server state the local doc and its queue are built on. Set only from a read of the
+// server or from a write's own answer, and cleared whenever the local doc is replaced by a document whose tag is not known. A batch sent
+// with this tag is refused by the server once any other writer has moved the document on. Module-level, not reactive.
+const opTags = new Map<string, string>();
+/** The tag after a write: its answer's history tag, or none (then the next batch goes untagged, as before). */
+const rememberWrite = (thesisId: string, res: unknown) => {
+  const tag = tagOfWrite(res);
+  if (tag) opTags.set(thesisId, tag);
+  else opTags.delete(thesisId);
+};
+/** The tag after a read: the document's own tag, for a live document. */
+const rememberRead = (thesisId: string, doc: unknown) => {
+  const tag = tagOfRead(doc);
+  if (tag) opTags.set(thesisId, tag);
+  else opTags.delete(thesisId);
+};
 
 function pumpFor(thesisId: string): Pump {
   let p = pumps.get(thesisId);
@@ -264,8 +282,12 @@ export const useThesisDocStore = create<ThesisDocState>((set, get) => {
           // student's typing is gone. Under Lexical (no applyOp) nothing changes —
           // its flushEdits enqueues ops into THIS queue and must not run from here.
           const surface = useLexicalEditorStore.getState();
+          // A docx surface writes its own bytes at any moment, so a tag held here would be stale: that batch goes without one, as today.
+          const docx = !!surface.applyOp;
+          if (docx) opTags.delete(thesisId);
           if (surface.applyOp && surface.flushEdits) await surface.flushEdits().catch(() => {});
-          const res = await executeOp(thesisId, item.op);
+          const res = await executeOp(thesisId, item.op, docx ? null : ifMatchValue(opTags.get(thesisId)));
+          rememberWrite(thesisId, docx ? null : res);
           await confirmOp(item.id);
           // Remove by identity (not blind shift) — belt-and-braces against any
           // future path that mutates the queue while this op was in flight.
@@ -288,13 +310,17 @@ export const useThesisDocStore = create<ThesisDocState>((set, get) => {
             // mid-queue would wipe the later ops' optimistic patches (flicker).
             if (res && typeof res === "object" && "document" in res && res.document) {
               get().setDoc(thesisId, res.document);
+              rememberWrite(thesisId, res);
               if ("history" in res && res.history) get().setHistoryState(thesisId, res.history);
             } else {
               try {
                 const fetched = await getThesisDocument(thesisId);
                 // A new op may have been enqueued during this fetch — its
                 // optimistic patch must not be clobbered by the older snapshot.
-                if (p.queue.length === 0) get().setDoc(thesisId, fetched);
+                if (p.queue.length === 0) {
+                  get().setDoc(thesisId, fetched);
+                  rememberRead(thesisId, fetched);
+                }
               } catch {
                 /* keep optimistic state; next revalidate reconciles */
               }
@@ -609,6 +635,7 @@ export const useThesisDocStore = create<ThesisDocState>((set, get) => {
         // fetched before they landed would be stale. Skip.
         if ((get().pending[thesisId] ?? 0) > 0 || isRouting(thesisId)) return;
         get().setDoc(thesisId, doc);
+        rememberRead(thesisId, doc);
       } catch {
         // Keep whatever we last showed; only fall back to a legacy marker if we've
         // never had anything to render for this thesis.
@@ -629,6 +656,8 @@ export const useThesisDocStore = create<ThesisDocState>((set, get) => {
     },
 
     setDoc: (thesisId, doc) => {
+      // The doc is replaced by one whose tag is not known here: callers that know it set it after (rememberRead / rememberWrite).
+      opTags.delete(thesisId);
       set((s) => ({ byId: { ...s.byId, [thesisId]: doc }, tick: bump(s.tick, thesisId) }));
       void setDocCache(thesisId, doc);
       // Server truth landed (drain echo / revalidate / restore) — redo ops were
@@ -674,6 +703,7 @@ export const useThesisDocStore = create<ThesisDocState>((set, get) => {
         if (res && typeof res === "object" && "document" in res && res.document) {
           get().setDoc(thesisId, res.document as DocumentDTO);
         }
+        rememberWrite(thesisId, res);
         void get().refreshHistoryState(thesisId);
       } catch {
         void get().revalidate(thesisId);
@@ -695,6 +725,7 @@ export const useThesisDocStore = create<ThesisDocState>((set, get) => {
 
     applyRestoredDoc: (thesisId, doc, h) => {
       get().setDoc(thesisId, doc);
+      rememberRead(thesisId, doc);
       get().setHistoryState(thesisId, h);
       // A server-side restore replaces the doc wholesale — local snapshots are
       // meaningless against it (callers ensure pending === 0, so the undo stack

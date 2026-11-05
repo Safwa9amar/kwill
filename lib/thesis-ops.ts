@@ -489,9 +489,11 @@ export function applyOpToDoc(doc: LiveDocumentDTO, op: ThesisOp): LiveDocumentDT
 
 /** Run an op against the server. Returns the endpoint's echoed document (when
  *  the endpoint provides one) for the doc store to reconcile from. */
+// `ifMatch` is the document tag this batch is built against (P-66). Only the batch route (applyThesisOps) checks it; the per-op routes ignore it.
 export async function executeOp(
   thesisId: string,
   op: ThesisOp,
+  ifMatch: string | null = null,
 ): Promise<{ document?: DocumentDTO; history?: { canUndo: boolean; canRedo: boolean } }> {
   switch (op.type) {
     case "editText":
@@ -527,13 +529,13 @@ export async function executeOp(
       // No single-op endpoint — route through the batch /ops (the only place the
       // server applies list numbering). Rare here (lists flow via the Lexical
       // auto-sync batch), but keeps the durable queue path total.
-      return applyThesisOps(thesisId, [op]);
+      return applyThesisOps(thesisId, [op], ifMatch);
     case "tableOp":
       // Table edits are applied server-side by the /ops handler (engine Doc facade).
-      return applyThesisOps(thesisId, [op]);
+      return applyThesisOps(thesisId, [op], ifMatch);
     case "insertTable":
       // New-table insert is applied server-side by the /ops handler (Doc.addTable).
-      return applyThesisOps(thesisId, [op]);
+      return applyThesisOps(thesisId, [op], ifMatch);
   }
 }
 
