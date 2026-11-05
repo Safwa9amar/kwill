@@ -20,23 +20,28 @@ interface Props {
 
 interface Local { uri: string | null; failed: boolean; loading: boolean; retry(): void }
 
-/** One saved page on this device. Downloaded once per hash (P-12); a failed download is shown with a retry, never left as a skeleton. */
+/**
+ * One saved page on this device. Downloaded once per hash (P-12); a failed download is shown with a retry, never left as a skeleton. A page
+ * that has a slot but no hash or no url can never load, so it is a failure too, not a skeleton for ever.
+ */
 function useLocalPage(ref: PageRef | null): Local {
+  const present = ref !== null;
   const hash = ref?.hash ?? null;
   const url = ref?.url ?? null;
-  const key = hash && url ? `${hash}|${url}` : null;
+  const key = present ? `${hash ?? ""}|${url ?? ""}` : null;
   const [got, setGot] = useState<{ key: string; uri: string | null }>({ key: "", uri: null });
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    if (!hash || !url) return;
-    const k = `${hash}|${url}`;
+    if (!present) return;
+    const k = `${hash ?? ""}|${url ?? ""}`;
+    if (!hash || !url) { setGot({ key: k, uri: null }); return; }
     let alive = true;
     localPageUri(hash, url).then(
       (uri) => { if (alive) setGot({ key: k, uri }); },
       () => { if (alive) setGot({ key: k, uri: null }); },
     );
     return () => { alive = false; };
-  }, [hash, url, attempt]);
+  }, [present, hash, url, attempt]);
   const settled = key !== null && got.key === key;
   return {
     uri: settled ? got.uri : null,
