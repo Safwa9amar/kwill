@@ -178,6 +178,12 @@ describe("packNames and packView", () => {
     expect(v?.omitted).toEqual(["rescueV2.result.packFiles.abstract-sheet"]);
   });
 
+  it("offers no share for a pruned zip, keeps the rebuild, and lists the forms still there", () => {
+    const v = packView(pack({ state: "partial", files: ["abstract-sheet"], omitted: [{ kind: "zip", reason: "zip-pruned" }] }), known);
+    expect(v).toMatchObject({ mode: "partial", zipTooLarge: false, share: false, rebuild: true, omitted: null });
+    expect(v?.files).toEqual(["rescueV2.result.packFiles.abstract-sheet"]);
+  });
+
   it("offers no share and a rebuild for a missing pack", () => {
     const v = packView(pack({ state: "missing", files: [] }), known);
     expect(v).toMatchObject({ mode: "missing", share: false, rebuild: true });

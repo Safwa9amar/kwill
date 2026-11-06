@@ -228,9 +228,10 @@ export interface RescuePackDTO {
   files: string[];
   /**
    * Left out and worth saying: the rules' own choices (pdf-only, not-required) never appear here. `kind: "zip"` with
+   * `reason: "zip-pruned"` (kind zip) means the zip was removed: no share, and the rebuild makes it again.
    * `reason: "zip-too-large"` means the whole pack's zip was not built (P-64): every file still ships by itself, and no rebuild is offered.
    */
-  omitted: { kind: string; reason: "no-abstracts" | "render-failed" | "missing" | "zip-too-large" }[];
+  omitted: { kind: string; reason: "no-abstracts" | "render-failed" | "missing" | "zip-too-large" | "zip-pruned" }[];
 }
 
 export interface RescueVersionSummaryDTO {
