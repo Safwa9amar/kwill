@@ -196,8 +196,11 @@ function ProjectCard({ p, anyBusy, onHistory, onOpen, onRedo, onContinue, onDele
   const pillTone = pill === "ready" ? colors.successWash : pill === "failed" ? colors.semanticError : colors.brandWash;
   const pillColor = pill === "ready" ? colors.semanticSuccess : pill === "failed" ? colors.bgCard : colors.brandPrimary;
   return (
-    // A long press is the only gesture on the card: the chips inside are the actions.
+    // A long press is the only gesture on the card: the chips inside are the actions. The card is not one accessibility element, or
+    // VoiceOver (and a test driver) would read it as a single button and never reach the chips; the delete is offered as an action on
+    // the title instead.
     <Pressable
+      accessible={false}
       disabled={!onDelete}
       onLongPress={onDelete ?? undefined}
       delayLongPress={450}
@@ -207,7 +210,14 @@ function ProjectCard({ p, anyBusy, onHistory, onOpen, onRedo, onContinue, onDele
         {p.coverPageVersionId ? <PageImage versionId={p.coverPageVersionId} page={1} width={56} height={78} /> : null}
       </View>
       <View style={styles.cardMain}>
-        <Text numberOfLines={2} style={[styles.cardTitle, { color: colors.textPrimary, writingDirection: dir, textAlign: visualTextAlign(dir === "rtl") }]}>{p.title}</Text>
+        <Text
+          numberOfLines={2}
+          accessibilityActions={onDelete ? [{ name: "delete", label: t("rescueV2.library.delete") }] : undefined}
+          onAccessibilityAction={onDelete ? (e) => { if (e.nativeEvent.actionName === "delete") onDelete(); } : undefined}
+          style={[styles.cardTitle, { color: colors.textPrimary, writingDirection: dir, textAlign: visualTextAlign(dir === "rtl") }]}
+        >
+          {p.title}
+        </Text>
         <Text style={[styles.meta, { color: colors.textSecondary, textAlign: visualTextAlign(isRTL) }]}>{meta}</Text>
         <View style={[styles.pillRow, { flexDirection: visualRow(isRTL) }]}>
           <View style={[styles.pill, { backgroundColor: pillTone }]}>
