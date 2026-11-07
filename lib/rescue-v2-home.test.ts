@@ -17,6 +17,16 @@ describe("homeCard", () => {
     expect(homeCard(list)).toEqual({ kind: "continue", id: "new" });
   });
 
+  it("continues a project in progress ahead of a newer failed one", () => {
+    const list = [project("failed", "failed", "2026-11-06T22:00:00Z"), project("diag", "diagnosed", "2026-11-05T10:00:00Z")];
+    expect(homeCard(list)).toEqual({ kind: "continue", id: "diag" });
+  });
+
+  it("still leads to a failed project when nothing is in progress", () => {
+    const list = [project("done", "done", "2026-11-07T10:00:00Z"), project("failed", "failed", "2026-11-06T10:00:00Z")];
+    expect(homeCard(list)).toEqual({ kind: "continue", id: "failed" });
+  });
+
   it("says ready for a finished project when none is in progress", () => {
     expect(homeCard([project("a", "done", "2026-11-01T10:00:00Z"), project("b", "done", "2026-11-03T10:00:00Z")])).toEqual({ kind: "ready", id: "b" });
   });
