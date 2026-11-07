@@ -45,9 +45,12 @@ function Stage() {
   // The stack (badge, pages, page label) sits between the status bar and the sheet's corner; the pages take what the two rows leave.
   const room = stageRoom((height * SHEET_TOP_PCT.version) / 100 + SHEET_RADIUS, insets.top, STACK_ROWS);
   const date = dayLabel(version.createdAt, i18n.language);
-  const badge = version.id === currentId
-    ? t("rescueV2.timeline.badgeCurrent", { n: version.n })
-    : t("rescueV2.timeline.badge", { n: version.n, date });
+  // The original is not a numbered version to the student: its badge names it, as its row does.
+  const badge = version.kind === "original"
+    ? t("rescueV2.timeline.original")
+    : version.id === currentId
+      ? t("rescueV2.timeline.badgeCurrent", { n: version.n })
+      : t("rescueV2.timeline.badge", { n: version.n, date });
   return (
     <View style={[styles.stage, { paddingTop: insets.top + 4, paddingBottom: SHEET_RADIUS + 4 }]}>
       <View style={[styles.badge, { backgroundColor: colors.textPrimary }]}>
@@ -80,7 +83,7 @@ function ActionRow({ tile, color, label, busy, disabled, onPress }: {
       onPress={onPress}
       style={[styles.action, { flexDirection: visualRow(isRTL), borderColor: colors.borderSubtle, opacity: disabled && !busy ? 0.5 : 1 }]}
     >
-      <Text style={[styles.tile, { color }]}>{tile}</Text>
+      <Text numberOfLines={1} style={[styles.tile, { color }]}>{tile}</Text>
       <Text style={[styles.actionLabel, { color: colors.textPrimary, textAlign: visualTextAlign(isRTL) }]}>{label}</Text>
       {/* A directional glyph chosen by direction, never mirrored with scaleX. */}
       <Text style={[styles.chev, { color: colors.textSecondary }]}>{busy ? "…" : isRTL ? "‹" : "›"}</Text>
@@ -164,7 +167,11 @@ function VersionSheet() {
   return (
     <>
       <SheetTitle>{t(`rescueV2.timeline.triggers.${v.trigger}`, { n: v.triggerN })}</SheetTitle>
-      <SheetBody>{t(`rescueV2.timeline.${rowMetaKey(v)}`, { date, fixes: v.fixes, count: v.changedPages ?? 0 })}</SheetBody>
+      <SheetBody>
+        {v.kind === "original"
+          ? t("rescueV2.timeline.originalMeta", { date })
+          : t(`rescueV2.timeline.${rowMetaKey(v)}`, { date, fixes: v.fixes, count: v.changedPages ?? 0 })}
+      </SheetBody>
 
       {has("pdf") ? (
         <ActionRow tile="PDF" color={colors.semanticError} label={t("rescueV2.version.pdf")} busy={busy === "pdf"} disabled={busy !== null} onPress={() => { void download("pdf", "pdf"); }} />
@@ -185,7 +192,7 @@ function VersionSheet() {
               onPress={() => setNav({ overlay: "compare", versionId: v.id, compareWithId: o.id })}
               style={[styles.pickRow, { flexDirection: visualRow(isRTL), borderColor: colors.borderSubtle }]}
             >
-              <Text style={[styles.pickText, { color: colors.textPrimary, textAlign: visualTextAlign(isRTL) }]}>{t("rescueV2.common.version", { n: o.n })}</Text>
+              <Text style={[styles.pickText, { color: colors.textPrimary, textAlign: visualTextAlign(isRTL) }]}>{o.kind === "original" ? t("rescueV2.timeline.original") : t("rescueV2.common.version", { n: o.n })}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -243,10 +250,11 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 12, fontWeight: "700" },
   label: { fontSize: 12, fontWeight: "600" },
   action: { alignItems: "center", gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 12 },
-  tile: { width: 34, fontSize: 13, fontWeight: "800", textAlign: "center" },
+  // Wide enough for "DOCX" on one line: at 34 it broke into "DOC" over "X".
+  tile: { width: 46, fontSize: 13, fontWeight: "800", textAlign: "center" },
   actionLabel: { flex: 1, fontSize: 15, fontWeight: "600" },
   chev: { fontSize: 20 },
-  pick: { marginBottom: 8, paddingStart: 46 },
+  pick: { marginBottom: 8, paddingStart: 58 },
   parts: { marginTop: 10, marginBottom: 8 },
   pickTitle: { fontSize: 13, fontWeight: "700", marginBottom: 6 },
   pickRow: { alignItems: "center", justifyContent: "space-between", gap: 8, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 10 },

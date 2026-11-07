@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Lock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { PageCarousel } from "@/components/rescue/PageCarousel";
 import { SheetTitle } from "@/components/rescue/ui";
@@ -49,9 +50,12 @@ function Stage() {
   // The stack (badge, pages, page label) sits between the status bar and the sheet's corner; the pages take what the two rows leave.
   const room = stageRoom((height * SHEET_TOP_PCT.timeline) / 100 + SHEET_RADIUS, insets.top, STACK_ROWS);
   const date = dayLabel(version.createdAt, i18n.language);
-  const badge = version.id === currentId
-    ? t("rescueV2.timeline.badgeCurrent", { n: version.n })
-    : t("rescueV2.timeline.badge", { n: version.n, date });
+  // The original is not a numbered version to the student: its badge names it, as its row does.
+  const badge = version.kind === "original"
+    ? t("rescueV2.timeline.original")
+    : version.id === currentId
+      ? t("rescueV2.timeline.badgeCurrent", { n: version.n })
+      : t("rescueV2.timeline.badge", { n: version.n, date });
   return (
     <View style={[styles.stage, { paddingTop: insets.top + 4, paddingBottom: SHEET_RADIUS + 4 }]}>
       <View style={[styles.badge, { backgroundColor: colors.textPrimary }]}>
@@ -94,7 +98,8 @@ function VersionRow({ v, isCurrent, selected, onTap, onOpen }: {
       </View>
       <TouchableOpacity accessibilityRole="button" onPress={onTap} style={styles.body}>
         <View style={[styles.titleLine, { flexDirection: visualRow(isRTL) }]}>
-          {isOriginal ? <Text style={[styles.lock, { color: colors.textSecondary }]}>🔒</Text> : null}
+          {/* An icon, not the emoji: the emoji drew as a missing-glyph box on iOS. */}
+          {isOriginal ? <Lock size={13} color={colors.textSecondary} strokeWidth={2.4} /> : null}
           <Text style={[styles.title, { color: colors.textPrimary, textAlign: visualTextAlign(isRTL) }]} numberOfLines={1}>{title}</Text>
           {isCurrent ? <Text style={[styles.tag, { backgroundColor: colors.brandWash, color: colors.brandPrimary }]}>{t("rescueV2.timeline.current")}</Text> : null}
           {isOriginal ? <Text style={[styles.tag, { backgroundColor: colors.bgSurface, color: colors.textSecondary }]}>{t("rescueV2.timeline.originalKept")}</Text> : null}
@@ -224,7 +229,6 @@ const styles = StyleSheet.create({
   line: { position: "absolute", top: 0, bottom: 0, width: 2, left: 7 },
   dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, marginTop: 10 },
   dotSmall: { width: 8, height: 8, borderRadius: 4, marginTop: 10 },
-  lock: { fontSize: 12 },
   body: { flex: 1, paddingVertical: 4, gap: 2 },
   titleLine: { alignItems: "center", gap: 8, flexWrap: "wrap" },
   title: { fontSize: 15, fontWeight: "700", flexShrink: 1 },
