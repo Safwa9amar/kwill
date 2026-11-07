@@ -74,7 +74,8 @@ function OpenFailed() {
   const colors = useThemeColors();
   const retryLast = useRescueV2Store((s) => s.retryLast);
   return (
-    <View style={styles.failed}>
+    // Its own page colour: nothing is drawn under it, and the navigator's default is light, which left the line white on light grey in dark mode.
+    <View style={[styles.failed, { backgroundColor: colors.bgPrimary }]}>
       <Text style={[styles.failedText, { color: colors.textPrimary }]}>{t("rescueV2.common.openFailed")}</Text>
       <Button title={t("rescueV2.common.retry")} onPress={() => { void retryLast(); }} />
     </View>
