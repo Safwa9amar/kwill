@@ -15,6 +15,12 @@ import type { RescueStep } from "./index";
 const MB = 1024 * 1024;
 
 /** Word's answer is minutes away at most; under a minute reads as "soon", anything longer in whole minutes. */
+/** One decimal from 1 MB up; below it two, never under 0.01, so a small file does not read "0.0". */
+function sizeMb(bytes: number): string {
+  const mb = bytes / MB;
+  return mb >= 1 ? mb.toFixed(1) : Math.max(mb, 0.01).toFixed(2);
+}
+
 function etaText(t: (k: string, o?: Record<string, unknown>) => string, seconds: number | null): string | undefined {
   if (seconds === null) return undefined;
   if (seconds < 60) return t("rescueV2.common.etaSoon");
@@ -144,7 +150,7 @@ function Sheet() {
         </View>
         <View style={styles.fileText}>
           <Text numberOfLines={1} style={[styles.fileName, { color: colors.textPrimary }]}>{fileName}</Text>
-          <Text style={[styles.fileSize, { color: colors.textSecondary }]}>{t("rescueV2.reading.fileSize", { mb: (bytes / MB).toFixed(1) })}</Text>
+          <Text style={[styles.fileSize, { color: colors.textSecondary }]}>{t("rescueV2.reading.fileSize", { mb: sizeMb(bytes) })}</Text>
         </View>
       </View>
 
