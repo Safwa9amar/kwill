@@ -46,7 +46,7 @@ interface RescueV2State {
 
   loadConfig(): Promise<void>;
   /**
-   * `fixture` is dev only (Step 11). `view` is the overlay the caller asked for (`history` or `revisions`), applied once the project has
+   * `fixture` is dev only (Step 11). `view` is the overlay the caller asked for (`history` or `revisions`), or `payment` for screen 9, applied once the project has
    * landed, so a Retry of a failed open lands on the same view.
    */
   open(projectId: string | null, fixture?: RescuePhase, view?: string): Promise<void>;
@@ -306,6 +306,8 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       const applyView = () => {
         if (view === "history") set((s) => ({ nav: { ...s.nav, overlay: "timeline" } }));
         else if (view === "revisions") set((s) => ({ nav: { ...s.nav, overlay: "revisions" } }));
+        // A rejected payment's push: screen 9 shows the reason. Only `diagnosed` reads `paying`, so a project that moved on ignores it.
+        else if (view === "payment") set((s) => ({ nav: { ...s.nav, paying: true } }));
       };
       if (__DEV__ && fixture) {
         gen += 1;

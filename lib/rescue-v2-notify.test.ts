@@ -7,6 +7,11 @@ describe("notifyRoute", () => {
       .toBe("/(app)/rescue?projectId=p1&view=history");
   });
 
+  it("opens the payment screen of the project for a rejected payment, where the reason is", () => {
+    expect(notifyRoute("/(app)/rescue?projectId=p1", { projectId: "p1", event: "paymentRejected" }, true))
+      .toBe("/(app)/rescue?projectId=p1&view=payment");
+  });
+
   it("keeps every other rescue route as it is", () => {
     expect(notifyRoute("/(app)/rescue?projectId=p1", { projectId: "p1", event: "done" }, true)).toBe("/(app)/rescue?projectId=p1");
     expect(notifyRoute("/(app)/rescue?projectId=p1", { projectId: "p1" }, true)).toBe("/(app)/rescue?projectId=p1");

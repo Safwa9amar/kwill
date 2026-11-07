@@ -12,7 +12,8 @@ export interface RescueNotifyData {
 
 /**
  * The route a notification opens. A rescue notice with no project (a refund for a project since deleted) opens the library, which is the
- * one place every thesis lives. A held publish opens History of its project. Every other route is unchanged.
+ * one place every thesis lives. A held publish opens History of its project, a rejected payment its payment screen. Every other route is
+ * unchanged.
  */
 export function notifyRoute(route: string, data: RescueNotifyData | null | undefined, enabled: boolean): string {
   if (!enabled || !route.startsWith("/(app)/rescue")) return route;
@@ -20,6 +21,10 @@ export function notifyRoute(route: string, data: RescueNotifyData | null | undef
   if (!projectId) return "/(app)/rescue/library";
   if (data?.event === "publishHeld") {
     return `/(app)/rescue?projectId=${encodeURIComponent(projectId)}&view=history`;
+  }
+  // A rejected payment opens screen 9, where the reason is (W3, W8): the project is still `diagnosed`, which alone opens screen 6.
+  if (data?.event === "paymentRejected") {
+    return `/(app)/rescue?projectId=${encodeURIComponent(projectId)}&view=payment`;
   }
   return route;
 }
