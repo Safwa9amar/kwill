@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { I18nManager, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useTranslation } from "react-i18next";
@@ -67,8 +67,10 @@ function Slot({ page, width, height }: { page: Local; width: number; height: num
 
 /**
  * Two saved pages, one over the other, split by a handle the student drags. The older page is on the left, whatever the language: the
- * stage is forced left to right, and the clip is anchored to the physical left edge in both directions (`left` is mirrored by RN under
- * forced RTL, so the RTL value is `right`). Both pages are the version's own saved images: nothing is converted or waited for.
+ * stage is forced left to right (`direction: "ltr"`), so inside it `left` is the physical left edge in both directions, and the clip, the
+ * line and the knob are all anchored there. The pan's translation and the transforms are physical too, so the split follows the finger.
+ * (Anchoring to `right` under RTL put the clip on the wrong side and pushed the knob off the stage.) Both pages are the version's own saved
+ * images: nothing is converted or waited for.
  */
 export function CompareSlider({ a, b, width, height }: Props) {
   const colors = useThemeColors();
@@ -86,7 +88,7 @@ export function CompareSlider({ a, b, width, height }: Props) {
   // The line is 2 px wide, centred on the split; the knob is centred on it too, at the middle of the stage.
   const line = useAnimatedStyle(() => ({ transform: [{ translateX: x.value - 1 }] }));
   const knob = useAnimatedStyle(() => ({ transform: [{ translateX: x.value - HANDLE / 2 }] }));
-  const anchor = I18nManager.isRTL ? { right: 0 } : { left: 0 };
+  const anchor = { left: 0 };
 
   return (
     <GestureDetector gesture={pan}>
