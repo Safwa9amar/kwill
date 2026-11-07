@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
@@ -12,6 +12,7 @@ import { removeGuide, updateSetup, uploadGuide } from "@/lib/rescue-v2-api";
 import { guideMime } from "@/lib/rescue-v2-pick";
 import { scaleFor, STAGE_LAYOUT } from "@/lib/rescue-v2-layout";
 import { useBottomSheet } from "@/stores/bottom-sheet-store";
+import { useUniversityStore } from "@/stores/university-store";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
 import { PageCarousel } from "../PageCarousel";
 import { SkeletonPage } from "../SkeletonPage";
@@ -78,15 +79,23 @@ function RulesChoice() {
 
   const offer = setup?.profileOffer ?? null;
   const guide = setup?.guide.state ?? "none";
+  // The server names the university in the thesis's language (it goes on the cover); the student reads it in theirs, as the picker shows it.
+  const { i18n } = useTranslation();
+  const listed = useUniversityStore((s) => (setup?.universityId ? s.universities.find((u) => u.id === setup.universityId) : undefined));
+  const hasUniversity = !!setup?.universityId;
+  useEffect(() => {
+    if (hasUniversity) void useUniversityStore.getState().load();
+  }, [hasUniversity]);
+  const universityLabel = listed ? (i18n.language === "ar" ? listed.nameAr : listed.nameFr) : setup?.universityName ?? null;
 
   return (
     <View>
       <SheetTitle>{t("rescueV2.whichRules.title")}</SheetTitle>
 
-      {setup?.universityName ? (
+      {setup && universityLabel ? (
         <View style={[styles.card, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]}>
           <View style={styles.cardText}>
-            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{setup.universityName}</Text>
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{universityLabel}</Text>
             {setup.fromProfile ? <Text style={[styles.sub, { color: colors.textSecondary }]}>{t("rescueV2.whichRules.fromProfile")}</Text> : null}
           </View>
           <Pressable accessibilityRole="button" onPress={() => useBottomSheet.getState().openSheet("rescue-university")} hitSlop={8}>
