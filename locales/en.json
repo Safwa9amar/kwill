@@ -1645,7 +1645,7 @@
       "trustFree": "The check is free",
       "trustFreeStatus": "A full check against your faculty's rules",
       "trustWords": "We won't change a word of your text",
-      "trustOriginal": "Your original file stays kept",
+      "trustOriginal": "Your original file is kept",
       "cta": "Choose your thesis file",
       "severalHint": "Thesis in several files? Choose them all together.",
       "share": "or share it directly from WhatsApp or Telegram",
@@ -1834,7 +1834,7 @@
       "cta": "Pay and start",
       "subscriber": "Subscribed? The repair is included in your plan",
       "allowanceUsed": "This month's repairs in your plan are used.",
-      "safe": "We won't change a word of your text · your original file stays kept",
+      "safe": "We won't change a word of your text · your original file is kept",
       "confirming": "We're confirming your payment…",
       "underReviewTitle": "Your payment is being checked",
       "underReviewBody": "We'll notify you as soon as it's confirmed, then we'll carry on together.",
@@ -1975,7 +1975,7 @@
     "result": {
       "title": "Your thesis is ready",
       "stats": "Pages: {{pages}} · Fixes: {{fixes}} · every page checked",
-      "words": "Not a word of your text changed · your original file stays kept",
+      "words": "Not a word of your text changed · your original file is kept",
       "packTitle": "Deposit pack",
       "packFiles": {
         "thesis-pdf": "PDF",
@@ -2020,7 +2020,7 @@
       "items": {
         "cover_generated": "Made a cover on the Algerian standard",
         "cover_cleaned": "Centred the cover's lines in one font",
-        "toc_real": "A real contents you can tap, instead of the typed one",
+        "toc_real": "A real table of contents you can tap, instead of the typed one",
         "toc_added": "Added a contents you can tap",
         "toc_rebuilt": "Rebuilt the contents with the new page numbers",
         "caption_word_as_label": "The word \"Table\" or \"Figure\" opening a caption became its label: {{count}}",
