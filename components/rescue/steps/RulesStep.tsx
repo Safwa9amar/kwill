@@ -7,12 +7,14 @@ import { RulePickerSheet, openRulePicker } from "@/components/rescue/RulePickerS
 import { SkeletonPage } from "@/components/rescue/SkeletonPage";
 import { Pill, SheetTitle } from "@/components/rescue/ui";
 import { Button } from "@/components/ui/Button";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useThemeColors } from "@/hooks/useThemeColors";
+import { useRTL } from "@/hooks/useRTL";
 import { useRescuePreview } from "@/hooks/useRescuePreview";
 import { hLight } from "@/lib/haptics";
 import { saveRules } from "@/lib/rescue-v2-api";
 import { groupRuleRows, unsavedRuleEdits, type RuleValue } from "@/lib/rescue-v2-confirm";
-import { STAGE_LAYOUT, scaleFor } from "@/lib/rescue-v2-layout";
+import { SHEET_RADIUS, SHEET_TOP_PCT, STAGE_LAYOUT, scaleFor, stageFit } from "@/lib/rescue-v2-layout";
 import { useBottomSheet } from "@/stores/bottom-sheet-store";
 import { NO_EDITS, useConfirmUi } from "@/stores/rescue-confirm-ui";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
@@ -86,20 +88,23 @@ function numberOf(fields: { id: RescueRuleFieldId; value: RuleValue }[], id: Res
 function Stage() {
   const { t } = useTranslation();
   const colors = useThemeColors();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const project = useRescueV2Store((s) => s.project);
   const preview = useRescuePreview(project?.id ?? null, !!project?.previewReady);
   const shown = useShownFields();
   const layout = STAGE_LAYOUT.rules;
   if (!project?.rules || layout.kind !== "big") return null;
-  const s = scaleFor(width);
+  // The page is fitted under the status bar (stageFit): its top margin line is the one the student watches move.
+  const fit = stageFit((height * SHEET_TOP_PCT.rules) / 100 + SHEET_RADIUS, layout.page[1] * scaleFor(width), insets.top);
+  const s = scaleFor(width) * fit.factor;
   const pw = layout.page[0] * s;
   const ph = layout.page[1] * s;
   // The chapter's first page, as the student has it now: the margins are drawn on it. Without one, a blank page carries the lines.
   const chapterUri = preview.status === "ready" ? preview.data?.chapter?.beforeUrl ?? null : null;
   const side = shown.find((f) => f.id === "bindingSide")?.value === "left" ? "left" : "right";
   return (
-    <View style={styles.stage}>
+    <View style={[styles.stage, fit.shift ? { transform: [{ translateY: fit.shift }] } : null]}>
       <View style={[styles.page, { width: pw, height: ph }]}>
         {chapterUri ? (
           <Image source={{ uri: chapterUri }} resizeMode="contain" style={{ width: pw, height: ph }} />
@@ -137,6 +142,7 @@ function Sheet() {
   const pending = useConfirmUi((s) => (s.key === id ? s.rulesPending : NO_EDITS));
   const busy = useConfirmUi((s) => s.busy);
   const pickerRow = useConfirmUi((s) => (s.key === id ? s.pickerRow : null));
+  const { textAlign } = useRTL();
   const setPickerRow = useConfirmUi((s) => s.setPickerRow);
   const shown = useShownFields();
 
@@ -177,7 +183,7 @@ function Sheet() {
       ) : null}
       {groups.map((g) => g.row === "additions" ? (
         <View key="additions" style={styles.additions}>
-          <Text style={[styles.additionsTitle, { color: colors.textSecondary }]}>{t("rescueV2.rules.rows.additions")}</Text>
+          <Text style={[styles.additionsTitle, { color: colors.textSecondary, textAlign }]}>{t("rescueV2.rules.rows.additions")}</Text>
           {g.fields.map((f) => (
             <RuleSwitch
               key={f.id}

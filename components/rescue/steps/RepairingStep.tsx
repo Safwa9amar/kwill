@@ -110,7 +110,8 @@ function Sheet() {
   return (
     <View>
       <SheetTitle>{t("rescueV2.repairing.title")}</SheetTitle>
-      <View style={styles.bar}>
+      {/* The bar fills in the UI's reading direction, as screen 6's does: physical, so the first part is on the right in Arabic. */}
+      <View style={[styles.bar, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         {bar.map((state, i) => (
           <View
             key={i}
@@ -138,7 +139,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, direction: "ltr" },
   pageOf: { position: "absolute", bottom: 26, fontSize: 13, fontWeight: "700" },
   outline: { borderWidth: 2, borderRadius: 4 },
-  bar: { flexDirection: "row", gap: 4, direction: "ltr", marginBottom: 10 },
+  bar: { gap: 4, direction: "ltr", marginBottom: 10 },
   seg: { flex: 1, height: 6, borderRadius: 3 },
   line: { fontSize: 14, lineHeight: 20, marginBottom: 12 },
   fine: { fontSize: 12, lineHeight: 17, textAlign: "center", paddingBottom: 6 },

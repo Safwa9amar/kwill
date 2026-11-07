@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   body: { fontSize: 15, lineHeight: 22, marginBottom: 12 },
   list: { gap: 10, marginBottom: 12 },
   listRow: { alignItems: "center", gap: 10 },
-  listText: { fontSize: 15, lineHeight: 21 },
+  listText: { fontSize: 15, lineHeight: 21, flexShrink: 1 },   // a long row wraps instead of running off the screen (screen 18)
   check: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   checkGlyph: { fontSize: 13, fontWeight: "800" },
   stepIcon: { width: 22, height: 22, alignItems: "center", justifyContent: "center" },

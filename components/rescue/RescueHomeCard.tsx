@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity } from "react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRTL } from "@/hooks/useRTL";
@@ -19,14 +19,16 @@ export function RescueHomeCard() {
   const { flexDirection } = useRTL();
   const [card, setCard] = useState<HomeCard | null>(null);
 
-  useEffect(() => {
+  // Read again each time the chat comes back into view: a rescue started (or finished) since the last read changes where the card goes,
+  // and a card still saying "start" would open screen 1 over a project in progress.
+  useFocusEffect(useCallback(() => {
     let live = true;
     listRescueProjects()
       .then((r) => { if (live) setCard(homeCard(r.projects)); })
       // Not an error the student can act on here: the card is an entry point, and the rescue screens say what is wrong when opened.
       .catch(() => { if (live) setCard(null); });
     return () => { live = false; };
-  }, []);
+  }, []));
 
   if (!card) return null;
   const route = card.kind === "none" ? "/(app)/rescue" : `/(app)/rescue?projectId=${encodeURIComponent(card.id)}`;

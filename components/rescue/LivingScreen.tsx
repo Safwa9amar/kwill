@@ -29,6 +29,7 @@ export function LivingScreen({ projectId, view, share, fixture }: Props) {
   const screen = useRescueScreen();
   const firstLoad = useRescueV2Store((s) => s.firstLoad);
   const openFailed = useRescueV2Store((s) => s.openFailed);
+  const colors = useThemeColors();
   const animatedPosition = useSharedValue(0);
   useEffect(() => {
     useRescueV2Store.getState().setScreenOpen(true);
@@ -57,7 +58,9 @@ export function LivingScreen({ projectId, view, share, fixture }: Props) {
   }
   const step = RESCUE_STEPS[screen];
   return (
-    <View style={{ flex: 1 }}>
+    // The stage's colour under everything: the sheet's scaled corner is taller than the stage's overlap, and in dark mode a light root
+    // showed through as a wedge at each top corner.
+    <View style={{ flex: 1, backgroundColor: colors.rescueStageBottom }}>
       <RescueStage animatedPosition={animatedPosition}><step.Stage /><StageChrome screen={screen} /></RescueStage>
       <LivingSheet screen={screen} step={step} animatedPosition={animatedPosition} />
       {share && <ShareInbox />}

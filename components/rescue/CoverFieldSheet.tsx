@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { I18nManager, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { useTranslation } from "react-i18next";
 import { BottomSheet } from "@/components/BottomSheet";
@@ -75,7 +75,10 @@ function FieldBody({ row: rowId }: { row: CoverRowId }) {
   };
 
   const direction: "rtl" | "ltr" = rtl ? "rtl" : "ltr";
-  const inputStyle = [styles.input, { color: colors.textPrimary, borderColor: colors.borderDefault, backgroundColor: colors.bgSurface, textAlign: visualTextAlign(rtl), writingDirection: direction }];
+  // iOS lays a single-line field's text out physically: the start/end swap visualTextAlign relies on (multiline inputs, Text) does not
+  // happen there, and an Arabic title sat against the left edge in the Arabic UI.
+  const fieldAlign = Platform.OS === "ios" && I18nManager.isRTL ? (rtl ? "right" : "left") : visualTextAlign(rtl);
+  const inputStyle = [styles.input, { color: colors.textPrimary, borderColor: colors.borderDefault, backgroundColor: colors.bgSurface, textAlign: fieldAlign, writingDirection: direction }];
   const placeholder = t(coverLabelKey(rowId));
 
   return (

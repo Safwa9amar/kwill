@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { PageCarousel } from "@/components/rescue/PageCarousel";
 import { SheetTitle } from "@/components/rescue/ui";
@@ -8,12 +9,16 @@ import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRTL } from "@/hooks/useRTL";
 import { PURCHASES_HIDDEN } from "@/lib/purchases";
 import { dayLabel, railItems, rowMetaKey, type RailItem } from "@/lib/rescue-v2-history";
-import { STAGE_LAYOUT } from "@/lib/rescue-v2-layout";
+import { SHEET_RADIUS, SHEET_TOP_PCT, STAGE_LAYOUT, stageRoom } from "@/lib/rescue-v2-layout";
+
 import { visualRow, visualTextAlign } from "@/lib/rtl-layout";
 import { useHistoryUi } from "@/stores/rescue-history-ui";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
 import type { RescueVersionSummaryDTO } from "@/types/rescue-v2";
 import type { RescueStep } from "./index";
+
+/** The badge above the pages and the page label under them, with their gaps. */
+const STACK_ROWS = 56;
 
 /** The version the timeline previews: the one the student tapped, else the current one. */
 function useSelectedId(): string | null {
@@ -30,6 +35,8 @@ function useSelectedId(): string | null {
 function Stage() {
   const { t, i18n } = useTranslation();
   const colors = useThemeColors();
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const pid = useRescueV2Store((s) => s.projectId);
   const vid = useSelectedId();
   const version = useRescueV2Store((s) => s.versions.find((v) => v.id === vid) ?? null);
@@ -39,18 +46,20 @@ function Stage() {
   const setPage = useHistoryUi((s) => s.setPage);
   const layout = STAGE_LAYOUT.timeline;
   if (!pid || !vid || !version || layout.kind !== "three") return null;
+  // The stack (badge, pages, page label) sits between the status bar and the sheet's corner; the pages take what the two rows leave.
+  const room = stageRoom((height * SHEET_TOP_PCT.timeline) / 100 + SHEET_RADIUS, insets.top, STACK_ROWS);
   const date = dayLabel(version.createdAt, i18n.language);
   const badge = version.id === currentId
     ? t("rescueV2.timeline.badgeCurrent", { n: version.n })
     : t("rescueV2.timeline.badge", { n: version.n, date });
   return (
-    <View style={styles.stage}>
+    <View style={[styles.stage, { paddingTop: insets.top + 4, paddingBottom: SHEET_RADIUS + 4 }]}>
       <View style={[styles.badge, { backgroundColor: colors.textPrimary }]}>
         <Text style={[styles.badgeText, { color: colors.bgCard }]}>{badge}</Text>
       </View>
       {version.status === "done" ? (
         <>
-          <PageCarousel versionId={vid} page={page} layout={layout} interactive onChange={(p) => setPage(pid, vid, p)} />
+          <PageCarousel versionId={vid} page={page} layout={layout} room={room} interactive onChange={(p) => setPage(pid, vid, p)} />
           {count ? <Text style={[styles.label, { color: colors.textSecondary }]}>{t("rescueV2.common.pageOf", { page, total: count })}</Text> : null}
         </>
       ) : (
@@ -205,7 +214,7 @@ function TimelineFoot() {
 export const TimelineStep: RescueStep = { Stage, Sheet, Foot, scrollable: true };
 
 const styles = StyleSheet.create({
-  stage: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6, paddingTop: 36 },
+  stage: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6 },
   badge: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 },
   badgeText: { fontSize: 12, fontWeight: "700" },
   label: { fontSize: 12, fontWeight: "600" },

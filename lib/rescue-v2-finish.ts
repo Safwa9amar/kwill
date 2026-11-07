@@ -107,7 +107,8 @@ export function failureTrust(i: TrustInput): FailureBody[] {
   if (i.refund === "due") rows.push({ key: i.ios ? "failure.refundDueStatus" : "failure.refundDue" });
   if (i.refund === "done") rows.push({ key: i.ios ? "failure.refundDoneStatus" : "failure.refundDone" });
   if (i.refund === "none" && i.purchaseState === "none" && !i.ios) rows.push({ key: "failure.noCharge" });
-  if (i.previousVersionN !== null) rows.push({ key: "failure.previousSafe", params: { n: i.previousVersionN } });
+  // Version 0 is the original file, already said by trustOriginal: "version 0 as it was" would say it twice, in machinery words.
+  if (i.previousVersionN !== null && i.previousVersionN > 0) rows.push({ key: "failure.previousSafe", params: { n: i.previousVersionN } });
   if (i.rescueRun) rows.push({ key: "failure.team" });
   return rows;
 }

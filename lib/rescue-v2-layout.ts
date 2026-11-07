@@ -36,4 +36,26 @@ export const STAGE_LAYOUT: Record<Exclude<RescueScreen, "failure">, StageLayout>
   edit_rerun: { kind: "three", mid: [52, 72], side: [52, 72] },
 };
 export const scaleFor = (screenWidth: number) => screenWidth / 222;
+
+/**
+ * The mocks have no status bar: scaled by the width alone, a short stage's pages (screens 4, 5, 9, H5) run up under the status bar and the
+ * notch. When the centred pages would reach above the safe area, they shrink to the room between it and the sheet's corner (`SHEET_RADIUS`
+ * overlaps the stage) and move down to the middle of that room. A stage where they already fit is left exactly as it was.
+ * `stageH` is the stage's height (the sheet's top plus the corner), `tallest` the tallest page at the width's scale.
+ */
+/**
+ * The height a stage's pages may take when the stage stacks other things with them (H2 and H3: a badge above, a page label below) and
+ * pads itself under the status bar: the room between the safe area and the sheet's corner, less `reserve` for the stacked rows.
+ */
+export function stageRoom(stageH: number, topInset: number, reserve: number): number {
+  return Math.max(0, stageH - (topInset + 4) - (SHEET_RADIUS + 4) - reserve);
+}
+
+export function stageFit(stageH: number, tallest: number, topInset: number): { factor: number; shift: number } {
+  const top = topInset + 4;
+  const bottom = stageH - SHEET_RADIUS - 4;
+  if ((stageH - tallest) / 2 >= top || bottom <= top) return { factor: 1, shift: 0 };
+  const factor = Math.min(1, (bottom - top) / tallest);
+  return { factor, shift: (top + bottom) / 2 - stageH / 2 };
+}
 export const SHEET_RADIUS = 22;

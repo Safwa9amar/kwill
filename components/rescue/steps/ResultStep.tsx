@@ -149,6 +149,7 @@ function ResultSheet() {
               <Button
                 title={t("rescueV2.result.share")}
                 variant="secondary"
+                style={styles.packButton}
                 loading={busy === "deposit"}
                 disabled={lockedOut && busy !== "deposit"}
                 onPress={() => { void download("deposit"); }}
@@ -158,6 +159,7 @@ function ResultSheet() {
               <Button
                 title={t("rescueV2.result.packRebuild")}
                 variant="secondary"
+                style={styles.packButton}
                 loading={busy === "rebuild"}
                 disabled={lockedOut && busy !== "rebuild"}
                 onPress={() => { void rebuild(); }}
@@ -251,6 +253,8 @@ const styles = StyleSheet.create({
   packTitle: { fontSize: 14, fontWeight: "800", marginBottom: 6 },
   packLine: { fontSize: 13, lineHeight: 19, marginBottom: 6 },
   packRow: { gap: 8, marginTop: 6, flexWrap: "wrap" },
+  // A Button is sized for a full-width foot; in this row it would shrink to its word with no side padding.
+  packButton: { flexGrow: 1, paddingHorizontal: 20 },
   foot: { gap: 8, paddingBottom: 10 },
   links: { gap: 16, justifyContent: "center", flexWrap: "wrap" },
   link: { fontSize: 14, fontWeight: "700" },

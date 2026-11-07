@@ -130,6 +130,12 @@ describe("failureTrust", () => {
   it("adds the previous version with its number and the team line for a rescue", () => {
     const rows = failureTrust({ ...base, previousVersionN: 2, rescueRun: true });
     expect(rows).toContainEqual({ key: "failure.previousSafe", params: { n: 2 } });
+  });
+
+  it("does not name the original as a previous version (n 0): trustOriginal already says it", () => {
+    const rows = failureTrust({ ...base, previousVersionN: 0, rescueRun: true });
+    expect(rows.map((r) => r.key)).not.toContain("failure.previousSafe");
+    expect(rows.map((r) => r.key)).toContain("failure.trustOriginal");
     expect(rows.map((r) => r.key)).toContain("failure.team");
   });
 });

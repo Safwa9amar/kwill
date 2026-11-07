@@ -290,9 +290,6 @@ function Sheet() {
           <Text style={[styles.moreText, { color: colors.brandPrimary, textAlign: visualTextAlign(isRTL) }]}>{t("rescueV2.common.retry")}</Text>
         </TouchableOpacity>
       ) : null}
-      {errorCode === "cover_fields_missing" ? (
-        <SheetBody>{neededRow ? t("rescueV2.cover.needed", { label: t(coverLabelKey(neededRow)) }) : t("rescueV2.cover.titleMissing")}</SheetBody>
-      ) : null}
       <CoverFieldSheet />
     </>
   );
@@ -305,10 +302,24 @@ function Foot() {
   const busy = useConfirmUi((s) => s.busy);
   const pending = useConfirmUi((s) => (s.key === id ? s.coverPending : null));
   const cover = project?.cover ?? null;
+  const errorCode = useRescueV2Store((s) => s.errorCode);
+  const errorInfo = useRescueV2Store((s) => s.errorInfo);
+  const colors = useThemeColors();
+  const { isRTL } = useRTL();
   if (!project || !cover) return null;
   const unsaved = pending !== null && pending !== cover.choice;
+  // The refusal is said over the button the student just pressed: at the end of the sheet it sat below every row, out of view.
+  const missing = errorCode === "cover_fields_missing" ? (errorInfo?.missing ?? []) : [];
+  const neededRow = missing.length > 0 ? missingRow(missing) : null;
   return (
-    <Button title={t("rescueV2.cover.cta")} onPress={() => { void startCover(project.id); }} loading={busy} disabled={busy || unsaved} />
+    <View>
+      {errorCode === "cover_fields_missing" ? (
+        <Text style={[styles.needed, { color: colors.semanticError, textAlign: visualTextAlign(isRTL) }]}>
+          {neededRow ? t("rescueV2.cover.needed", { label: t(coverLabelKey(neededRow)) }) : t("rescueV2.cover.titleMissing")}
+        </Text>
+      ) : null}
+      <Button title={t("rescueV2.cover.cta")} onPress={() => { void startCover(project.id); }} loading={busy} disabled={busy || unsaved} />
+    </View>
   );
 }
 
@@ -321,6 +332,7 @@ const styles = StyleSheet.create({
   labelPaper: { alignItems: "center", justifyContent: "center", padding: 8, borderRadius: 3 },
   slotLabel: { fontSize: 13, textAlign: "center" },
   retry: { fontSize: 14, fontWeight: "700", marginTop: 12 },
+  needed: { fontSize: 13, lineHeight: 18, marginBottom: 8 },
   row: { alignItems: "center", gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 10 },
   rowMain: { flex: 1 },
   flash: { borderRadius: 10 },

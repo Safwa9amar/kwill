@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   role: { fontSize: 12 },
   pill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, borderWidth: 1 },
   pillText: { fontSize: 11, fontWeight: "700" },
-  foot: { gap: 6, paddingTop: 8, paddingBottom: 10, paddingHorizontal: 20 },
+  foot: { gap: 6, paddingTop: 8, paddingBottom: 10 },   // the side padding comes from LivingSheet's footer
   cta: { height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   ctaText: { fontSize: 16, fontWeight: "800" },
   fine: { fontSize: 12, textAlign: "center" },

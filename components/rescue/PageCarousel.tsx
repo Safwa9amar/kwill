@@ -3,9 +3,10 @@ import { StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, { runOnJS } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { layoutSpring } from "@/lib/motion";
-import { scaleFor, type StageLayout } from "@/lib/rescue-v2-layout";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SHEET_RADIUS, SHEET_TOP_PCT, scaleFor, stageFit, type StageLayout } from "@/lib/rescue-v2-layout";
 import { pageIsInRange, thesisIsRtl } from "@/lib/rescue-v2-screen";
-import { useRescueV2Store } from "@/stores/rescue-v2-store";
+import { useRescueScreen, useRescueV2Store } from "@/stores/rescue-v2-store";
 import { PageImage } from "./PageImage";
 
 interface Props {
@@ -17,6 +18,8 @@ interface Props {
   overlay?: ReactNode;
   /** Drawn over the middle page only (a done badge, a brand outline). Three-page layouts only. */
   midDecor?: ReactNode;
+  /** The height the pages may take, when the stage stacks rows with them and places itself (stageRoom). Without it, stageFit decides. */
+  room?: number;
 }
 
 /** Points past which a horizontal drag turns the page. */
@@ -26,9 +29,19 @@ const TURN_PX = 40;
  * The pages of a version in a physical row: `direction: "ltr"` keeps the order on screen. An Arabic thesis reads right to left, so its
  * next page sits on the left. Pages are placed by their own sizes; a size change between steps springs (layoutSpring).
  */
-export function PageCarousel({ versionId, page, layout, onChange, interactive, overlay, midDecor }: Props) {
-  const { width } = useWindowDimensions();
-  const s = scaleFor(width);
+export function PageCarousel({ versionId, page, layout, onChange, interactive, overlay, midDecor, room }: Props) {
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const screen = useRescueScreen();
+  // Scaled by the width as the mocks are, then fitted under the status bar on a short stage (stageFit).
+  const tallestMock = layout.kind === "three" ? Math.max(layout.mid[1], layout.side[1])
+    : layout.kind === "pair" ? layout.each[1] : layout.kind === "big" ? layout.page[1] : 0;
+  const stageH = screen === "failure" ? null : (height * SHEET_TOP_PCT[screen]) / 100 + SHEET_RADIUS;
+  const tallest = tallestMock * scaleFor(width);
+  const fit = room !== undefined
+    ? { factor: tallest > 0 ? Math.min(1, room / tallest) : 1, shift: 0 }
+    : stageH === null ? { factor: 1, shift: 0 } : stageFit(stageH, tallest, insets.top);
+  const s = scaleFor(width) * fit.factor;
   const rtl = useRescueV2Store((st) => thesisIsRtl(st.project));
   // null until the page list is loaded: an unknown count shows skeletons, a known zero shows none (fix 9).
   const count = useRescueV2Store((st) => st.pages[versionId]?.count ?? null);
@@ -71,7 +84,7 @@ export function PageCarousel({ versionId, page, layout, onChange, interactive, o
 
   return (
     <GestureDetector gesture={pan}>
-      <View style={styles.wrap}>
+      <View style={[styles.wrap, fit.shift ? { transform: [{ translateY: fit.shift }] } : null]}>
         <View style={[styles.row, { direction: "ltr" }]}>
           {ordered.map((sl) => (
             <Animated.View key={sl.key} layout={layoutSpring} style={{ width: sl.w, height: sl.h }}>

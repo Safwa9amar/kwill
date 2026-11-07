@@ -110,6 +110,7 @@ function MethodRow({ label, sub, on, onPress }: { label: string; sub: string; on
 function Sheet() {
   const { t } = useTranslation();
   const colors = useThemeColors();
+  const { textAlign } = useRTL();
   const project = useRescueV2Store((s) => s.project);
   const config = useRescueV2Store((s) => s.config);
   const loadConfig = useRescueV2Store((s) => s.loadConfig);
@@ -131,7 +132,7 @@ function Sheet() {
       <>
         <SheetBody>{t("rescueV2.common.somethingWrong")}</SheetBody>
         <TouchableOpacity accessibilityRole="button" onPress={() => { void loadConfig(); }} hitSlop={8}>
-          <Text style={[styles.link, { color: colors.brandPrimary }]}>{t("rescueV2.common.retry")}</Text>
+          <Text style={[styles.link, { color: colors.brandPrimary, textAlign }]}>{t("rescueV2.common.retry")}</Text>
         </TouchableOpacity>
       </>
     );
@@ -148,7 +149,7 @@ function Sheet() {
           <SheetTitle>{t("rescueV2.payment.statusTitle")}</SheetTitle>
           <SheetBody>{t("rescueV2.payment.statusBody")}</SheetBody>
           <TouchableOpacity accessibilityRole="button" onPress={() => setNav({ paying: false })} hitSlop={8}>
-            <Text style={[styles.link, { color: colors.brandPrimary }]}>{t("rescueV2.payment.statusBack")}</Text>
+            <Text style={[styles.link, { color: colors.brandPrimary, textAlign }]}>{t("rescueV2.payment.statusBack")}</Text>
           </TouchableOpacity>
         </>
       );
