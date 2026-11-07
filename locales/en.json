@@ -208,6 +208,7 @@
     "next": "Next",
     "skip": "Skip",
     "retry": "Retry",
+    "offlineSaved": "You're offline — changes saved locally",
     "apply": "Apply",
     "search": "Search",
     "seeAll": "See all",

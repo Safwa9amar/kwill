@@ -2,10 +2,14 @@ import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
+import { RotateCw } from "lucide-react-native";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { localPageUri } from "@/lib/rescue-v2-page-cache";
 import { useRescuePagesReady, usePageMeta, useRescueV2Store } from "@/stores/rescue-v2-store";
 import { SkeletonPage } from "./SkeletonPage";
+
+/** Below this width a failed page shows the retry icon, not the word (screen H1 thumbnails are 56 px wide). */
+const COMPACT_WIDTH = 100;
 
 interface Props {
   versionId: string;
@@ -58,10 +62,16 @@ export function PageImage({ versionId, page, width, height, dim }: Props) {
       <View style={paper}>
         <TouchableOpacity
           accessibilityRole="button"
+          accessibilityLabel={t("rescueV2.common.retry")}
           onPress={() => { setDone(null); setFailedKey(null); setAttempt((a) => a + 1); }}
           style={styles.retry}
         >
-          <Text style={[styles.retryText, { color: colors.brandPrimary }]}>{t("rescueV2.common.retry")}</Text>
+          {/* A small thumbnail has no room for the word: the icon alone, with the same words as its label. */}
+          {width < COMPACT_WIDTH ? (
+            <RotateCw size={18} color={colors.brandPrimary} strokeWidth={2.2} />
+          ) : (
+            <Text style={[styles.retryText, { color: colors.brandPrimary }]}>{t("rescueV2.common.retry")}</Text>
+          )}
         </TouchableOpacity>
       </View>
     );
