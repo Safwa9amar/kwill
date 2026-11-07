@@ -77,8 +77,9 @@ export const saveCover = (id: string, body: { choice?: RescueCoverChoice; fields
 export const renderCoverSamples = (id: string) => apiPost<RescueProjectDTO>(`${base}/projects/${id}/cover/samples`, {});
 export const getCoverSamples = (id: string) => apiGet<{ keep?: string; clean?: string; generated?: string }>(`${base}/projects/${id}/cover/samples`);
 export const startRescue = (id: string) => apiPost<RescueProjectDTO>(`${base}/projects/${id}/rescue`, {});
-export const requestRescueReview = (versionId: string) =>
-  apiPost<RescueProjectDTO>(`${base}/versions/${versionId}/review-request`, {});
+/** `language`: the UI's, so the Support case it opens is in the words the student reads (the server falls back to the thesis'). */
+export const requestRescueReview = (versionId: string, language?: string) =>
+  apiPost<RescueProjectDTO>(`${base}/versions/${versionId}/review-request`, language ? { language } : {});
 
 export const listVersions = (id: string) => apiGet<RescueVersionsDTO>(`${base}/projects/${id}/versions`);
 export const getVersion = (versionId: string) => apiGet<RescueVersionDetailDTO>(`${base}/versions/${versionId}`);

@@ -85,7 +85,7 @@ function Sheet() {
 }
 
 function RevisionsSheet() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const colors = useThemeColors();
   const { isRTL } = useRTL();
   const project = useRescueV2Store((s) => s.project);
@@ -172,7 +172,7 @@ function RevisionsSheet() {
   const failure = project.failure;
   const askReview = () => {
     if (!failure) return;
-    void withLock(() => apply(() => requestRescueReview(failure.versionId)));
+    void withLock(() => apply(() => requestRescueReview(failure.versionId, i18n.language)));
   };
   const startNew = () => {
     if (!failure) return;
