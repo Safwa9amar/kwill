@@ -22,9 +22,11 @@ describe("homeCard", () => {
     expect(homeCard(list)).toEqual({ kind: "continue", id: "diag" });
   });
 
-  it("still leads to a failed project when nothing is in progress", () => {
-    const list = [project("done", "done", "2026-11-07T10:00:00Z"), project("failed", "failed", "2026-11-06T10:00:00Z")];
-    expect(homeCard(list)).toEqual({ kind: "continue", id: "failed" });
+  it("offers the newer of a failed and a finished project when nothing is in progress", () => {
+    const done = project("done", "done", "2026-11-07T10:00:00Z");
+    const failed = project("failed", "failed", "2026-11-06T10:00:00Z");
+    expect(homeCard([failed, done])).toEqual({ kind: "ready", id: "done" });
+    expect(homeCard([{ ...failed, updatedAt: "2026-11-08T10:00:00Z" }, done])).toEqual({ kind: "continue", id: "failed" });
   });
 
   it("says ready for a finished project when none is in progress", () => {
