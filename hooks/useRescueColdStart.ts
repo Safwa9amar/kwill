@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { RESCUE_V2_ENABLED } from "@/lib/rescue-v2-enabled";
 import { consumeColdStartNotificationRoute, setPushBannerFilter } from "@/lib/push-notifications";
 import { listRescueProjects } from "@/lib/rescue-v2-api";
@@ -26,6 +26,11 @@ function pushOnce(route: string) {
  */
 export function useRescueColdStart(ready: boolean) {
   const did = useRef(false);
+  // The entry route ("/", app/index.tsx) answers with a <Redirect> to the chat, which REPLACES the top of the stack. A push issued before
+  // it has run is replaced by the chat: a tapped push on a killed app opened the chat instead of its screen (W8). The resume below only
+  // escaped it because it waits on the network first. So nothing navigates until the app has left "/".
+  const pathname = usePathname();
+  const settled = ready && pathname !== "/";
 
   // A push for the screen the student is already on does not interrupt it (plan A9 step 4).
   useEffect(() => {
@@ -37,7 +42,7 @@ export function useRescueColdStart(ready: boolean) {
   }, []);
 
   useEffect(() => {
-    if (!ready || did.current || !RESCUE_V2_ENABLED) return;
+    if (!settled || did.current || !RESCUE_V2_ENABLED) return;
     did.current = true;
     (async () => {
       const route = consumeColdStartNotificationRoute();
@@ -59,5 +64,5 @@ export function useRescueColdStart(ready: boolean) {
       // The resume is a convenience: the app opens where it always does, and the drawer and the card still lead to the rescue.
       console.warn("[rescue] cold-start resume failed", err);
     });
-  }, [ready]);
+  }, [settled]);
 }
