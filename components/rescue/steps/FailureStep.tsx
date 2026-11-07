@@ -56,7 +56,8 @@ export function FailureStep() {
     setBusy(true);
     try {
       const acked = await apply(() => ackVersion(failure.versionId));
-      if (acked && failure.previousVersionN === null) router.dismissTo("/(app)/chat");
+      // Version 0 is the original, not a result to land on: the phase stays failed after the ack, so OK would do nothing visible.
+      if (acked && (failure.previousVersionN ?? 0) === 0) router.dismissTo("/(app)/chat");
     } finally {
       gate.current = false;
       setBusy(false);

@@ -9,6 +9,7 @@ import { runNoteCta, waitForNote, type NoteReading } from "@/lib/rescue-v2-note-
 import { scaleFor, STAGE_LAYOUT } from "@/lib/rescue-v2-layout";
 import { thesisIsRtl } from "@/lib/rescue-v2-screen";
 import { visualTextAlign } from "@/lib/rtl-layout";
+import { useRTL } from "@/hooks/useRTL";
 import { getTextDirection } from "@/lib/text-direction";
 import { recognizerLang } from "@/lib/voice";
 import { useNoteDraft } from "@/stores/rescue-note-draft";
@@ -64,6 +65,7 @@ function NotesSheet() {
   const id = useRescueV2Store((s) => s.project?.id ?? null);
   const language = useRescueV2Store((s) => s.project?.language ?? null);
   const rtl = useRescueV2Store((s) => thesisIsRtl(s.project));
+  const { isRTL: uiRtl } = useRTL();
   const note = useRescueV2Store((s) => s.project?.note ?? null);
   const apply = useRescueV2Store((s) => s.apply);
   const draftProject = useNoteDraft((d) => d.projectId);
@@ -79,7 +81,8 @@ function NotesSheet() {
   const text = id && draftProject === id && draftText !== null ? draftText : saved;
   const options = language === "en" ? ["ar-SA", "fr-FR", "en-US"] : ["ar-SA", "fr-FR"];
   const lang = (id && draftProject === id && draftLang) || defaultLang(language);
-  const dir = getTextDirection(text, rtl ? "rtl" : "ltr");
+  // Typed text sets the direction; an empty field shows the placeholder, which is in the UI's language, so it follows the UI.
+  const dir = text.trim() ? getTextDirection(text, rtl ? "rtl" : "ltr") : uiRtl ? "rtl" : "ltr";
 
   const onChange = (value: string) => { if (id) setText(id, value); };
   const onBlur = () => {

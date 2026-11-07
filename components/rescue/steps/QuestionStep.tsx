@@ -9,6 +9,7 @@ import { hLight } from "@/lib/haptics";
 import { resumeVersion, saveAnswer } from "@/lib/rescue-v2-api";
 import { currentQuestionIndex } from "@/lib/rescue-v2-confirm";
 import { STAGE_LAYOUT, scaleFor } from "@/lib/rescue-v2-layout";
+import { useRTL } from "@/hooks/useRTL";
 import { thesisIsRtl } from "@/lib/rescue-v2-screen";
 import { visualRow, visualTextAlign } from "@/lib/rtl-layout";
 import { firstStrongDirection } from "@/lib/text-direction";
@@ -117,6 +118,7 @@ function AnswerButton({ label, selected, disabled, onPress }: { label: string; s
 }
 
 function Sheet() {
+  const { isRTL: ui } = useRTL();
   const { t } = useTranslation();
   const colors = useThemeColors();
   const shown = useShownQuestion();
@@ -140,20 +142,22 @@ function Sheet() {
   if (!shown || !id) return null;
   const { project, index, question: q, answered } = shown;
   const rtl = thesisIsRtl(project);
+  // The question is in the student's language and takes its direction from its own text; the sheet's chrome (counter, answers row,
+  // "Kwill decides", retry) follows the UI, as every sheet does: a French UI over an Arabic thesis reads left to right.
   const textDir = firstStrongDirection(q.text, rtl ? "rtl" : "ltr");
   const chosen = pending && pending.questionKey === q.key ? pending : null;
   const resume = answered ? resumeTarget(project) : null;
 
   return (
     <Animated.View key={q.key} entering={FadeIn.duration(220)}>
-      <Text style={[styles.counter, { color: colors.textSecondary, textAlign: visualTextAlign(rtl) }]}>
+      <Text style={[styles.counter, { color: colors.textSecondary, textAlign: visualTextAlign(ui) }]}>
         {t("rescueV2.question.counter", { n: index + 1, total: project.questions.length })}
       </Text>
       <Text style={[styles.question, { color: colors.textPrimary, textAlign: visualTextAlign(textDir === "rtl"), writingDirection: textDir }]}>
         {q.text}
       </Text>
       {!answered ? (
-        <View style={[styles.answers, { flexDirection: visualRow(rtl) }]}>
+        <View style={[styles.answers, { flexDirection: visualRow(ui) }]}>
           {q.options.map((o) => (
             <AnswerButton
               key={o.role}
@@ -170,7 +174,7 @@ function Sheet() {
       ) : null}
       {!answered ? (
         <TouchableOpacity accessibilityRole="button" disabled={busy} onPress={() => { void answer(id, q.key, { decide: true }); }} hitSlop={8} style={styles.decide}>
-          <Text style={[styles.decideText, { color: busy ? colors.textPlaceholder : colors.brandPrimary, textAlign: visualTextAlign(rtl) }]}>
+          <Text style={[styles.decideText, { color: busy ? colors.textPlaceholder : colors.brandPrimary, textAlign: visualTextAlign(ui) }]}>
             {t("rescueV2.question.decide")}
           </Text>
         </TouchableOpacity>
@@ -178,7 +182,7 @@ function Sheet() {
       {chosen && !busy ? (
         // The answer did not save: it stays on screen, and this repeats the same save.
         <TouchableOpacity accessibilityRole="button" onPress={() => { void answer(id, chosen.questionKey, chosen.answer); }} hitSlop={8} style={styles.decide}>
-          <Text style={[styles.decideText, { color: colors.brandPrimary, textAlign: visualTextAlign(rtl) }]}>{t("rescueV2.common.retry")}</Text>
+          <Text style={[styles.decideText, { color: colors.brandPrimary, textAlign: visualTextAlign(ui) }]}>{t("rescueV2.common.retry")}</Text>
         </TouchableOpacity>
       ) : null}
     </Animated.View>

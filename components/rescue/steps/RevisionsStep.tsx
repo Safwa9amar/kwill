@@ -17,6 +17,7 @@ import { runNoteCta, waitForNote, type NoteReading } from "@/lib/rescue-v2-note-
 import { STAGE_LAYOUT } from "@/lib/rescue-v2-layout";
 import { thesisIsRtl } from "@/lib/rescue-v2-screen";
 import { visualRow, visualTextAlign } from "@/lib/rtl-layout";
+import { getTextDirection } from "@/lib/text-direction";
 import { recognizerLang } from "@/lib/voice";
 import { NO_FILES, revisionsKey, useRevisionsUi } from "@/stores/rescue-revisions-ui";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
@@ -194,6 +195,8 @@ function RevisionsSheet() {
   }
 
   const lang = dictationLang(rtl, language);
+  // Typed text sets the direction; an empty field shows the placeholder, in the UI's language, so it follows the UI.
+  const noteDir: "rtl" | "ltr" = note.trim() ? getTextDirection(note, rtl ? "rtl" : "ltr") : isRTL ? "rtl" : "ltr";
   return (
     <>
       <View style={[styles.titleRow, { flexDirection: visualRow(isRTL) }]}>
@@ -240,7 +243,7 @@ function RevisionsSheet() {
           onBlur={saveNote}
           placeholder={t("rescueV2.revisions.supervisorPlaceholder")}
           placeholderTextColor={colors.textPlaceholder}
-          style={[styles.input, { color: colors.textPrimary, textAlign: visualTextAlign(rtl), writingDirection: rtl ? "rtl" : "ltr" }]}
+          style={[styles.input, { color: colors.textPrimary, textAlign: visualTextAlign(noteDir === "rtl"), writingDirection: noteDir }]}
         />
         <View style={[styles.micRow, { flexDirection: visualRow(isRTL) }]}>
           <VoiceMic lang={lang} onText={dictate} disabled={pending || noteDto.state === "parsing"} />
