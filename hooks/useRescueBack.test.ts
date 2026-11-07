@@ -16,7 +16,6 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/rescue-v2-api", () => api);
 vi.mock("@/lib/rescue-v2-upload", () => ({ uploadPart: vi.fn() }));
-vi.mock("@/lib/rescue-v2-fixtures", () => ({ RESCUE_FIXTURES: {} }));
 vi.mock("@/stores/thesis-doc-store", () => ({ useThesisDocStore: { getState: () => ({ flushOps: async () => true }) } }));
 
 const rn = vi.hoisted(() => {

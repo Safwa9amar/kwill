@@ -21,7 +21,7 @@ import { useRescueV2Store } from "@/stores/rescue-v2-store";
 import type { RescueRuleFieldId } from "@/types/rescue-v2";
 import type { RescueStep } from "./index";
 
-/** The §1.5 defaults for the margins, used only while the server's list has no such field (a fixture, or a list that is not yet read). */
+/** The §1.5 defaults for the margins, used only while the server's list has no such field (a list that is not yet read). */
 const MARGIN_DEFAULTS = { marginTop: 2.5, marginBottom: 2.5, marginBinding: 3, marginOpposite: 2 };
 
 /**

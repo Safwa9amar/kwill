@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/Button";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRescuePolling } from "@/hooks/useRescuePolling";
 import { useRescueBack } from "@/hooks/useRescueBack";
-import type { RescuePhase } from "@/types/rescue-v2";
 import { useRescueScreen, useRescueV2Store } from "@/stores/rescue-v2-store";
 import { RESCUE_STEPS } from "./steps";
 import { FailureStep } from "./steps/FailureStep";
@@ -20,11 +19,10 @@ interface Props {
   projectId?: string;
   view?: string;
   share?: boolean;
-  fixture?: RescuePhase;
 }
 
 /** The one screen of the rescue: the student's pages fill the top, one sheet below changes per step, nothing navigates between steps. */
-export function LivingScreen({ projectId, view, share, fixture }: Props) {
+export function LivingScreen({ projectId, view, share }: Props) {
   useRescuePolling();
   const screen = useRescueScreen();
   const firstLoad = useRescueV2Store((s) => s.firstLoad);
@@ -40,8 +38,8 @@ export function LivingScreen({ projectId, view, share, fixture }: Props) {
   useEffect(() => {
     const s = useRescueV2Store.getState();
     void s.loadConfig();
-    void s.open(projectId ?? null, fixture, view);
-  }, [projectId, fixture, view]);
+    void s.open(projectId ?? null, view);
+  }, [projectId, view]);
   useRescueBack();                       // Android back: previous local step, else router.back()
   // The skeleton is a full page with no way out of it, so the chrome draws the close button over it: a slow first load can always be left.
   if (firstLoad) return <View style={{ flex: 1 }}><RescueSkeleton /><StageChrome screen={screen} /></View>;

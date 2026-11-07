@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// The store reaches the API, the upload module, the fixtures and the document store. Each is replaced here, so the store runs under node.
+// The store reaches the API, the upload module and the document store. Each is replaced here, so the store runs under node.
 vi.hoisted(() => { (globalThis as Record<string, unknown>).__DEV__ = false; });
 
 const api = vi.hoisted(() => ({
@@ -18,7 +18,6 @@ const api = vi.hoisted(() => ({
 const up = vi.hoisted(() => ({ uploadPart: vi.fn() }));
 vi.mock("@/lib/rescue-v2-api", () => api);
 vi.mock("@/lib/rescue-v2-upload", () => up);
-vi.mock("@/lib/rescue-v2-fixtures", () => ({ RESCUE_FIXTURES: {} }));
 const doc = vi.hoisted(() => ({ flushOps: vi.fn() }));
 vi.mock("@/stores/thesis-doc-store", () => ({ useThesisDocStore: { getState: () => doc } }));
 
@@ -528,7 +527,7 @@ describe("a failed open never shows the upload screen (item 14)", () => {
 
   it("Retry repeats the open and lands on the view that was asked for", async () => {
     api.getRescueProject.mockRejectedValueOnce(httpError(502)).mockResolvedValueOnce(dto("A", "done"));
-    await S().open("A", undefined, "history");
+    await S().open("A", "history");
     expect(S().openFailed).toBe(true);
     await S().retryLast();
     expect(api.getRescueProject).toHaveBeenCalledTimes(2);

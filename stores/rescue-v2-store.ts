@@ -2,7 +2,6 @@ import { create } from "zustand";
 import * as api from "@/lib/rescue-v2-api";
 import { uploadPart } from "@/lib/rescue-v2-upload";
 import { INITIAL_NAV, screenFor, type RescueNav } from "@/lib/rescue-v2-screen";
-import { RESCUE_FIXTURES } from "@/lib/rescue-v2-fixtures";
 import { useHistoryUi } from "@/stores/rescue-history-ui";
 import { useThesisDocStore } from "@/stores/thesis-doc-store";
 import type {
@@ -46,10 +45,10 @@ interface RescueV2State {
 
   loadConfig(): Promise<void>;
   /**
-   * `fixture` is dev only (Step 11). `view` is the overlay the caller asked for (`history` or `revisions`), or `payment` for screen 9, applied once the project has
+   * `view` is the overlay the caller asked for (`history` or `revisions`), or `payment` for screen 9, applied once the project has
    * landed, so a Retry of a failed open lands on the same view.
    */
-  open(projectId: string | null, fixture?: RescuePhase, view?: string): Promise<void>;
+  open(projectId: string | null, view?: string): Promise<void>;
   refresh(): Promise<void>;
   setNav(patch: Partial<RescueNav>): void;
   /** Picker or Share: creates the project, uploads every part. Returns false when refused. */
@@ -301,7 +300,7 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       try { set({ config: await api.getRescueConfig() }); } catch { /* read again on the next open */ }
     },
 
-    open: async (projectId, fixture, view) => {
+    open: async (projectId, view) => {
       // The overlay a caller asked for is applied after the project lands: a phase change clears overlays (A1), so it cannot come first.
       const applyView = () => {
         if (view === "history") set((s) => ({ nav: { ...s.nav, overlay: "timeline" } }));
@@ -309,14 +308,6 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
         // A rejected payment's push: screen 9 shows the reason. Only `diagnosed` reads `paying`, so a project that moved on ignores it.
         else if (view === "payment") set((s) => ({ nav: { ...s.nav, paying: true } }));
       };
-      if (__DEV__ && fixture) {
-        gen += 1;
-        pinned = null;
-        last = null;
-        const dto = RESCUE_FIXTURES[fixture];
-        set({ projectId: dto.id, project: dto, firstLoad: false, openFailed: false, errorCode: null, errorInfo: null, nav: navAfter(get().project, dto, get().nav) });
-        return;
-      }
       if (!projectId) {
         gen += 1;
         pinned = null;
@@ -348,7 +339,7 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       } catch (e) {
         // A failed open is repeated as a whole, with the view it was asked for: the line's Retry and the failed screen's both come here.
         if (claim("dto", g, projectId, s)) {
-          last = { again: () => get().open(projectId, fixture, view) };
+          last = { again: () => get().open(projectId, view) };
           // With a project already on screen, the failure is the line's only: the screen keeps what it shows.
           set({ firstLoad: false, openFailed: get().project === null, ...failure(e) });
         }
