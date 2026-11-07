@@ -15,7 +15,7 @@ import { ackVersion, getImpact, removeNoteChip, requestRescueReview, resolveNote
 import { keepDocx, partsRefusal } from "@/lib/rescue-v2-pick";
 import { runNoteCta, waitForNote, type NoteReading } from "@/lib/rescue-v2-note-cta";
 import { STAGE_LAYOUT } from "@/lib/rescue-v2-layout";
-import { thesisIsRtl } from "@/lib/rescue-v2-screen";
+import { revisionsStageVersion, thesisIsRtl } from "@/lib/rescue-v2-screen";
 import { visualRow, visualTextAlign } from "@/lib/rtl-layout";
 import { getTextDirection } from "@/lib/text-direction";
 import { recognizerLang } from "@/lib/voice";
@@ -54,10 +54,16 @@ function readNote(pid: string): NoteReading {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** Screen 17, the stage: the current version, the middle page outlined in brand. */
+/**
+ * Screen 17, the stage: the current version, the middle page outlined in brand. After a file that is not the same thesis, the newest good
+ * version instead (`revisionsStageVersion`): the failed re-run has no pages. The version list is read for it when it is not loaded yet.
+ */
 function Stage() {
   const colors = useThemeColors();
-  const versionId = useRescueV2Store((s) => s.project?.currentVersion?.id ?? null);
+  const forced = useRescueV2Store((s) => isForced(s.project));
+  const versionId = useRescueV2Store((s) => (s.project ? revisionsStageVersion(s.project, s.versions) : null));
+  const loadVersions = useRescueV2Store((s) => s.loadVersions);
+  useEffect(() => { if (forced && !versionId) void loadVersions(); }, [forced, versionId, loadVersions]);
   const layout = STAGE_LAYOUT.revisions;
   if (!versionId || layout.kind !== "three") return null;
   return (

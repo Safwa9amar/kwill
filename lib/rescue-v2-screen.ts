@@ -1,4 +1,4 @@
-import type { RescuePhase, RescueProjectDTO } from "@/types/rescue-v2";
+import type { RescuePhase, RescueProjectDTO, RescueVersionSummaryDTO } from "@/types/rescue-v2";
 
 export type RescueScreen =
   | "start" | "parts" | "reading" | "rules_choice" | "notes" | "understood"
@@ -69,7 +69,24 @@ export function screenFor(project: Pick<RescueProjectDTO, "phase" | "failure"> |
   }
 }
 
-const ARABIC_SCRIPT = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
+/**
+ * The version screen 17's stage shows. Normally the current version. After a file that is not the same thesis (P-57), the current version is
+ * the failed re-run, which has no pages, so the stage shows the newest good version the student still has (W7): never the original, and
+ * nothing (a skeleton) until the version list is read.
+ */
+export function revisionsStageVersion(
+  project: Pick<RescueProjectDTO, "phase" | "failure"> & { currentVersion: { id: string } | null },
+  versions: readonly Pick<RescueVersionSummaryDTO, "id" | "n" | "kind" | "status">[],
+): string | null {
+  if (!(project.phase === "failed" && project.failure?.code === "not_same_thesis")) return project.currentVersion?.id ?? null;
+  let best: Pick<RescueVersionSummaryDTO, "id" | "n"> | null = null;
+  for (const v of versions) {
+    if (v.status === "done" && v.kind !== "original" && (!best || v.n > best.n)) best = v;
+  }
+  return best?.id ?? null;
+}
+
+const ARABIC_SCRIPT =/[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
 
 /**
  * Whether the thesis reads right to left. The server now sends the language it detected from the file, so that decides once it is set. While

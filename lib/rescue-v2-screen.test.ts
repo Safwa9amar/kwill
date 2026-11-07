@@ -6,6 +6,7 @@ import {
   isRunning,
   needsPolling,
   pageIsInRange,
+  revisionsStageVersion,
   screenFor,
   thesisIsRtl,
   type RescueNav,
@@ -202,5 +203,33 @@ describe("pageIsInRange: a version with no pages shows no skeletons (fix 9)", ()
     expect(pageIsInRange(3, 3)).toBe(true);
     expect(pageIsInRange(4, 3)).toBe(false);
     expect(pageIsInRange(0, 3)).toBe(false);
+  });
+});
+
+describe("revisionsStageVersion (W7: 17 after a file that is not the same thesis)", () => {
+  const v = (id: string, n: number, kind: "original" | "rescue" | "rerun" | "restore", status: "done" | "failed" | "running") => ({ id, n, kind, status });
+  const versions = [v("v3", 3, "rerun", "failed"), v("v2", 2, "rerun", "done"), v("v1", 1, "rescue", "done"), v("v0", 0, "original", "done")];
+  const current = { currentVersion: { id: "v3" } };
+
+  it("a not_same_thesis failure shows the newest good version, never the failed one with no pages", () => {
+    const p = { ...proj("failed", { ...failureOf("not_same_thesis"), versionId: "v3" }), ...current };
+    expect(revisionsStageVersion(p, versions)).toBe("v2");
+    // The list in any order: the highest n wins.
+    expect(revisionsStageVersion(p, [...versions].reverse())).toBe("v2");
+  });
+
+  it("before the versions are read it has nothing to show (a skeleton), not the failed version", () => {
+    const p = { ...proj("failed", { ...failureOf("not_same_thesis"), versionId: "v3" }), ...current };
+    expect(revisionsStageVersion(p, [])).toBeNull();
+  });
+
+  it("the original is never the stage's version", () => {
+    const p = { ...proj("failed", { ...failureOf("not_same_thesis"), versionId: "v1" }), currentVersion: { id: "v1" } };
+    expect(revisionsStageVersion(p, [v("v1", 1, "rescue", "failed"), v("v0", 0, "original", "done")])).toBeNull();
+  });
+
+  it("otherwise 17 shows the current version", () => {
+    expect(revisionsStageVersion({ ...proj("done"), currentVersion: { id: "v2" } }, versions)).toBe("v2");
+    expect(revisionsStageVersion({ ...proj("done"), currentVersion: null }, versions)).toBeNull();
   });
 });
