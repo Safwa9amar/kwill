@@ -48,7 +48,8 @@ export function RescueHomeCard() {
 }
 
 const styles = StyleSheet.create({
-  card: { alignSelf: "stretch", borderWidth: 1, borderRadius: 16, padding: 14, gap: 6 },
+  // A row that wraps: in French the title and the label no longer fit side by side, and the label dropped off the card instead of moving under it.
+  card: { alignSelf: "stretch", borderWidth: 1, borderRadius: 16, padding: 14, columnGap: 10, rowGap: 6, flexWrap: "wrap", alignItems: "center" },
   title: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   body: { fontSize: 13, lineHeight: 19 },
   label: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
