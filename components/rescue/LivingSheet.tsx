@@ -33,10 +33,12 @@ export function LivingSheet({ screen, step, animatedPosition }: Props) {
   const renderFooter = useCallback((p: BottomSheetFooterProps) => step.Foot ? (
     // The Foot gets the body's side padding and the sheet's colour, so its CTA never meets the screen's edges and no row
     // shows beside or under it, down to the screen's bottom edge (the safe area is padding, not a gap).
+    // Over a scrolling body the rows run on under the Foot at rest: a hairline marks its edge, so a card cut there reads as going under it,
+    // not as the CTA's links sitting inside the card (screen 15's pack). The body's end is padded by the Foot's height (with its safe area).
     <BottomSheetFooter {...p}>
-      <View style={[styles.foot, { backgroundColor: colors.bgCard, paddingBottom: insets.bottom }]}><step.Foot /></View>
+      <View style={[styles.foot, { backgroundColor: colors.bgCard, paddingBottom: insets.bottom }, step.scrollable && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderDefault, paddingTop: 8 }]}><step.Foot /></View>
     </BottomSheetFooter>
-  ) : null, [step, insets.bottom, colors.bgCard]);
+  ) : null, [step, insets.bottom, colors.bgCard, colors.borderDefault]);
   // gorhom's BottomSheetView is absolutely positioned with no bottom edge and honours only `style`: `contentContainerStyle` belongs to the
   // scroll views alone. A step that owns its gestures or scrolls itself (screen 2's reorderable list, the university picker) gets a plain
   // `flex: 1` View, so its list has a bounded height and can scroll, and `enableFooterMarginAdjustment` keeps the Foot off the last rows.
