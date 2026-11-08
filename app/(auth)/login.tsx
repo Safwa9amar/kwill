@@ -14,6 +14,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useThemeColors } from "@/hooks/useThemeColors";
+import { useRTL } from "@/hooks/useRTL";
+import { visualTextAlign } from "@/lib/rtl-layout";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { isAppleSignInAvailable } from "@/lib/apple-auth";
@@ -31,6 +33,7 @@ export default function LoginScreen() {
   const theme = useSettingsStore((s) => s.theme);
   const router = useRouter();
   const { t } = useTranslation();
+  const { isRTL } = useRTL();
   const signInWithEmail = useAuthStore((s) => s.signInWithEmail);
   const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
   const signInWithApple = useAuthStore((s) => s.signInWithApple);
@@ -113,7 +116,7 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            <Text style={[styles.subtitle, { color: colors.textSecondary, textAlign: visualTextAlign(isRTL) }]}>
               {t("auth.welcomeTo")}
             </Text>
             {/* The mark, under either theme — each ground gets the cut of the art
@@ -124,7 +127,7 @@ export default function LoginScreen() {
               resizeMode="contain"
               accessibilityLabel={t("auth.appName")}
             />
-            <Text style={[styles.tagline, { color: colors.textSecondary }]}>
+            <Text style={[styles.tagline, { color: colors.textSecondary, textAlign: visualTextAlign(isRTL) }]}>
               {t("auth.signInSubtitle")}
             </Text>
           </View>
