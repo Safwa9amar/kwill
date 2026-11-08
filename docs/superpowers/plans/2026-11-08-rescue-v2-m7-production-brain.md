@@ -1409,3 +1409,12 @@ Left out: `google/gemini-2.5-flash-lite` (the composer chips' model) and `google
 14. **Seeded synthetic defects for Review** (break a clean rescued file on purpose, render it, check the model finds it). Recommendation: **not now**: `defects.jsonl` already gives 113 real defects over 12 usable runs. Revisit if the review set stays under 100 defects after M3 resumes.
 15. **Map windows see 120 blocks and 3 neighbours; Claude kept the whole thesis in mind across windows.** Recommendation: add an outline digest to each map window (one line per likely heading of the whole thesis) **only if** the scores show heading-level errors across window edges; it changes the task for both brains and needs its own replay check.
 16. **Should the free diagnosis use a cheaper map model than the paid repair?** Recommendation: **no**; the diagnosis is built on the map, and a different map after payment would change what the student was shown.
+
+## Decisions on the open questions (2026-11-08)
+
+The lead took every recommendation above, as written (1–16), under the owner's delegation. Tasks 1–15 run as three parallel lanes in one working tree, split by file:
+- Lane A: Tasks 1–5, 7–11 (`src/lib/rescue-run/model/`, `model-brain.ts`, the factory, the registry, the guards, the cost record).
+- Lane B: Tasks 6 and 14 (pipeline chunking, docx-only Prove, Review with any brain).
+- Lane C: Tasks 12, 13 and 15 (scoring, transports, CLI); Task 13 waits for Lane A's Task 5.
+
+Task 17 needs the owner's dedicated OpenRouter key (open question 12).
