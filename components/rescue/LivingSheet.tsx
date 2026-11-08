@@ -24,11 +24,13 @@ interface Props {
 export function LivingSheet({ screen, step, animatedPosition }: Props) {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const scale = scaleFor(width);
   const top = SHEET_TOP_PCT[screen];
-  // One detent, changed per step: gorhom re-targets on a snap-point change, and that move IS the spring.
-  const snapPoints = useMemo(() => [`${100 - top}%`], [top]);
+  // One detent, changed per step: gorhom re-targets on a snap-point change, and that move IS the spring. In points, not a percentage:
+  // `topInset` below shortens gorhom's container, and a percentage of it would lower every sheet; this keeps the sheet's top at `top`% of
+  // the screen, the same line the stages measure from.
+  const snapPoints = useMemo(() => [(height * (100 - top)) / 100], [height, top]);
   const animationConfigs = useBottomSheetSpringConfigs({ damping: 26, stiffness: 240, mass: 1, overshootClamping: false });
   const renderFooter = useCallback((p: BottomSheetFooterProps) => step.Foot ? (
     // The Foot gets the body's side padding and the sheet's colour, so its CTA never meets the screen's edges and no row
@@ -58,6 +60,8 @@ export function LivingSheet({ screen, step, animatedPosition }: Props) {
       enableContentPanningGesture={!step.ownsGestures}
       animatedPosition={animatedPosition}
       animationConfigs={animationConfigs}
+      // With the keyboard up the sheet rises by its height, and a tall sheet (screen 5) went up under the status bar: it stops below it.
+      topInset={insets.top}
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize"
