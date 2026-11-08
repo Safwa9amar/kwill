@@ -185,3 +185,20 @@ export function visibleRows(shown: number | undefined, total: number): number {
 export function changeItemKey(code: string, exists: (key: string) => boolean): string {
   return exists(`rescueV2.changed.items.${code}`) ? `changed.items.${code}` : "changed.items.other_change";
 }
+
+/**
+ * The name a downloaded rescue file is saved under: the student's UI language, not the thesis's. The words are the server's own names
+ * (kwill-server deposit/pack.ts: DEPOSIT_FILE_NAMES' thesis-pdf / thesis-docx and DEPOSIT_ZIP_NAME), so a file is named the same way
+ * wherever it comes from; only the language is picked here. The files INSIDE the deposit zip keep the thesis language: they go to the
+ * university. A part (the student's own upload) and a language with no names keep the server's name.
+ */
+const FILE_NAMES: Record<"ar" | "fr" | "en", Record<"pdf" | "docx" | "deposit", string>> = {
+  ar: { pdf: "المذكرة.pdf", docx: "المذكرة.docx", deposit: "ملف-الإيداع.zip" },
+  fr: { pdf: "memoire.pdf", docx: "memoire.docx", deposit: "dossier-de-depot.zip" },
+  en: { pdf: "thesis.pdf", docx: "thesis.docx", deposit: "deposit-pack.zip" },
+};
+export function rescueFileName(kind: string, uiLanguage: string | null | undefined, serverName: string): string {
+  const lang = (uiLanguage ?? "").slice(0, 2) as keyof typeof FILE_NAMES;
+  const names = FILE_NAMES[lang];
+  return names && (kind === "pdf" || kind === "docx" || kind === "deposit") ? names[kind] : serverName;
+}

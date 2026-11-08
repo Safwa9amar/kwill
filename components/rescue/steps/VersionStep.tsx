@@ -9,6 +9,7 @@ import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRTL } from "@/hooks/useRTL";
 import { downloadExport } from "@/lib/download-export";
 import { getVersionFile } from "@/lib/rescue-v2-api";
+import { rescueFileName } from "@/lib/rescue-v2-finish";
 import { dayLabel, nextVersionN, rowMetaKey, versionActions, type VersionAction } from "@/lib/rescue-v2-history";
 import { openThesisEditor } from "@/lib/rescue-v2-open-editor";
 import { SHEET_RADIUS, SHEET_TOP_PCT, STAGE_LAYOUT, stageRoom } from "@/lib/rescue-v2-layout";
@@ -133,7 +134,7 @@ function VersionSheet() {
     setFailed(null);
     try {
       const file = await getVersionFile(vid, kind, index);
-      await downloadExport(file);
+      await downloadExport({ ...file, title: rescueFileName(kind, i18n.language, file.filename) });
     } catch {
       setFailed("download");
     } finally {

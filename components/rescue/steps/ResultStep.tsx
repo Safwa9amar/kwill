@@ -10,7 +10,7 @@ import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRTL } from "@/hooks/useRTL";
 import { downloadExport } from "@/lib/download-export";
 import { getVersionFile } from "@/lib/rescue-v2-api";
-import { packView, type PackView } from "@/lib/rescue-v2-finish";
+import { packView, rescueFileName, type PackView } from "@/lib/rescue-v2-finish";
 import { scaleFor, STAGE_LAYOUT } from "@/lib/rescue-v2-layout";
 import { visualRow, visualTextAlign } from "@/lib/rtl-layout";
 import { useThesisDocStore } from "@/stores/thesis-doc-store";
@@ -40,9 +40,9 @@ function Stage() {
 }
 
 /** Fetches one file by its kind and hands it to the OS. Any failure throws: the caller shows that it failed, never that it was saved. */
-async function fetchAndShare(versionId: string, kind: "pdf" | "docx" | "deposit"): Promise<void> {
+async function fetchAndShare(versionId: string, kind: "pdf" | "docx" | "deposit", uiLanguage: string): Promise<void> {
   const file = await getVersionFile(versionId, kind);
-  await downloadExport(file);
+  await downloadExport({ ...file, title: rescueFileName(kind, uiLanguage, file.filename) });
 }
 
 function DownloadCard({ tile, color, label, busy, disabled, onPress }: {
@@ -93,7 +93,7 @@ function ResultSheet() {
     setBusy(kind);
     setFailed(false);
     try {
-      await fetchAndShare(cv.id, kind);
+      await fetchAndShare(cv.id, kind, i18n.language);
     } catch {
       setFailed(true);
     } finally {

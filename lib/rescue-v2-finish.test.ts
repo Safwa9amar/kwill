@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  rescueFileName,
   CHANGE_FIRST_ROWS,
   CHANGE_MORE_ROWS,
   changeItemKey,
@@ -210,5 +211,18 @@ describe("orderedGroups and visibleRows", () => {
   it("uses the catch-all sentence for a code with no line", () => {
     expect(changeItemKey("toc_real", () => true)).toBe("changed.items.toc_real");
     expect(changeItemKey("made_up", () => false)).toBe("changed.items.other_change");
+  });
+});
+
+describe("rescueFileName", () => {
+  it("names the thesis files and the pack in the UI language, whatever the thesis language", () => {
+    expect(rescueFileName("pdf", "fr", "المذكرة.pdf")).toBe("memoire.pdf");
+    expect(rescueFileName("docx", "ar", "memoire.docx")).toBe("المذكرة.docx");
+    expect(rescueFileName("deposit", "en-US", "ملف-الإيداع.zip")).toBe("deposit-pack.zip");
+  });
+  it("keeps the server's name for a part and for a language with no names", () => {
+    expect(rescueFileName("part", "fr", "chapitre-2.docx")).toBe("chapitre-2.docx");
+    expect(rescueFileName("pdf", "de", "memoire.pdf")).toBe("memoire.pdf");
+    expect(rescueFileName("pdf", null, "memoire.pdf")).toBe("memoire.pdf");
   });
 });
