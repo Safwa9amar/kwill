@@ -18,7 +18,7 @@ import { useRescueV2Store } from "@/stores/rescue-v2-store";
 import type { RescueVersionSummaryDTO } from "@/types/rescue-v2";
 import type { RescueStep } from "./index";
 
-/** The badge above the pages and the page label under them, with their gaps. */
+/** The badge above the pages and the page label under them, with their gaps, at the default text size (scaled by the font scale). */
 const STACK_ROWS = 56;
 
 /** The version the timeline previews: the one the student tapped, else the current one. */
@@ -36,7 +36,7 @@ function useSelectedId(): string | null {
 function Stage() {
   const { t, i18n } = useTranslation();
   const colors = useThemeColors();
-  const { height } = useWindowDimensions();
+  const { height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const pid = useRescueV2Store((s) => s.projectId);
   const vid = useSelectedId();
@@ -47,8 +47,9 @@ function Stage() {
   const setPage = useHistoryUi((s) => s.setPage);
   const layout = STAGE_LAYOUT.timeline;
   if (!pid || !vid || !version || layout.kind !== "three") return null;
-  // The stack (badge, pages, page label) sits between the status bar and the sheet's corner; the pages take what the two rows leave.
-  const room = stageRoom((height * SHEET_TOP_PCT.timeline) / 100 + SHEET_RADIUS, insets.top, STACK_ROWS);
+  // The stack (badge, pages, page label) sits between the status bar and the sheet's corner; the pages take what the two rows leave. The
+  // rows grow with the system text size, and at a large one the page label went under the sheet: their reserve grows with it.
+  const room = stageRoom((height * SHEET_TOP_PCT.timeline) / 100 + SHEET_RADIUS, insets.top, STACK_ROWS * Math.max(1, fontScale));
   const date = dayLabel(version.createdAt, i18n.language);
   // The original is not a numbered version to the student: its badge names it, as its row does.
   const badge = version.kind === "original"
