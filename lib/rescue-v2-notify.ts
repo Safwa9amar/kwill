@@ -33,3 +33,26 @@ export function notifyRoute(route: string, data: RescueNotifyData | null | undef
 export function isPublishHeld(data: RescueNotifyData | null | undefined): boolean {
   return data?.event === "publishHeld";
 }
+
+/**
+ * The project a route or deep link opens on the living screen (`/(app)/rescue?projectId=…`, `kwill://rescue?projectId=…`), with its
+ * `view`, or null for anything else (the library included). Used to re-read a project that is ALREADY open: the screen's params do not
+ * change, so its open effect never fires again, and a staff decision stayed off screen until the app went to the background.
+ */
+export function rescueRouteTarget(route: string | null | undefined): { projectId: string; view?: string } | null {
+  if (typeof route !== "string") return null;
+  const q = route.indexOf("?");
+  const path = (q < 0 ? route : route.slice(0, q)).replace(/\/+$/, "");
+  if (!/(^|[/:])rescue$/.test(path)) return null;
+  const params: Record<string, string> = {};
+  for (const pair of (q < 0 ? "" : route.slice(q + 1)).split("#")[0].split("&")) {
+    if (!pair) continue;
+    const eq = pair.indexOf("=");
+    const k = eq < 0 ? pair : pair.slice(0, eq);
+    const v = eq < 0 ? "" : pair.slice(eq + 1);
+    try { params[decodeURIComponent(k)] = decodeURIComponent(v.replace(/\+/g, " ")); } catch { /* a malformed pair is skipped */ }
+  }
+  const projectId = params.projectId;
+  if (!projectId) return null;
+  return params.view ? { projectId, view: params.view } : { projectId };
+}

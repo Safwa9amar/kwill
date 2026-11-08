@@ -32,6 +32,20 @@ export function needsPolling(p: Pick<RescueProjectDTO, "phase" | "note" | "setup
     || p.entitlement.purchase.state === "paid" && p.entitlement.kind === null;   // paid but not yet granted: 'confirming' must end by itself (P-62)
 }
 
+/** How often a screen waiting on a PERSON re-reads the project (see `needsSlowPolling`). */
+export const SLOW_POLL_MS = 25_000;
+
+/**
+ * A screen waiting on a staff decision, not on a run: screen 17 forced by `not_same_thesis` once the student asked for a look
+ * (`reviewRequested`), and screen 18 (an honest failure, sent to Support). Nothing runs, so the 3 s poll is off, and a staff retry and its
+ * result used to appear only when the app came back from the background. A slow poll (`SLOW_POLL_MS`) while that screen is up.
+ */
+export function needsSlowPolling(p: Pick<RescueProjectDTO, "phase" | "failure"> | null): boolean {
+  if (!p || p.phase !== "failed" || !p.failure) return false;
+  if (p.failure.code === "not_same_thesis") return p.failure.reviewRequested;
+  return true;
+}
+
 /** The way out of a step, as a nav patch; null means leave the route. The shell's BackPill and Android's back both use it. */
 /**
  * `"ack"` (C8): `revisions` forced by `not_same_thesis` has no overlay to close, so back would do nothing for ever on both platforms.

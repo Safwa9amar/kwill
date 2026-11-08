@@ -1,13 +1,15 @@
 import React, { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
+import * as Linking from "expo-linking";
 import { useTranslation } from "react-i18next";
 import { RescueSkeleton } from "@/components/skeletons/RescueSkeleton";
 import { Button } from "@/components/ui/Button";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRescuePolling } from "@/hooks/useRescuePolling";
 import { useRescueBack } from "@/hooks/useRescueBack";
-import { useRescueScreen, useRescueV2Store } from "@/stores/rescue-v2-store";
+import { reopenIfOpen, useRescueScreen, useRescueV2Store } from "@/stores/rescue-v2-store";
+import { rescueRouteTarget } from "@/lib/rescue-v2-notify";
 import { RESCUE_STEPS } from "./steps";
 import { FailureStep } from "./steps/FailureStep";
 import { LivingSheet } from "./LivingSheet";
@@ -40,6 +42,12 @@ export function LivingScreen({ projectId, view, share }: Props) {
     void s.loadConfig();
     void s.open(projectId ?? null, view);
   }, [projectId, view]);
+  // A deep link to the project already open (`/rescue?projectId=same`) leaves the params unchanged, so the effect above never runs again:
+  // the link re-reads it here instead.
+  useEffect(() => {
+    const sub = Linking.addEventListener("url", ({ url }) => { reopenIfOpen(rescueRouteTarget(url)); });
+    return () => sub.remove();
+  }, []);
   useRescueBack();                       // Android back: previous local step, else router.back()
   // The skeleton is a full page with no way out of it, so the chrome draws the close button over it: a slow first load can always be left.
   if (firstLoad) return <View style={{ flex: 1 }}><RescueSkeleton /><StageChrome screen={screen} /></View>;

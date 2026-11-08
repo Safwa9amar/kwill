@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPublishHeld, notifyRoute } from "./rescue-v2-notify";
+import { isPublishHeld, notifyRoute, rescueRouteTarget } from "./rescue-v2-notify";
 
 describe("notifyRoute", () => {
   it("opens History of the project for a held publish", () => {
@@ -46,5 +46,23 @@ describe("isPublishHeld", () => {
     expect(isPublishHeld({ event: "publishHeld" })).toBe(true);
     expect(isPublishHeld({ event: "done" })).toBe(false);
     expect(isPublishHeld(null)).toBe(false);
+  });
+});
+
+describe("rescueRouteTarget", () => {
+  it("reads the project and view of the living screen's route", () => {
+    expect(rescueRouteTarget("/(app)/rescue?projectId=p%201&view=history")).toEqual({ projectId: "p 1", view: "history" });
+    expect(rescueRouteTarget("/(app)/rescue?projectId=abc")).toEqual({ projectId: "abc" });
+  });
+  it("reads a deep link URL too", () => {
+    expect(rescueRouteTarget("kwill://rescue?projectId=abc")).toEqual({ projectId: "abc" });
+    expect(rescueRouteTarget("com.kwill.app:///rescue?view=payment&projectId=abc")).toEqual({ projectId: "abc", view: "payment" });
+  });
+  it("is null for the library, other routes, and a rescue route with no project", () => {
+    expect(rescueRouteTarget("/(app)/rescue/library")).toBeNull();
+    expect(rescueRouteTarget("/(app)/chat?projectId=abc")).toBeNull();
+    expect(rescueRouteTarget("/(app)/rescue?share=1")).toBeNull();
+    expect(rescueRouteTarget("/(app)/myrescue?projectId=abc")).toBeNull();
+    expect(rescueRouteTarget(null)).toBeNull();
   });
 });

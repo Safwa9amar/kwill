@@ -5,6 +5,7 @@ import {
   backFor,
   isRunning,
   needsPolling,
+  needsSlowPolling,
   pageIsInRange,
   revisionsStageVersion,
   screenFor,
@@ -231,5 +232,21 @@ describe("revisionsStageVersion (W7: 17 after a file that is not the same thesis
   it("otherwise 17 shows the current version", () => {
     expect(revisionsStageVersion({ ...proj("done"), currentVersion: { id: "v2" } }, versions)).toBe("v2");
     expect(revisionsStageVersion({ ...proj("done"), currentVersion: null }, versions)).toBeNull();
+  });
+});
+
+describe("needsSlowPolling", () => {
+  it("polls screen 17 forced by not_same_thesis only once a review was asked for", () => {
+    expect(needsSlowPolling(proj("failed", failureOf("not_same_thesis")))).toBe(false);
+    expect(needsSlowPolling(proj("failed", { ...failureOf("not_same_thesis"), reviewRequested: true }))).toBe(true);
+  });
+  it("polls screen 18 (any other failure)", () => {
+    expect(needsSlowPolling(proj("failed", failureOf("prove_failed")))).toBe(true);
+  });
+  it("does not poll anything else", () => {
+    expect(needsSlowPolling(null)).toBe(false);
+    expect(needsSlowPolling(proj("done"))).toBe(false);
+    expect(needsSlowPolling(proj("repairing"))).toBe(false);
+    expect(needsSlowPolling(proj("failed", null))).toBe(false);
   });
 });

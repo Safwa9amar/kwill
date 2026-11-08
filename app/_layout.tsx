@@ -24,7 +24,8 @@ import { useRescueStore } from "@/stores/rescue-store";
 import { forceCloseDrawer, useNavDrawerStore } from "@/stores/nav-drawer-store";
 import { listTheses } from "@/lib/api";
 import { registerForPushNotificationsAsync, addNotificationListeners } from "@/lib/push-notifications";
-import { notifyRoute } from "@/lib/rescue-v2-notify";
+import { notifyRoute, rescueRouteTarget } from "@/lib/rescue-v2-notify";
+import { reopenIfOpen } from "@/stores/rescue-v2-store";
 import { RESCUE_V2_ENABLED } from "@/lib/rescue-v2-enabled";
 import { useRescueColdStart } from "@/hooks/useRescueColdStart";
 import { useAuthDeepLink } from "@/lib/auth-deeplink";
@@ -245,7 +246,12 @@ export default function RootLayout() {
       else if (status === "verdict") router.replace("/(app)/rescue-verdict" as any);
     })().catch(() => {});
 
-    const cleanup = addNotificationListeners((route, data) => router.push(notifyRoute(route, data, RESCUE_V2_ENABLED) as never));
+    const cleanup = addNotificationListeners((route, data) => {
+      const to = notifyRoute(route, data, RESCUE_V2_ENABLED);
+      // The project already on the living screen: its params do not change, so it would never re-read (a staff retry stayed hidden).
+      if (RESCUE_V2_ENABLED) reopenIfOpen(rescueRouteTarget(to));
+      router.push(to as never);
+    });
     return cleanup;
   }, [isAuthenticated]);
 

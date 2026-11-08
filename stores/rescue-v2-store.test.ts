@@ -22,7 +22,7 @@ const doc = vi.hoisted(() => ({ flushOps: vi.fn() }));
 vi.mock("@/stores/thesis-doc-store", () => ({ useThesisDocStore: { getState: () => doc } }));
 
 import type { RescueProjectDTO } from "@/types/rescue-v2";
-import { useRescueV2Store } from "@/stores/rescue-v2-store";
+import { reopenIfOpen, useRescueV2Store } from "@/stores/rescue-v2-store";
 import { useHistoryUi } from "@/stores/rescue-history-ui";
 
 const S = () => useRescueV2Store.getState();
@@ -277,6 +277,7 @@ describe("the polling hook starts no poll while one is in flight (fix 3)", () =>
     vi.useRealTimers();
     vi.doUnmock("react");
     vi.doUnmock("react-native");
+    vi.doUnmock("expo-router");
     vi.doUnmock("@/stores/rescue-v2-store");
     vi.resetModules();
   });
@@ -288,7 +289,8 @@ describe("the polling hook starts no poll while one is in flight (fix 3)", () =>
     const pending: { resolve: () => void }[] = [];
     const refresh = vi.fn(() => { const d = deferred<void>(); pending.push(d); return d.p; });
     const reading = dto("A", "reading");
-    vi.doMock("react", () => ({ useEffect: (fn: () => void | (() => void)) => { effects.push(fn); } }));
+    vi.doMock("react", () => ({ useEffect: (fn: () => void | (() => void)) => { effects.push(fn); }, useCallback: <T,>(fn: T) => fn }));
+    vi.doMock("expo-router", () => ({ useFocusEffect: () => {} }));
     vi.doMock("react-native", () => ({
       AppState: {
         currentState: "active",
@@ -312,6 +314,31 @@ describe("the polling hook starts no poll while one is in flight (fix 3)", () =>
     await vi.advanceTimersByTimeAsync(3000);
     expect(refresh).toHaveBeenCalledTimes(2);
     if (typeof stopPolling === "function") stopPolling();
+  });
+
+  it("a screen waiting on staff (18, or 17 with a review asked for) polls slowly while focused, and stops on blur", async () => {
+    vi.useFakeTimers();
+    const focus: (() => void | (() => void))[] = [];
+    const refresh = vi.fn(async () => {});
+    const waiting = dto("A", "failed", { failure: { code: "not_same_thesis", reviewRequested: true } });
+    vi.doMock("react", () => ({ useEffect: () => {}, useCallback: <T,>(fn: T) => fn }));
+    vi.doMock("react-native", () => ({
+      AppState: { currentState: "active", addEventListener: () => ({ remove() {} }) },
+    }));
+    vi.doMock("expo-router", () => ({ useFocusEffect: (fn: () => void | (() => void)) => { focus.push(fn); } }));
+    vi.doMock("@/stores/rescue-v2-store", () => ({
+      useRescueV2Store: (sel: (s: { project: RescueProjectDTO; refresh: typeof refresh }) => unknown) => sel({ project: waiting, refresh }),
+    }));
+    const { useRescuePolling } = await import("@/hooks/useRescuePolling");
+    useRescuePolling();
+    const blur = focus[0]();
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(refresh).not.toHaveBeenCalled();                    // not the 3 s run poll
+    await vi.advanceTimersByTimeAsync(22000);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    if (typeof blur === "function") blur();
+    await vi.advanceTimersByTimeAsync(100000);
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -682,5 +709,30 @@ describe("loadVersions answers whether the read landed (items 8 and 9)", () => {
     expect(S().edited?.edited).toBe(true);
     api.listVersions.mockRejectedValueOnce(httpError(502));
     expect(await S().loadVersions()).toBe(false);
+  });
+});
+
+describe("re-opening the project already on screen (a deep link with the same projectId)", () => {
+  it("open() for the open project reads it again and lands the new answer", async () => {
+    api.getRescueProject.mockResolvedValueOnce(dto("A", "failed", { failure: { code: "not_same_thesis", reviewRequested: true } }));
+    await S().open("A");
+    api.getRescueProject.mockResolvedValueOnce(dto("A", "repairing"));
+    await S().open("A");
+    expect(api.getRescueProject).toHaveBeenCalledTimes(2);
+    expect(S().project?.phase).toBe("repairing");
+    expect(S().firstLoad).toBe(false);
+  });
+
+  it("reopenIfOpen re-reads only the project the living screen shows", async () => {
+    api.getRescueProject.mockResolvedValue(dto("A", "done"));
+    await S().open("A");
+    expect(reopenIfOpen({ projectId: "A" })).toBe(false);          // screen not mounted
+    S().setScreenOpen(true);
+    expect(reopenIfOpen({ projectId: "B" })).toBe(false);          // another project: the navigation opens it
+    expect(reopenIfOpen(null)).toBe(false);
+    expect(reopenIfOpen({ projectId: "A", view: "history" })).toBe(true);
+    await tick();
+    expect(api.getRescueProject).toHaveBeenCalledTimes(2);
+    expect(S().nav.overlay).toBe("timeline");
   });
 });

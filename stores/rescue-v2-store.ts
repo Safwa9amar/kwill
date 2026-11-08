@@ -564,6 +564,18 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
   };
 });
 
+/**
+ * A route or deep link for the project the living screen ALREADY shows: re-read it (with its view). The screen's params are the same, so
+ * its open effect does not fire again, and a staff decision stayed off screen until the app came back from the background. True when it
+ * re-read; the caller still navigates (a no-op, or a fresh mount that opens it again — `open` is safe to repeat).
+ */
+export function reopenIfOpen(target: { projectId: string; view?: string } | null): boolean {
+  const s = useRescueV2Store.getState();
+  if (!target || !s.screenOpen || s.projectId !== target.projectId) return false;
+  void s.open(target.projectId, target.view);
+  return true;
+}
+
 export const useRescuePhase = () => useRescueV2Store((s) => s.project?.phase ?? null);
 export const useRescueScreen = () => useRescueV2Store((s) => screenFor(s.project, s.nav));
 export const useRescueProjectId = () => useRescueV2Store((s) => s.projectId);
