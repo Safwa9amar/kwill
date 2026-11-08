@@ -52,7 +52,9 @@ export function RuleRow({ row, fields, onPress }: RowProps) {
   const { isRTL } = useRTL();
   const ids = SUMMARY_FIELDS[row] ?? [];
   const shown = ids.map((id) => fields.find((f) => f.id === id)).filter((f): f is RescueRuleFieldDTO => !!f);
-  const line = shown.map((f) => short(words, f)).join(" · ");
+  // An RTL UI starts the line with an RLM: iOS takes a line's direction from its first strong letter, so "18 · 16 · 14" (no
+  // letter) and "i ii iii ثم 1 2 3 · …" (a Latin one) were laid out left to right and an Arabic reader met the values last first.
+  const line = (isRTL ? "\u200F" : "") + shown.map((f) => short(words, f)).join(" · ");
   const fromNote = fields.some((f) => f.source === "note");
   return (
     <TouchableOpacity
