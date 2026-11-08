@@ -132,7 +132,9 @@ function BottomSheetInner({
       handleIndicatorStyle={{ backgroundColor: colors.textPlaceholder }}
     >
       {scrollable ? (
-        <BottomSheetScrollView contentContainerStyle={styles.content}>{children}</BottomSheetScrollView>
+        // "handled": a tap on a button while a field has the keyboard is that button's tap. By default the first tap only closed the
+        // keyboard, so a sheet's Save needed two (the rescue cover field).
+        <BottomSheetScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">{children}</BottomSheetScrollView>
       ) : (
         <BottomSheetView style={styles.content}>{children}</BottomSheetView>
       )}
