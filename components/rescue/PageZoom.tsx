@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { SPRING } from "@/lib/motion";
@@ -24,6 +25,7 @@ interface Props {
  */
 export function PageZoom({ versionId, page, topPct, pageW, pageH }: Props) {
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const [stageH, setStageH] = useState(0);
   const scale = useSharedValue(1);
   const ty = useSharedValue(0);
@@ -46,7 +48,9 @@ export function PageZoom({ versionId, page, topPct, pageW, pageH }: Props) {
   const bandTop = topPct * pageH - pageH * 0.015;
 
   return (
-    <View style={styles.stage} onLayout={(e) => setStageH(e.nativeEvent.layout.height)}>
+    // The zoomed page is clipped below the status bar: scaled from the stage's middle, it covered the clock and the notch. The line's target
+    // height is measured inside this room.
+    <View style={[styles.stage, { marginTop: insets.top }]} onLayout={(e) => setStageH(e.nativeEvent.layout.height)}>
       <Animated.View style={[{ width: pageW, height: pageH, direction: "ltr" }, zoom]}>
         <PageImage versionId={versionId} page={page} width={pageW} height={pageH} />
         <View
@@ -61,7 +65,7 @@ export function PageZoom({ versionId, page, topPct, pageW, pageH }: Props) {
 }
 
 const styles = StyleSheet.create({
-  stage: { flex: 1, alignItems: "center", justifyContent: "center", width: "100%" },
+  stage: { flex: 1, alignItems: "center", justifyContent: "center", width: "100%", overflow: "hidden" },
   band: { position: "absolute", left: 0, right: 0, borderWidth: 1.5, borderRadius: 2 },
   bandFill: { opacity: 0.22 },
 });
