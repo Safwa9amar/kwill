@@ -1858,7 +1858,7 @@
       "rows": {
         "font": "Font",
         "headings": "Chapter titles",
-        "spacing": "Line spacing",
+        "spacing": "Alignment and spacing",
         "margins": "Margins (cm)",
         "numbering": "Numbering",
         "footnotes": "Footnotes",
