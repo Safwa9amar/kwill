@@ -8,6 +8,7 @@ import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRTL } from "@/hooks/useRTL";
 import { useSettingsStore, type ToolbarOrientation } from "@/stores/settings-store";
 import { useNotificationStore } from "@/stores/notification-store";
+import { useProfileStore } from "@/stores/profile-store";
 import { useByokStore } from "@/stores/byok-store";
 import { registerForPushNotificationsAsync } from "@/lib/push-notifications";
 import { restartApp, setLanguageWithRTL } from "@/lib/i18n";
@@ -94,6 +95,13 @@ export default function SettingsScreen() {
     if (code === language || restarting) return;
     setLanguage(code);
     const needsRestart = await setLanguageWithRTL(code);
+    // The server writes Support threads and pushes in profiles.language. Awaited
+    // (bounded) before a restart would kill the PUT; if it does not land, the next
+    // launch's profile fetch catches up.
+    await Promise.race([
+      useProfileStore.getState().syncLanguage(code),
+      new Promise((r) => setTimeout(r, 2500)),
+    ]);
     // Switching in/out of Arabic flips I18nManager, which RN only honours at
     // startup — so restart the app ourselves instead of asking the student to.
     if (needsRestart) {

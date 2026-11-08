@@ -24,6 +24,7 @@ export default defineConfig({
       "lib/rescue-v2-errors.test.ts",
       "lib/rescue-v2-lost-upload.test.ts",
       "lib/thesis-open-check.test.ts",
+      "lib/profile-language.test.ts",
       "stores/rescue-revisions-ui.test.ts",
       "stores/rescue-confirm-ui.test.ts",
       "lib/export-filename.test.ts",
