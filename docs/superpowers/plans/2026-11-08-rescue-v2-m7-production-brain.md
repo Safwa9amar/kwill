@@ -1418,3 +1418,17 @@ The lead took every recommendation above, as written (1–16), under the owner's
 - Lane C: Tasks 12, 13 and 15 (scoring, transports, CLI); Task 13 waits for Lane A's Task 5.
 
 Task 17 needs the owner's dedicated OpenRouter key (open question 12).
+
+## As built (Lane B: Tasks 6 and 14, 2026-11-08)
+
+Server commits: Task 6 `68860e7`, Task 14 `2d1eae2`.
+
+- **Task 6, page groups side by side.** `reviewRound` asks a split look's groups with `Promise.all` (as `mapDocument` asks its windows); the model brain's limiter paces them. Each group keeps its own zoom steps, so the order of steps across groups is the brain's; the test compares the set of task ids. Results merge in group order as written.
+- **Task 6, `reviewLoop` passes the look's shape.** `reviewLoop` takes optional `sheetsPerLook` and `preZoomFloats` and hands them to every round (absent: today's looks), so Task 18's `reviewWithBrain` can run the review winner's look shape. Not in the plan's file list; one test covers it.
+- **Task 6, `preZoomFloats` on an unsplit look too.** It does not depend on `sheetsPerLook`; a look that fits in one group (or no `sheetsPerLook`) keeps today's id and no `onlyPages`.
+- **Task 6, Step 5 (replay t03) not run.** `replay.ts` re-renders through Word (`runRescue`) and asks neither `mapDocument` nor `reviewRound`, so it cannot see a task id. The session brain's ids are held by the existing tests (`review-round.test.ts`: `review-run-r2-s1`; `build-map-tasks.test.ts`: `map-r-w0`) and by new ones asserting today's id with no options.
+- **Task 14, `renderFinal`** reads the final inventory after the render; the refusal branch returns `unrenderedFinal(regen, layout, message)`, which reads it itself. Same object as before.
+- **Task 14, `runRescue({ render: false })`** prints only the docx group's failures and one line `not rendered (docx Prove only)`; `RescueOutcome` is unchanged (read `prove.json`'s `docx`).
+- **Task 14, `reviewWithBrain`** returns `{ result, startRun, finalRun, pagesBefore, pagesAfter, checks }`. Its options also take `sheetsPerLook?`, `preZoomFloats?` and `startNote?` (the session brain names its task folder in the opening line). A helper `startRunOf(id, args)` picks the start run, so `reviewCmd` builds the session brain's folder from it before the call. `writeGold: false` skips the deposit, `gold/` and `lab/defects.jsonl`. `Check` is exported.
+- **Task 14, Step 5 (lab rescue t05) not run:** it renders with Word, which this lane does not start.
+- `scripts/` is outside `tsconfig`'s `include`; the lab files were type-checked with a scratch config: three errors, all from before (`cli.ts` x2, `review.ts` `e.code`), none new.
