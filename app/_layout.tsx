@@ -25,6 +25,7 @@ import { forceCloseDrawer, useNavDrawerStore } from "@/stores/nav-drawer-store";
 import { listTheses } from "@/lib/api";
 import { registerForPushNotificationsAsync, addNotificationListeners } from "@/lib/push-notifications";
 import { notifyRoute, rescueRouteTarget } from "@/lib/rescue-v2-notify";
+import { goToNotified } from "@/lib/rescue-v2-navigate";
 import { reopenIfOpen } from "@/stores/rescue-v2-store";
 import { RESCUE_V2_ENABLED } from "@/lib/rescue-v2-enabled";
 import { useRescueColdStart } from "@/hooks/useRescueColdStart";
@@ -250,7 +251,7 @@ export default function RootLayout() {
       const to = notifyRoute(route, data, RESCUE_V2_ENABLED);
       // The project already on the living screen: its params do not change, so it would never re-read (a staff retry stayed hidden).
       if (RESCUE_V2_ENABLED) reopenIfOpen(rescueRouteTarget(to));
-      router.push(to as never);
+      goToNotified(to);
     });
     return cleanup;
   }, [isAuthenticated]);

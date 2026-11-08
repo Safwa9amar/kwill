@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
-import { router, usePathname } from "expo-router";
+import { usePathname } from "expo-router";
 import { RESCUE_V2_ENABLED } from "@/lib/rescue-v2-enabled";
 import { consumeColdStartNotificationRoute, setPushBannerFilter } from "@/lib/push-notifications";
 import { listRescueProjects } from "@/lib/rescue-v2-api";
+import { goToNotified } from "@/lib/rescue-v2-navigate";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
 
 // A route pushed twice within this window is one push: some Android versions deliver a cold-start tap to both this hook and the listener.
@@ -16,7 +17,8 @@ function pushOnce(route: string) {
   if (route === lastPushedRoute && now - lastPushedAt < DUPLICATE_WINDOW_MS) return;
   lastPushedRoute = route;
   lastPushedAt = now;
-  router.push(route as never);
+  // The tap listener may route the same push too: NAVIGATE keeps one living screen where a second push stacked another.
+  goToNotified(route);
 }
 
 /**
