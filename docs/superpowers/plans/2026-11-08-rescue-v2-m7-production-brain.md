@@ -1419,6 +1419,42 @@ The lead took every recommendation above, as written (1–16), under the owner's
 
 Task 17 needs the owner's dedicated OpenRouter key (open question 12).
 
+## As built (Lane A: Tasks 1-5, 7-11, 2026-11-08)
+
+Commits in `~/kwill-server`: d688bce (1), 37d87f3 (2), 41544ad (3), cc63182 (4), d603fe9 (5), e6a6707 (7), aef07bd (8 and 10 together, as Task 8 step 4 says), c4f8472 (review fixes on 5 and 8), 52a22c4 (9), d95c6d2 (11). No network in any test; no OpenRouter call was made.
+
+- **Task 1:** as written. `z.toJSONSchema` takes all seven schemas as they are; no `unrepresentable` option needed.
+- **Task 2:** `brain-errors.test.ts` mocks `../../supabase`: importing the runner builds the Supabase client at import time.
+- **Task 3:** as written. A missing image is sent as `<label>: no image`. The repair turn lists 40 errors and counts the rest.
+- **Task 4:** a page that is still over 1.5 MB at quality 35 is `null` (named "no image").
+- **Task 5:** two fixes to the plan's own test.
+  - `not.toContain('"ok"')` cannot pass, because `CallRecord` has its own `ok` field. The test now checks that the answer's text, escaped, is absent and that no record has a text field.
+  - The `deps()` helper intersected two `limits` types (a tsc error). It is now `Omit<…, "limits">`.
+  - Exported types are as the plan writes them, plus `BrainPin` and `ReasoningLevel` re-exported from `model/brain.ts`.
+- **Task 7:** the non-vision hints say "Text only" (the test reads "vision" in four hints). The dry run of `pin-feature-models.ts` lists no `rescue.brain.*` key with an arrow and prints the skip line.
+- **Task 8:**
+  - **The client.** The edge builds its own `openai` client against OpenRouter, on `process.env.OPENROUTER_API_KEY` read per call (the sealed key after `applyEnvOverrides`). It does not use `OpenRouterProvider.getClient()`: with `OPENROUTER_USE_SDK` on, that returns the SDK facade, whose zod schema drops `provider`, `usage` and `reasoning`. It does not import `lib/ai/index` either.
+  - **The test fixtures.** openai 6 reads `body.error`, so the plan's `APIError.generate(400, { message })` never carries the text. The fixtures use OpenRouter's `{ error: { message, code } }`. The test file is the plan's excerpt plus a test for reasoning effort, the 401/408/422 and connection codes, `refused`, a 400 that does not name the schema, and "provider only is off".
+  - **The catalogue.** `CatalogueRow` adds `structuredOutputs`.
+- **Review fixes (c4f8472), from a reviewer pass on Tasks 2-8:**
+  - The stable breakpoint carries `AI_CACHE_TTL` like `withPromptCaching`'s two (a 1h breakpoint may not follow a 5m one). `cacheTtl` is now exported from `lib/ai/cache.ts`.
+  - An `AbortSignal.timeout` bounds the whole call: the client retries a timeout with a fresh timeout each time.
+  - The spend cap and the ask deadline are checked again once the limiter grants the slot.
+  - A provider error inside a 200 maps by its code. `finish_reason` `content_filter` or `length` is `refused` (no repair under the same `max_tokens`); `error` is `unavailable`. A refused call still logs its usage.
+  - An unknown transport error keeps its `cause`.
+  - A sharp that fails to load throws, and the brain makes the job wait, instead of sending every page as "no image".
+- **Task 9:**
+  - **Reasoning.** `rescue.brain_reasoning_<task>` is read from the settings cache (`getSettingSync`), as the feature pins are, because `pin()` is synchronous. The limits are read fresh before each ask.
+  - **Parsing and the route.** The parsing is pure (`parseBrainLimits`, `brainLimitsFrom`, `brainReasoningOf`). An escalation model must look like `vendor/model`. `PUT /admin/rescue/settings` takes the six integer limits; `GET` also returns `brainEscalateModel`.
+  - **Stage wiring.** It goes through a pure `stages/brain-shape.ts` (`mapShapeFor`, `reviewShapeFor`). The plan's 30-page review-stage test became a test of that helper: the paid world's thesis renders too few pages for a second look. The map-stage test uses a 20-block window, which suits the fixture's size.
+- **Task 10:** `the scorer's pure library stays pure` stays `it.skipIf(!existsSync(score/))`. The folder now exists (Lane C), so it runs.
+- **Task 11:** `models` counts only `rescue.brain.*` rows; an embedding call under the version's turn would otherwise name its model. `costComplete` covers every non-BYOK row of the turn, which is the honest reading of `costUsd`. The staff runs list reads `cost` through `readCost` (old rows: `[]`, `true`, `null`).
+- **Not run (local database down, `nc 54332` refused):** the database parts of `config.test.ts`, `cost.test.ts` (`turnSpendUsd`, `models`, `costComplete`) and `admin-rescue.test.ts` (brain limits on the settings route). They are written and skip without the local stack.
+- **For Task 17 (from the review, unverified without a live call):**
+  - With `require_parameters: true`, OpenRouter may answer 404 rather than 400 when no endpoint takes `json_schema`, so the `json_object` fallback would rarely fire and the case reads as `no_endpoint`.
+  - `reasoning: { enabled: false }` may filter out every endpoint of a model that does not reason.
+  - In both cases, check a spurious `no_endpoint` in the scorer's dry run before calling a model unavailable.
+
 ## As built (Lane B: Tasks 6 and 14, 2026-11-08)
 
 Server commits: Task 6 `68860e7`, Task 14 `2d1eae2`.
