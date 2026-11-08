@@ -31,8 +31,8 @@ numbers then.
 | 4 | History rewrite before any push (privacy) | AGENT prepares, OWNER approves | READY: dry run passed on clones (§4) |
 | 5 | Public engine repo already holds two students' theses in `samples/` | OWNER | **BLOCKED**: owner decision (§4.6) |
 | 6 | Engine: build and pack | AGENT | DONE as a dry run in a clone (§5) |
-| 7 | Server: commit the engine rename together with the 3 files HEAD needs | AGENT | READY: proven on a clean clone (§6) |
-| 8 | `scripts/deploy.mjs` still names `mdocxengine` | AGENT | **BLOCKED** until 7 lands; patch prepared (§6.3) |
+| 7 | Server: commit the engine rename together with the 3 files HEAD needs | AGENT | DONE e266dbf..0d052a2; clean clone builds (§6.2) |
+| 8 | `scripts/deploy.mjs` names the renamed engine | AGENT | DONE 00e8832 (§6.3); first deploy needs `--engine` |
 | 9 | Cloud SQL (3 files) + `pdf_conversion_log` | AGENT | DONE: all present on the online DB (§7) |
 | 10 | Reset the test settings on the online DB | AGENT, OWNER approves | READY (§7.3) |
 | 11 | Production env: `RESCUE_BRAIN`, model pins, `WORD_JOBS_SECRET`, `TASKS_TICK_SECRET`, SMTP | OWNER (host env) / AGENT (`app_settings`) | **BLOCKED** on M7 and on §8 |
@@ -306,58 +306,21 @@ Full suite on that clean clone (rename + para-format + doc-page-numbering, no DB
 in the working tree) and `assemble-check` (fixed by `thesis-doc.ts`, as above). The third is `quick-tunnel-word.test.ts`,
 a timing test: a different case fails on each run, in the clone and in the working tree, so it is flaky.
 
-### 6.2 Commit at release (AGENT; the owner of the rename session reviews)
+### 6.2 Commit: DONE 2026-11-09
 
-One commit, staged by exact path, after the freeze:
+Committed as 9 commits on top of 7bd1174 (not pushed): e266dbf (the pure rename, 124 files), 0b0c9c2 (para-format fonts),
+9bc5e1d (hidden front-matter numbering), 7ec3641 (TOC tabs), a2c705a (PDF source text, with a fallback to "unextracted" for a
+damaged PDF), 90add3c (unsupported-claim patterns), 228bf28 (charts route: no route test, no app caller yet), 0d052a2
+(note-effects golden re-captured; the default output changed on purpose at 527a69d and 81b261e), 00e8832 (deploy.mjs).
+The working tree is clean. A fresh `git clone --no-local` at 00e8832 builds (tsc 0) and passes the rescue and docx folders
+(4467 tests, 0 failed); the full suite fails only the flaky quick-tunnel-word, which passes alone. The DB suites wait for arch.
 
-1. `git diff --name-only > /tmp/all.txt`. The rename commit takes package.json, package-lock.json, every file whose only
-   change is the import, and these four whole files with their tests: `src/lib/para-format.ts`,
-   `src/__tests__/para-format.test.ts`, `src/mcp/doc-page-numbering.ts`,
-   `src/__tests__/front-matter-numbering-dividers.test.ts`, `src/mcp/tools/docx-document.ts`, `src/lib/thesis-doc.ts`.
-2. For `source-service.ts`, `unsupported-claim.ts` (+ test) and `routes/thesis/charts.ts`: stage **only the import hunk**
-   (`git diff -U0 -- <f>`, keep the `@kwill/docx-engine` hunk, `git apply --cached`), and leave the feature hunks for
-   their owner to commit or drop.
-3. Gate: on a fresh `git clone --no-local` of the result, with `~/mdocxengine` as its sibling: `npm ci`, `npx tsc
-   --noEmit` (0), `npx vitest run --testTimeout=60000`, where only the known `note-effects` golden may fail. Then the DB
-   suites through the guard script (see RULES) when `nc -z 127.0.0.1 54332` works.
-4. Message: `refactor(engine): import @kwill/docx-engine; para-format fonts, hidden front-matter numbering and TOC tabs
-   that HEAD already uses`.
+### 6.3 `scripts/deploy.mjs`: DONE 2026-11-09 (00e8832)
 
-### 6.3 `scripts/deploy.mjs` still deploys `mdocxengine` (patch prepared, not applied)
-
-`package.json` now depends on `"@kwill/docx-engine": "file:../mdocxengine"`, but `deploy.mjs`:
-
-- writes `deps.mdocxengine = file:<APP_ROOT>/vendor/<tarball>` and leaves `@kwill/docx-engine` as the **relative**
-  `file:../mdocxengine`, which doesn't exist on the host;
-- looks for `vendor/mdocxengine-*.tgz` on the host, while `npm pack` now writes `kwill-docx-engine-2.0.0.tgz`;
-- removes `node_modules/mdocxengine`, not `node_modules/@kwill/docx-engine`.
-
-A deploy from the renamed tree would install no engine and Passenger would fail to boot (the 08-14 outage again). The
-change, to land with the rename commit:
-
-```diff
--// and `mdocxengine` is repointed from the local workspace to a tarball with an
-+// and `@kwill/docx-engine` is repointed from the local workspace to a tarball with an
-@@ function serverPackageJson(engineTarball) {
-   delete deps["react-native-markdown-display"]; // not imported by src/, drags RN in
--  deps.mdocxengine = `file:${APP_ROOT}/vendor/${engineTarball}`;
-+  delete deps.mdocxengine; // the pre-rename name; the host still has it in node_modules until the first --engine deploy
-+  deps["@kwill/docx-engine"] = `file:${APP_ROOT}/vendor/${engineTarball}`;
-@@
--let engineTarball = `mdocxengine-${JSON.parse(readFileSync(join(ENGINE, "package.json"), "utf8")).version}.tgz`;
-+let engineTarball = `kwill-docx-engine-${JSON.parse(readFileSync(join(ENGINE, "package.json"), "utf8")).version}.tgz`;
-@@ if (!withEngine) {
--      `ls -t ${APP_ROOT}/vendor/mdocxengine-*.tgz 2>/dev/null | head -1`,
-+      `ls -t ${APP_ROOT}/vendor/kwill-docx-engine-*.tgz 2>/dev/null | head -1`,
-@@ if (withEngine) {
--  run("ssh", [SSH, `rm -f ${APP_ROOT}/package-lock.json && rm -rf ${APP_ROOT}/node_modules/mdocxengine`]);
-+  run("ssh", [SSH, `rm -f ${APP_ROOT}/package-lock.json && rm -rf ${APP_ROOT}/node_modules/mdocxengine ${APP_ROOT}/node_modules/@kwill/docx-engine`]);
--  run("ssh", [SSH, `cd ${APP_ROOT}/vendor && ls -t mdocxengine-*.tgz | tail -n +4 | xargs -r rm -f`]);
-+  run("ssh", [SSH, `cd ${APP_ROOT}/vendor && ls -t kwill-docx-engine-*.tgz | tail -n +4 | xargs -r rm -f`]);
-```
-
-The first deploy after this **must** use `--engine` (it implies `--deps`). Without it the host has no
-`kwill-docx-engine-*.tgz` and the fallback guess names a file that isn't there.
+The engine's name and tarball prefix are read from `../mdocxengine/package.json`; the host package.json gets
+`@kwill/docx-engine` from `vendor/` and no `mdocxengine` entry; `--engine` removes both installed engine folders. New stop:
+without `--engine`, a host with no `kwill-docx-engine-*.tgz` stops before any upload. `--dry-run` prints the plan and calls
+no ssh/scp/npm (checked with logging stubs: 0 calls). **The first deploy must use `--engine`.**
 
 ### 6.4 Deploy (AGENT runs, OWNER says go; blocked on §0, §2, §8)
 
@@ -378,8 +341,10 @@ The first deploy after this **must** use `--engine` (it implies `--deps`). Witho
 3. `node scripts/deploy.mjs minor --engine` → **1.33.0** (last release 1.32.0 on 09-01, a feature release → minor).
    A failed run leaves package.json bumped. Retry with `--no-bump --engine`.
 4. Verify: `curl -s https://<api-host>/api/health` reports 1.33.0. A cold start can take 4 minutes and serve
-   Passenger's 500 page; read `server.log` for a new "Kwill API running" before rolling back. Rollback:
-   `mv dist dist.broken-1330 && cp -a dist.bak dist && touch tmp/restart.txt`.
+   Passenger's 500 page; read `server.log` for a new "Kwill API running" before rolling back. Rollback: the `--engine`
+   deploy deleted `node_modules/mdocxengine`, so `dist.bak` alone cannot boot. Restore the previous host `package.json`
+   (its `mdocxengine-*.tgz` line; the tarball stays in `vendor/` unless pruned), run `npm install --omit=dev`, then
+   `mv dist dist.broken-1330 && cp -a dist.bak dist && touch tmp/restart.txt`. Back up the host package.json BEFORE step 3.
 5. Commit the bumped `package.json`/lockfile in the repo (`chore(release): v1.33.0`), then keep the version history in
    memory (the owner declined a CHANGELOG).
 
