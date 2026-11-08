@@ -5,10 +5,11 @@ import { useTranslation } from "react-i18next";
 import { SegSwitch } from "@/components/rescue/SegSwitch";
 import { SweepFade } from "@/components/rescue/SweepFade";
 import { SkeletonPage } from "@/components/rescue/SkeletonPage";
+import { useSlotRoom } from "@/components/rescue/PageCarousel";
 import { Pill, SheetBody, SheetTitle } from "@/components/rescue/ui";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRescuePreview } from "@/hooks/useRescuePreview";
-import { STAGE_LAYOUT, scaleFor } from "@/lib/rescue-v2-layout";
+import { SHEET_RADIUS, STAGE_LAYOUT, roomScale } from "@/lib/rescue-v2-layout";
 import { thesisIsRtl } from "@/lib/rescue-v2-screen";
 import { useRescueV2Store } from "@/stores/rescue-v2-store";
 import type { RescueStep } from "./index";
@@ -24,13 +25,15 @@ function Stage() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const s = scaleFor(width);
+  // Fitted to the slot under the switch (see DiagnosisStep): scaled by the width alone the page ran under the sheet.
+  const [room, onSlotLayout] = useSlotRoom();
   const project = useRescueV2Store((st) => st.project);
   const setNav = useRescueV2Store((st) => st.setNav);
   const preview = useRescuePreview(project?.id ?? null, !!project?.previewReady);
   const rtl = thesisIsRtl(project);
   const layout = STAGE_LAYOUT.preview;
   if (layout.kind !== "three") return null;
+  const s = roomScale(width, layout, room ?? 0);
   const [mw, mh] = [layout.mid[0] * s, layout.mid[1] * s];
   const [sw, sh] = [layout.side[0] * s, layout.side[1] * s];
 
@@ -48,7 +51,7 @@ function Stage() {
     : [{ key: "cover", node: cover }, { key: "chapter", node: chapter }, { key: "blank", node: <BlankPaper width={sw} height={sh} /> }];
 
   return (
-    <View style={[styles.stage, { paddingTop: insets.top + 12 }]}>
+    <View style={[styles.stage, { paddingTop: insets.top + 12, paddingBottom: SHEET_RADIUS + 4 }]}>
       <SegSwitch
         options={[
           { key: "before", label: t("rescueV2.diagnosis.before") },
@@ -57,10 +60,12 @@ function Stage() {
         value="after"
         onChange={(k) => setNav({ diagnosisTab: k })}
       />
-      <View style={styles.middle}>
-        <View style={[styles.row, { direction: "ltr" }]}>
-          {slots.map((sl) => <View key={sl.key}>{sl.node}</View>)}
-        </View>
+      <View style={styles.middle} onLayout={onSlotLayout}>
+        {room === null ? null : (
+          <View style={[styles.row, { direction: "ltr" }]}>
+            {slots.map((sl) => <View key={sl.key}>{sl.node}</View>)}
+          </View>
+        )}
       </View>
     </View>
   );

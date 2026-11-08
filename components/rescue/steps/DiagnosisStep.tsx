@@ -3,7 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "r
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/Button";
-import { PageCarousel } from "@/components/rescue/PageCarousel";
+import { PageCarousel, useSlotRoom } from "@/components/rescue/PageCarousel";
 import { DiagnosisDots } from "@/components/rescue/DiagnosisDots";
 import { SegSwitch } from "@/components/rescue/SegSwitch";
 import { Chip, ChipRow, SheetBody, SheetTitle } from "@/components/rescue/ui";
@@ -12,7 +12,7 @@ import { hSelection } from "@/lib/haptics";
 import { PURCHASES_HIDDEN } from "@/lib/purchases";
 import { continueRescue } from "@/lib/rescue-v2-api";
 import { chipsWithDots, problemSentence, visibleDots } from "@/lib/rescue-v2-diagnosis";
-import { STAGE_LAYOUT, scaleFor } from "@/lib/rescue-v2-layout";
+import { SHEET_RADIUS, STAGE_LAYOUT, roomScale } from "@/lib/rescue-v2-layout";
 import { thesisIsRtl } from "@/lib/rescue-v2-screen";
 import { useDiagnosisView } from "@/stores/rescue-diagnosis-view";
 import { usePaymentUi } from "@/stores/rescue-payment-ui";
@@ -77,7 +77,9 @@ function Stage() {
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const { width } = useWindowDimensions();
-  const s = scaleFor(width);
+  // The page fits the slot between the switch and the tip (or the sheet), not the width alone: scaled by the width it was taller than
+  // that slot, and the tip bubble and the sheet cut its bottom.
+  const [room, onSlotLayout] = useSlotRoom();
   const project = useRescueV2Store((st) => st.project);
   const setNav = useRescueV2Store((st) => st.setNav);
   const id = project?.id ?? null;
@@ -98,6 +100,7 @@ function Stage() {
 
   const layout = STAGE_LAYOUT.diagnosis;
   if (!project || !project.diagnosis || !v0 || layout.kind !== "three") return null;
+  const s = roomScale(width, layout, room ?? 0);
   const [mw, mh] = [layout.mid[0] * s, layout.mid[1] * s];
   const onPage = visibleDots(dots, page, chip);
   const sel = dots.find((d) => d.n === selectedN && d.page === page) ?? null;
@@ -106,7 +109,7 @@ function Stage() {
     problemSentence(tr, (k) => i18n.exists(k), code, params);
 
   return (
-    <View style={[styles.stage, { paddingTop: insets.top + 12 }]}>
+    <View style={[styles.stage, { paddingTop: insets.top + 12, paddingBottom: SHEET_RADIUS + 4 }]}>
       <SegSwitch
         options={[
           { key: "before", label: t("rescueV2.diagnosis.before") },
@@ -115,11 +118,12 @@ function Stage() {
         value="before"
         onChange={(k) => setNav({ diagnosisTab: k })}
       />
-      <View style={styles.middle}>
-        <PageCarousel
+      <View style={styles.middle} onLayout={onSlotLayout}>
+        {room === null ? null : <PageCarousel
           versionId={v0}
           page={page}
           layout={layout}
+          room={room}
           interactive
           onChange={(p) => goTo(p, dots)}
           overlay={
@@ -132,7 +136,7 @@ function Stage() {
               label={(d) => sentence(d.code, d.params)}
             />
           }
-        />
+        />}
       </View>
       {sel ? (
         <View style={[styles.tip, { backgroundColor: colors.textPrimary }]}>
@@ -206,7 +210,7 @@ export const DiagnosisStep: RescueStep = { Stage, Sheet, Foot: ContinueFoot, scr
 const styles = StyleSheet.create({
   stage: { flex: 1, alignItems: "center" },
   middle: { flex: 1, justifyContent: "center", alignItems: "center", width: "100%" },
-  tip: { alignSelf: "center", maxWidth: "88%", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 14 },
+  tip: { alignSelf: "center", maxWidth: "88%", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, marginTop: 6 },
   tipText: { fontSize: 13, lineHeight: 18, fontWeight: "600" },
   fine: { fontSize: 12, textAlign: "center", marginTop: 8 },
   yours: { gap: 8, marginTop: 4 },

@@ -1,10 +1,10 @@
-import React, { type ReactNode } from "react";
-import { StyleSheet, View, useWindowDimensions } from "react-native";
+import React, { useCallback, useState, type ReactNode } from "react";
+import { StyleSheet, View, useWindowDimensions, type LayoutChangeEvent } from "react-native";
 import Animated, { runOnJS } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { layoutSpring } from "@/lib/motion";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { SHEET_RADIUS, SHEET_TOP_PCT, scaleFor, stageFit, type StageLayout } from "@/lib/rescue-v2-layout";
+import { SHEET_RADIUS, SHEET_TOP_PCT, nextRoom, roomScale, scaleFor, stageFit, tallestMock, type StageLayout } from "@/lib/rescue-v2-layout";
 import { pageIsInRange, thesisIsRtl } from "@/lib/rescue-v2-screen";
 import { useRescueScreen, useRescueV2Store } from "@/stores/rescue-v2-store";
 import { PageImage } from "./PageImage";
@@ -22,6 +22,22 @@ interface Props {
   room?: number;
 }
 
+/** Breathing room kept between a measured slot and the page in it. */
+const SLOT_MARGIN = 8;
+
+/**
+ * The height a stage's pages may take, MEASURED off the slot they sit in (screens 7 and 8: between the before/after switch and the tip or
+ * the sheet). Null until the slot has been laid out; a stage draws no page until then, so a page never shows at a size it then leaves.
+ */
+export function useSlotRoom(): [number | null, (e: LayoutChangeEvent) => void] {
+  const [room, setRoom] = useState<number | null>(null);
+  const onLayout = useCallback((e: LayoutChangeEvent) => {
+    const h = e.nativeEvent.layout.height - SLOT_MARGIN;
+    setRoom((prev) => nextRoom(prev, h, 8) ?? prev);
+  }, []);
+  return [room, onLayout];
+}
+
 /** Points past which a horizontal drag turns the page. */
 const TURN_PX = 40;
 
@@ -34,14 +50,13 @@ export function PageCarousel({ versionId, page, layout, onChange, interactive, o
   const insets = useSafeAreaInsets();
   const screen = useRescueScreen();
   // Scaled by the width as the mocks are, then fitted under the status bar on a short stage (stageFit).
-  const tallestMock = layout.kind === "three" ? Math.max(layout.mid[1], layout.side[1])
-    : layout.kind === "pair" ? layout.each[1] : layout.kind === "big" ? layout.page[1] : 0;
   const stageH = screen === "failure" ? null : (height * SHEET_TOP_PCT[screen]) / 100 + SHEET_RADIUS;
-  const tallest = tallestMock * scaleFor(width);
+  const tallest = tallestMock(layout) * scaleFor(width);
   const fit = room !== undefined
-    ? { factor: tallest > 0 ? Math.min(1, room / tallest) : 1, shift: 0 }
+    ? { factor: 1, shift: 0 }
     : stageH === null ? { factor: 1, shift: 0 } : stageFit(stageH, tallest, insets.top);
-  const s = scaleFor(width) * fit.factor;
+  // With a room, the same scale a stage uses for what it draws over the page (roomScale), so a dot stays on its line.
+  const s = room !== undefined ? roomScale(width, layout, room) : scaleFor(width) * fit.factor;
   const rtl = useRescueV2Store((st) => thesisIsRtl(st.project));
   // null until the page list is loaded: an unknown count shows skeletons, a known zero shows none (fix 9).
   const count = useRescueV2Store((st) => st.pages[versionId]?.count ?? null);

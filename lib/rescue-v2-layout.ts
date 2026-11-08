@@ -37,6 +37,31 @@ export const STAGE_LAYOUT: Record<Exclude<RescueScreen, "failure">, StageLayout>
 };
 export const scaleFor = (screenWidth: number) => screenWidth / 222;
 
+/** A layout's tallest page, in mock units. */
+export function tallestMock(layout: StageLayout): number {
+  return layout.kind === "three" ? Math.max(layout.mid[1], layout.side[1])
+    : layout.kind === "pair" ? layout.each[1] : layout.kind === "big" ? layout.page[1] : 0;
+}
+
+/**
+ * The scale a stage's pages are drawn at when they must fit `room` points of height: the width's scale, shrunk (never grown) so the tallest
+ * page fits, aspect ratio kept. Everything drawn over a page (diagnosis dots) uses the same number, so it stays on the page.
+ */
+export function roomScale(screenWidth: number, layout: StageLayout, room: number): number {
+  const s = scaleFor(screenWidth);
+  const tallest = tallestMock(layout) * s;
+  return tallest > 0 ? s * Math.max(0, Math.min(1, room / tallest)) : s;
+}
+
+/**
+ * A measured slot height worth re-rendering for: the first one, or one that moved by at least `step` points. The stage's height follows the
+ * sheet frame by frame while it springs; a re-render per frame would be for nothing.
+ */
+export function nextRoom(prev: number | null, measured: number, step = 4): number | null {
+  const next = Math.max(0, Math.floor(measured));
+  return prev === null || Math.abs(next - prev) >= step ? next : null;
+}
+
 /**
  * The mocks have no status bar: scaled by the width alone, a short stage's pages (screens 4, 5, 9, H5) run up under the status bar and the
  * notch. When the centred pages would reach above the safe area, they shrink to the room between it and the sheet's corner (`SHEET_RADIUS`
