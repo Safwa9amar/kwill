@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createSaveLoop, type SaveState } from "./save-loop";
+import { changeIsStudentEdit, createSaveLoop, type SaveState } from "./save-loop";
 
 const bytes = new Uint8Array([0x50, 0x4b, 3, 4]).buffer;
 
@@ -248,5 +248,112 @@ describe("createSaveLoop", () => {
     await vi.advanceTimersByTimeAsync(5000);
     await loop.flush();
     expect(f).not.toHaveBeenCalled();
+  });
+  // The phantom "edited in Kwill" step (11-08): a 412 across a re-run, the reload,
+  // and a save that outlived it PUT the reloaded bytes back — same text, new hash.
+  it("a refused save that lands AFTER a reload does not re-arm dirty: the reloaded bytes are never PUT", async () => {
+    let refuse!: () => void;
+    const f = vi.fn()
+      .mockImplementationOnce(() => new Promise((r) => { refuse = () => r({ status: 412, ok: false, json: async () => ({ docHash: "srv" }) }); }))
+      .mockImplementation(async () => ({ status: 200, ok: true, json: async () => ({ docHash: "phantom" }) })) as unknown as typeof fetch;
+    const { loop } = make(f);
+    loop.setHash("old");
+    loop.markDirty();
+    const inFlight = loop.flush();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f).toHaveBeenCalledTimes(1);
+    // The reload lands while that PUT is out: load(), discard(), setHash(server's).
+    loop.discard();
+    loop.setHash("srv");
+    refuse();
+    await inFlight;
+    expect(loop.isDirty()).toBe(false);
+    await loop.flush();                       // the next reload's own flush
+    await vi.advanceTimersByTimeAsync(120000);
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(loop.getHash()).toBe("srv");
+  });
+
+  it("a save committed to before a reload, still waiting when it lands, is dropped — it would read the reloaded bytes", async () => {
+    let first!: () => void;
+    const f = vi.fn()
+      .mockImplementationOnce(() => new Promise((r) => { first = () => r({ status: 412, ok: false, json: async () => ({ docHash: "srv" }) }); }))
+      .mockImplementation(async () => ({ status: 200, ok: true, json: async () => ({ docHash: "phantom" }) })) as unknown as typeof fetch;
+    const { loop } = make(f);
+    loop.setHash("old");
+    loop.markDirty();
+    const a = loop.flush();
+    await vi.advanceTimersByTimeAsync(0);
+    loop.markDirty();
+    const waiting = loop.flush();             // queued behind the in-flight PUT
+    loop.discard();
+    loop.setHash("srv");
+    first();
+    await a;
+    await waiting;
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(loop.isDirty()).toBe(false);
+    expect(loop.getHash()).toBe("srv");
+  });
+
+  it("an edit made after the reload still saves, even with a pre-reload save waiting", async () => {
+    let first!: () => void;
+    const f = vi.fn()
+      .mockImplementationOnce(() => new Promise((r) => { first = () => r({ status: 412, ok: false, json: async () => ({ docHash: "srv" }) }); }))
+      .mockImplementation(async () => ({ status: 200, ok: true, json: async () => ({ docHash: "h2" }) })) as unknown as typeof fetch;
+    const { loop } = make(f);
+    loop.setHash("old");
+    loop.markDirty();
+    const a = loop.flush();
+    await vi.advanceTimersByTimeAsync(0);
+    loop.markDirty();
+    void loop.flush();                        // pre-reload, waiting
+    loop.discard();
+    loop.setHash("srv");
+    loop.markDirty();                         // the student types on the reloaded page
+    const typed = loop.flush();
+    first();
+    await a;
+    await typed;
+    expect(f).toHaveBeenCalledTimes(2);
+    expect((f as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[1][1].headers).toMatchObject({ "If-Match": '"srv"' });
+    expect(loop.getHash()).toBe("h2");
+  });
+
+  it("a save that LANDS after a reload keeps the reloaded hash and skips the D7 re-parse", async () => {
+    let land!: () => void;
+    const f = vi.fn()
+      .mockImplementationOnce(() => new Promise((r) => { land = () => r({ status: 200, ok: true, json: async () => ({ docHash: "late" }) }); })) as unknown as typeof fetch;
+    const { loop } = make(f);
+    const saved = vi.fn();
+    loop.onSaved(saved);
+    loop.setHash("old");
+    loop.markDirty();
+    const p = loop.flush();
+    await vi.advanceTimersByTimeAsync(0);
+    loop.discard();
+    loop.setHash("srv");
+    land();
+    await p;
+    expect(loop.getHash()).toBe("srv");
+    expect(saved).not.toHaveBeenCalled();
+    expect(loop.isDirty()).toBe(false);
+  });
+});
+
+describe("changeIsStudentEdit", () => {
+  it("a replacement the engine tags (load / refresh / recovery) is never an edit, flag or not", () => {
+    for (const source of ["load", "refresh", "recovery"]) {
+      expect(changeIsStudentEdit({ source }, false)).toBe(false);
+      expect(changeIsStudentEdit({ source, dirty: ["b1"] }, false)).toBe(false);
+    }
+  });
+  it("an untagged change naming blocks is an edit, even right after a load", () => {
+    expect(changeIsStudentEdit({ dirty: ["b1"] }, true)).toBe(true);
+    expect(changeIsStudentEdit({ created: ["b2"] }, false)).toBe(true);
+  });
+  it("an untagged id-less change is ours only while the load flag is armed", () => {
+    expect(changeIsStudentEdit({}, true)).toBe(false);
+    expect(changeIsStudentEdit({}, false)).toBe(true);
   });
 });

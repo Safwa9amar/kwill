@@ -84,6 +84,15 @@ export function createSaveLoop(o: {
   let failed = false;
   let failures = 0;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  // Which document the engine holds: `discard()` (a reload replaced the bytes) moves
+  // it on. A save belongs to the epoch it was COMMITTED in, and one that outlives
+  // its epoch must neither run, nor re-arm `dirty`, nor adopt a hash. That leak was
+  // the phantom "edited in Kwill" step (11-08): a 412'd save left `dirty` set, the
+  // reload's flush re-PUT it, the stale it reported asked for a SECOND reload whose
+  // flush overlapped the first one's fetch — and its 412 came back after
+  // `discard()`, re-arming `dirty` on the freshly loaded server bytes. The next
+  // reload's flush then PUT those bytes back: same text, new hash.
+  let epoch = 0;
   const savedListeners = new Set<(bytes: ArrayBuffer) => void>();
 
   function cancelRetry(): void {
@@ -101,17 +110,29 @@ export function createSaveLoop(o: {
     }, ms);
   }
 
-  async function saveOnce(): Promise<void> {
+  async function saveOnce(e: number): Promise<void> {
     if (disposed) return;
+    // Committed to before a reload replaced the bytes: what it would read now is the
+    // reloaded document, not an edit.
+    if (e !== epoch) return;
     const token = o.token();
     if (!token) { dirty = true; failed = true; armRetry(); o.onState({ kind: "error", message: "no token" }); return; }
     o.onState({ kind: "saving" });
     try {
       const bytes = await o.getBytes();
       if (!bytes) throw new Error("editor returned no bytes");
+      if (e !== epoch) { o.onState({ kind: "idle" }); return; }
       // Durable BEFORE the request leaves: a kill mid-PUT, or no network at all,
       // leaves these bytes for the next open to show and replay (spec D6).
       await settleWithin(o.pending?.put(bytes, hash), PENDING_MS);
+      if (e !== epoch) {
+        // The reload landed while the copy was being written: these bytes are the
+        // replaced document's, and the hash may already be the reloaded one — sent,
+        // they would overwrite the server with text the student no longer sees.
+        await settleWithin(o.pending?.clear(), PENDING_MS);
+        o.onState({ kind: "idle" });
+        return;
+      }
       const headers: Record<string, string> = {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         Authorization: `Bearer ${token}`,
@@ -120,7 +141,9 @@ export function createSaveLoop(o: {
       const res = await f(`${o.apiBase}/api/thesis/${o.thesisId}/docx`, { method: "PUT", headers, body: bytes });
       const body = (await res.json().catch(() => ({}))) as { docHash?: string | null; error?: string };
       if (res.status === 412) {
-        dirty = true; // the bytes are still the student's; the host decides
+        // The bytes are still the student's; the host decides — unless a reload has
+        // replaced them since, and then nothing on screen is unsaved.
+        if (e === epoch) dirty = true;
         failed = false;
         failures = 0; // refused, not failed: retrying the same bytes cannot help
         // Set aside as a recovered copy, so the reload the host answers with
@@ -130,19 +153,27 @@ export function createSaveLoop(o: {
         return;
       }
       if (!res.ok) throw new Error(`save ${res.status}`);
-      if (typeof body.docHash === "string") hash = body.docHash;
+      const current = e === epoch;
+      // Landed after a reload: the engine holds the reloaded bytes, so the hash stays
+      // theirs (the host's next tick sees the server moved and reloads again), and
+      // the D7 re-parse must not put these older bytes back on screen.
+      if (current && typeof body.docHash === "string") hash = body.docHash;
       failed = false;
       failures = 0;
       // Awaited, not fire-and-forget: the next chained save writes the same key,
       // and a late delete would erase the copy that save depends on.
       await settleWithin(o.pending?.clear(), PENDING_MS);
       o.onState({ kind: "saved", at: Date.now(), docHash: hash });
-      for (const l of savedListeners) l(bytes);
-    } catch (e) {
-      dirty = true;
-      failed = true;
-      armRetry();
-      o.onState({ kind: "error", message: String((e as Error)?.message ?? e) });
+      if (current) for (const l of savedListeners) l(bytes);
+    } catch (err) {
+      // A failure after a reload leaves nothing unsaved on screen: re-arming would
+      // retry with the RELOADED bytes. Its own copy is still in the pending store.
+      if (e === epoch) {
+        dirty = true;
+        failed = true;
+        armRetry();
+      }
+      o.onState({ kind: "error", message: String((err as Error)?.message ?? err) });
     }
   }
 
@@ -152,17 +183,24 @@ export function createSaveLoop(o: {
   // a whole .docx (3.8MB on a 75-page thesis, ~70s on a slow uplink) per pause,
   // each holding the next. Joining the waiting save loses nothing: whatever it
   // reads when it starts includes every edit made up to then.
-  let queued: Promise<void> | null = null;
+  // A waiting save is joined only within its epoch: one committed to before a
+  // reload is dropped when it starts, and must not take a later edit down with it.
+  let queued: { run: Promise<void>; epoch: number } | null = null;
 
   function enqueue(): Promise<void> {
-    if (queued) return queued;
-    const run = chain.then(() => {
-      queued = null; // from here on it is reading bytes; a later edit needs a new save
-      return saveOnce();
-    });
-    queued = run;
-    chain = run.catch(() => {});
-    return run;
+    if (queued && queued.epoch === epoch) return queued.run;
+    const e = epoch;
+    const entry: { run: Promise<void>; epoch: number } = {
+      epoch: e,
+      run: chain.then(() => {
+        // from here on it is reading bytes; a later edit needs a new save
+        if (queued === entry) queued = null;
+        return saveOnce(e);
+      }),
+    };
+    queued = entry;
+    chain = entry.run.catch(() => {});
+    return entry.run;
   }
 
   // `dirty` is consumed HERE, synchronously, the instant a save is committed to
@@ -210,7 +248,30 @@ export function createSaveLoop(o: {
       if (timer) { clearTimeout(timer); timer = null; }
       cancelRetry();
       failures = 0;
+      failed = false;
       dirty = false;
+      epoch += 1;
     },
   };
+}
+
+/** The engine's `change` payload, as far as the save loop cares. */
+export type ChangeLike = {
+  readonly source?: string;
+  readonly created?: readonly unknown[];
+  readonly deleted?: readonly unknown[];
+  readonly dirty?: readonly unknown[];
+};
+
+/**
+ * Whether an engine `change` is the student's edit (→ `markDirty`). The engine tags
+ * every REPLACEMENT — `load`, `refresh`, `recovery` — with a `source` (absent for
+ * edits, engine 2.34); those carry the bytes we handed it and must never be PUT
+ * back. `wasProgrammatic` covers an engine that emits a bare load change with no
+ * ids: the first id-less change after a `load()` we asked for is ours too.
+ */
+export function changeIsStudentEdit(change: ChangeLike, wasProgrammatic: boolean): boolean {
+  if (change.source) return false;
+  const ids = (change.created?.length ?? 0) + (change.deleted?.length ?? 0) + (change.dirty?.length ?? 0);
+  return !(wasProgrammatic && ids === 0);
 }

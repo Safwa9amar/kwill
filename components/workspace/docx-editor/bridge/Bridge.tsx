@@ -37,7 +37,7 @@ import { WILL_LOAD_EVENT } from "../features/scroll-anchor";
 import type { OpEnvelope } from "./op-map";
 import { classifyReport } from "./report-kind";
 import { readSelectionFacts } from "./selection-facts";
-import type { SaveLoop } from "./save-loop";
+import { changeIsStudentEdit, type SaveLoop } from "./save-loop";
 import { useApplyOp } from "./use-apply-op";
 import { placeCaret } from "./apply-op";
 
@@ -263,14 +263,14 @@ export function Bridge(p: BridgeProps) {
     if (created + deleted > 0) structureChanged.current = true;
     const wasProgrammatic = programmatic.current;
     programmatic.current = false;
-    // A load() we asked for emits a change that carries a revision and no block
-    // ids; marking THAT dirty would PUT back the bytes we just took in — on open,
-    // after every reload, and after every D7 re-parse. A student's edit names the
-    // blocks it touched, so it still marks dirty even if the flag was left armed
-    // by a load that turned out to emit nothing.
-    if (!(wasProgrammatic && created + deleted + (change.dirty?.length ?? 0) === 0)) {
-      p.saveLoop.markDirty();
-    }
+    // A load() we asked for emits a change tagged `source: "load"` (a revision and
+    // no block ids); marking THAT dirty would PUT back the bytes we just took in —
+    // on open, after every reload, and after every D7 re-parse. The tag decides,
+    // not the flag alone: the flag is spent by whichever change comes first, and a
+    // reload's change arriving second used to read as typing. A student's edit
+    // names the blocks it touched, so it still marks dirty even if the flag was
+    // left armed by a load that turned out to emit nothing.
+    if (changeIsStudentEdit(change, wasProgrammatic)) p.saveLoop.markDirty();
     const editor = editorOf();
     if (editor) tryRestore(editor);
     report();
