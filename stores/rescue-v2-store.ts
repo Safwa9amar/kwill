@@ -36,7 +36,7 @@ interface RescueV2State {
    * screen that a missing project would otherwise draw.
    */
   openFailed: boolean;
-  /** The living screen is mounted. Task A9 drops a push's banner for the project on it. */
+  /** A living screen is mounted. Task A9 drops a push's banner for the project on it; a link re-reads its project (reopenIfOpen). */
   screenOpen: boolean;
   pages: Record<string, { count: number; byPage: Record<number, { hash: string; url: string }> }>;
   versions: RescueVersionSummaryDTO[];
@@ -61,6 +61,7 @@ interface RescueV2State {
    * dialog, after the student confirms again. A second restore while one is in flight answers `busy`.
    */
   restoreVersion(versionId: string): Promise<RestoreOutcome>;
+  /** Called with true on each living screen's mount and false on its unmount: `screenOpen` holds while any one is still mounted. */
   setScreenOpen(open: boolean): void;
   loadPages(versionId: string, from: number, to: number): Promise<void>;
   /** True when the list was read (or was asked for under a project that has since moved on); false when the read failed. */
@@ -119,6 +120,11 @@ const notesInFlight = new Map<string, Promise<boolean>>();
  * screen, so leaving and coming back does not let a second press start a second re-run or restore for the same project (items 7 and 10).
  */
 let moving: string | null = null;
+/**
+ * The living screens mounted now. Two can be up at once (a second one pushed from the bell over the first), and the top one's unmount
+ * used to turn `screenOpen` off with the other still on screen: a link to its project then never re-read it.
+ */
+let mountedScreens = 0;
 
 /** What a restore came to: `unsaved` means the thesis' queued edits did not reach the server, so nothing was restored. */
 export type RestoreOutcome = "restored" | "unsaved" | "failed" | "busy";
@@ -447,7 +453,10 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       return sent;
     },
 
-    setScreenOpen: (open) => set({ screenOpen: open }),
+    setScreenOpen: (open) => {
+      mountedScreens = Math.max(0, mountedScreens + (open ? 1 : -1));
+      set({ screenOpen: mountedScreens > 0 });
+    },
 
     loadPages: async (versionId, from, to) => {
       const pid = get().projectId;

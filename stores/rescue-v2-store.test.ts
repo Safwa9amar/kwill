@@ -49,7 +49,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   doc.flushOps.mockResolvedValue(true);
   S().reset();
-  S().setScreenOpen(false);
+  while (S().screenOpen) S().setScreenOpen(false);
 });
 
 describe("a reply for another project never touches the open one (fix 1)", () => {
@@ -734,6 +734,22 @@ describe("re-opening the project already on screen (a deep link with the same pr
     await tick();
     expect(api.getRescueProject).toHaveBeenCalledTimes(2);
     expect(S().nav.overlay).toBe("timeline");
+  });
+
+  it("a link still re-reads the project while one of two living screens is mounted (the top one's unmount)", async () => {
+    api.getRescueProject.mockResolvedValue(dto("A", "failed", { failure: { code: "prove_failed" } }));
+    S().setScreenOpen(true);                                        // the first screen
+    S().setScreenOpen(true);                                        // a second one pushed over it
+    await S().open("A");
+    S().setScreenOpen(false);                                       // the top one goes
+    expect(S().screenOpen).toBe(true);
+    api.getRescueProject.mockResolvedValue(dto("A", "done"));
+    expect(reopenIfOpen({ projectId: "A" })).toBe(true);
+    await tick();
+    expect(S().project?.phase).toBe("done");
+    S().setScreenOpen(false);
+    expect(S().screenOpen).toBe(false);
+    expect(reopenIfOpen({ projectId: "A" })).toBe(false);
   });
 
   it("reopenIfOpen opens the link's project when the store has moved on (screen 1 shown instead of 18, W7)", async () => {
