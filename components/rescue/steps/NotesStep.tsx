@@ -141,8 +141,8 @@ function NotesSheet() {
         </View>
       </View>
 
-      {parsing ? <Text style={[styles.line, { color: colors.textSecondary }]}>{t("rescueV2.notes.parsing")}</Text> : null}
-      {parseFailed ? <Text style={[styles.line, { color: colors.textSecondary }]}>{t("rescueV2.notes.parseFailed")}</Text> : null}
+      {parsing ? <Text style={[styles.line, { color: colors.textSecondary, textAlign: visualTextAlign(uiRtl) }]}>{t("rescueV2.notes.parsing")}</Text> : null}
+      {parseFailed ? <Text style={[styles.line, { color: colors.textSecondary, textAlign: visualTextAlign(uiRtl) }]}>{t("rescueV2.notes.parseFailed")}</Text> : null}
 
       {note ? (
         <NoteChips

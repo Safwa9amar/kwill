@@ -139,7 +139,7 @@ export function UniversityPicker({
         )}
 
         <View style={styles.rowText}>
-          <Text style={[styles.nameFr, { color: colors.textPrimary }]} numberOfLines={2}>
+          <Text style={[styles.nameFr, { color: colors.textPrimary, textAlign: visualTextAlign(isAr) }]} numberOfLines={2}>
             {isAr ? item.nameAr : item.nameFr}
           </Text>
           <Text

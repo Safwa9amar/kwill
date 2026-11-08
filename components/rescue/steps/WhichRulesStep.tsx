@@ -6,6 +6,8 @@ import { Camera, FileText } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { BottomSheet } from "@/components/BottomSheet";
 import { UniversityPicker } from "@/components/UniversityPicker";
+import { useRTL } from "@/hooks/useRTL";
+import { visualTextAlign } from "@/lib/rtl-layout";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { PURCHASES_HIDDEN } from "@/lib/purchases";
 import { removeGuide, updateSetup, uploadGuide } from "@/lib/rescue-v2-api";
@@ -52,6 +54,7 @@ function Sheet() {
 function RulesChoice() {
   const { t } = useTranslation();
   const colors = useThemeColors();
+  const { isRTL } = useRTL();
   const id = useRescueV2Store((s) => s.project?.id ?? null);
   const setup = useRescueV2Store((s) => s.project?.setup ?? null);
   const apply = useRescueV2Store((s) => s.apply);
@@ -137,7 +140,7 @@ function RulesChoice() {
       {guide === "reading" ? (
         <View style={[styles.card, { borderStyle: "dashed", borderColor: colors.borderDefault }]}>
           <ActivityIndicator color={colors.brandPrimary} />
-          <Text style={[styles.cardTitle, { color: colors.textPrimary, flex: 1 }]}>{t("rescueV2.whichRules.guideReading")}</Text>
+          <Text style={[styles.cardTitle, { color: colors.textPrimary, flex: 1, textAlign: visualTextAlign(isRTL) }]}>{t("rescueV2.whichRules.guideReading")}</Text>
         </View>
       ) : guide === "read" ? (
         <View style={[styles.card, { backgroundColor: colors.successWash, borderColor: colors.semanticSuccess }]}>
@@ -188,6 +191,7 @@ function RulesChoice() {
 function GuideSheet() {
   const { t } = useTranslation();
   const colors = useThemeColors();
+  const { isRTL } = useRTL();
   const id = useRescueV2Store((s) => s.project?.id ?? null);
   const guideMb = useRescueV2Store((s) => s.config?.limits.guideMb ?? null);
   const apply = useRescueV2Store((s) => s.apply);
@@ -265,7 +269,7 @@ function GuideSheet() {
         <FileText size={18} color={colors.brandPrimary} strokeWidth={2} />
         <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{t("rescueV2.whichRules.guideFile")}</Text>
       </Pressable>
-      {pending ? <Text style={[styles.sub, { color: colors.textSecondary }]}>{t("rescueV2.whichRules.guideReading")}</Text> : null}
+      {pending ? <Text style={[styles.sub, { color: colors.textSecondary, textAlign: visualTextAlign(isRTL) }]}>{t("rescueV2.whichRules.guideReading")}</Text> : null}
     </View>
   );
 }
