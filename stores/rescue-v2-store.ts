@@ -559,19 +559,21 @@ export const useRescueV2Store = create<RescueV2State>()((set, get) => {
       pinned = null;
       last = null;
       fetchedAt.clear();
-      set({ ...INITIAL });
+      // The living screen is still up after a reset to the start (Start a new one, on 17 or the library): a link must still reach it.
+      set({ ...INITIAL, screenOpen: get().screenOpen });
     },
   };
 });
 
 /**
- * A route or deep link for the project the living screen ALREADY shows: re-read it (with its view). The screen's params are the same, so
- * its open effect does not fire again, and a staff decision stayed off screen until the app came back from the background. True when it
- * re-read; the caller still navigates (a no-op, or a fresh mount that opens it again — `open` is safe to repeat).
+ * A route or deep link to a project while the living screen is up: open that project (with its view), whatever the store holds now. The
+ * screen's params may be the link's own, so its open effect does not fire again: a staff decision stayed off screen, and a screen whose
+ * store had moved on (a reset to the start, another project opened in place) kept showing screen 1 or the other project instead of the
+ * link's (A11 W7). True when it opened; the caller still navigates (a no-op, or a fresh mount that opens it again — `open` is safe to repeat).
  */
 export function reopenIfOpen(target: { projectId: string; view?: string } | null): boolean {
   const s = useRescueV2Store.getState();
-  if (!target || !s.screenOpen || s.projectId !== target.projectId) return false;
+  if (!target || !s.screenOpen) return false;
   void s.open(target.projectId, target.view);
   return true;
 }

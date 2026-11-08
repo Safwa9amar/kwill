@@ -49,6 +49,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   doc.flushOps.mockResolvedValue(true);
   S().reset();
+  S().setScreenOpen(false);
 });
 
 describe("a reply for another project never touches the open one (fix 1)", () => {
@@ -723,16 +724,32 @@ describe("re-opening the project already on screen (a deep link with the same pr
     expect(S().firstLoad).toBe(false);
   });
 
-  it("reopenIfOpen re-reads only the project the living screen shows", async () => {
+  it("reopenIfOpen re-reads the project the living screen shows", async () => {
     api.getRescueProject.mockResolvedValue(dto("A", "done"));
     await S().open("A");
     expect(reopenIfOpen({ projectId: "A" })).toBe(false);          // screen not mounted
     S().setScreenOpen(true);
-    expect(reopenIfOpen({ projectId: "B" })).toBe(false);          // another project: the navigation opens it
     expect(reopenIfOpen(null)).toBe(false);
     expect(reopenIfOpen({ projectId: "A", view: "history" })).toBe(true);
     await tick();
     expect(api.getRescueProject).toHaveBeenCalledTimes(2);
     expect(S().nav.overlay).toBe("timeline");
+  });
+
+  it("reopenIfOpen opens the link's project when the store has moved on (screen 1 shown instead of 18, W7)", async () => {
+    api.getRescueProject.mockResolvedValue(dto("A", "failed", { failure: { code: "prove_failed" } }));
+    await S().open("A");
+    S().setScreenOpen(true);
+    S().reset();                                                    // the start, on a screen whose params still name A
+    expect(S().project).toBeNull();
+    expect(reopenIfOpen({ projectId: "A" })).toBe(true);
+    await tick();
+    expect(S().project?.id).toBe("A");
+    expect(S().project?.phase).toBe("failed");
+
+    api.getRescueProject.mockResolvedValue(dto("B", "done"));
+    expect(reopenIfOpen({ projectId: "B" })).toBe(true);           // another project opened in place: the link's wins
+    await tick();
+    expect(S().project?.id).toBe("B");
   });
 });
