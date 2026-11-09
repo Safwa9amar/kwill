@@ -509,6 +509,37 @@ Steps (OWNER says go; AGENT can run 1-3 and 5):
 Proof (2026-11-09, local, online test DB, second test server on :3301): see the server's
 `scripts/rescue-e2e/README.md`, "Bridge brain proof".
 
+### 9.2 Model brain default: openrouter/free (2026-11-09)
+
+Server `8192f75`, `f653fff`; dashboard `b2d9927` (not pushed).
+
+- **Production needs `RESCUE_BRAIN=model`** in the server env for any of this to apply. With `session` (refused under
+  `NODE_ENV=production`) or `bridge` (test accounts only, §9.1) the default is never used.
+- **Default:** every `rescue.brain.*` step (map, review, ask, order parts, read cover, read guide, parse note) runs on
+  provider `openrouter`, model `openrouter/free` (OpenRouter's free router, which picks a free model per call), when
+  no `ai.feature.rescue.brain.<step>.provider` / `.model` row exists. Any provider but openrouter is refused (the step
+  waits). The dashboard shows such a step as `openrouter/free (default)`.
+- **Zero data retention is OFF by default:** `rescue.brain_zdr` unset. `data_collection: "deny"` is sent on every call
+  regardless (no provider may train on a thesis), but providers may keep logs for a while. With ZDR on
+  (`rescue.brain_zdr = '1'`, read fresh before each call) openrouter/free has no endpoint and every step waits: turn
+  it on only together with a paid ZDR model. The scorer (`score-brain.ts`) always requires ZDR, whatever the setting.
+- **Pin a better model:** Dashboard → AI → Features → Rescue. Per step: pick provider OpenRouter and a model in the
+  step's row, Save. All seven at once: the "All rescue brain steps" card, model field, "Apply to all steps";
+  "Reset all to default" drops every step's pin. The ZDR toggle is in the same card. Map, review, read cover and read
+  guide need a model that reads images. Prefer a model the scorer passed (`docs/rescue-v2-brain-scores.md`).
+- **Free tier limits** (OpenRouter docs, checked 2026-11-09): 20 requests a minute; 50 `:free` requests a day for an
+  account that bought under 10 credits, 1000 a day at 10 or more. One rescue makes tens of calls (a map window each,
+  review looks, repairs), so 50 a day is a handful of rescues. Upstream free providers also answer 429 and 504 when
+  busy: the step waits and the runner retries (`RESCUE_BRAIN_WAIT_HOURS`). Live on 2026-11-09 with invented content,
+  about half the calls were 429; the answered ones passed the validators (order parts and read cover in 10-110 s, a map
+  window in 90 s), but one order answer needed a repair and then marked a part that opens a new chapter as continuing
+  the one before: the validators check shape, not judgement. For real students, pin a paid model.
+- **The platform key's own spend limit** was $0.10 with $0.03 left on 2026-11-09 (`GET /api/v1/key`). A paid pin fails
+  on 402 within a few calls until the OWNER raises it on openrouter.ai.
+- Not yet proven: a whole rescue walk on `RESCUE_BRAIN=model`. Every server's runner claims any queued job on a
+  shared database, so the walk (`lab/e2e/start-server-model.sh`, `run.ts inv-ar --brain model --base
+  http://127.0.0.1:3302`) runs only while no other server on that database is ticked.
+
 ---
 
 ## 10. App
