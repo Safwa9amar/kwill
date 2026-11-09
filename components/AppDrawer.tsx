@@ -234,8 +234,6 @@ function AppIndex() {
   }, [closeDrawer, router, t]);
 
   // The PLAIN import: pick a .docx, upload it, land on the analysis screen.
-  // This is what the drawer did before the rescue lane took the door over, and
-  // it is what production still uses — see the note on the row below.
   const handleImport = useCallback(async () => {
     closeDrawer();
     // An import ends in a new thesis, so the plan's ceiling applies.
@@ -310,22 +308,8 @@ function AppIndex() {
     {
       key: "import",
       icon: FolderUp,
-      // DEV ONLY, deliberately. The rescue lane still needs deep work, and the
-      // document it rewrites is the one the student is about to defend — a
-      // half-finished repair is worse than no repair, because they may not
-      // notice until the viva. Production keeps the plain import, which is the
-      // lane that has always worked; gating this row hides the whole lane,
-      // since rescue-norms is its only door.
-      //
-      // `__DEV__` is false in a release build AND in an OTA-published bundle,
-      // which is exactly the line we want: the lane stays on a dev client and
-      // never reaches a student.
-      label: __DEV__ ? t("rescue.title") : t("documents.import"),
-      onPress: __DEV__
-        // A norm profile must be chosen (the server refuses a diagnose without
-        // one) before the document picker can even open.
-        ? () => go(() => router.push("/(app)/rescue-norms" as any))
-        : handleImport,
+      label: t("documents.import"),
+      onPress: handleImport,
     },
     { key: "combine", icon: Combine, label: t("combine.short"), onPress: handleCombine },
     // Export is COMMENTED OUT, not deleted — it is expected back.
