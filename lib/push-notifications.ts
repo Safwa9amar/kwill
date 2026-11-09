@@ -59,6 +59,20 @@ function getNotifications(): typeof NotificationsModule | null {
   return notificationsModule;
 }
 
+const TOKEN_TIMEOUT_MS = 20_000;
+/** A logout waits on the unregister, so it gets less time than a registration does. */
+const UNREGISTER_TIMEOUT_MS = 3_000;
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+    p.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
 function resolveProjectId(): string | undefined {
   try {
     return (
@@ -86,7 +100,10 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       return null;
     }
 
-    if (!Device.isDevice) {
+    // The iOS Simulator gets a real APNs token since Xcode 14 (macOS 13+, Apple silicon or a T2 Mac), and expo-notifications asks
+    // for one there. Skipping it meant no simulator ever registered, so iOS push could not be tested anywhere but on a phone.
+    // An Android emulator stays skipped, as before.
+    if (!Device.isDevice && Platform.OS !== "ios") {
       console.log("[push] skipping — push notifications require a physical device");
       return null;
     }
@@ -118,12 +135,14 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
     let token: string;
     try {
-      const result = await Notifications.getExpoPushTokenAsync({ projectId });
+      // Bounded: on some simulators APNs never answers, and the token request would wait forever.
+      const result = await withTimeout(Notifications.getExpoPushTokenAsync({ projectId }), TOKEN_TIMEOUT_MS);
       token = result.data;
     } catch (err) {
       console.warn("[push] getExpoPushTokenAsync failed", err);
       return null;
     }
+    console.log(`[push] registered ${token.slice(0, 22)}… on ${Platform.OS}`);
 
     try {
       await registerPushToken(token, Platform.OS);
@@ -140,7 +159,8 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
 /**
  * Best-effort: re-derive the current push token and unregister it on the
- * backend (used on logout if wired). Swallows all errors.
+ * backend. Called by signOut while the session is still live, so the signed-out
+ * account's pushes stop reaching this device. Swallows all errors.
  */
 export async function unregisterCurrentPushToken(): Promise<void> {
   try {
@@ -149,7 +169,7 @@ export async function unregisterCurrentPushToken(): Promise<void> {
     const projectId = resolveProjectId();
     let token: string | undefined;
     try {
-      const result = await Notifications.getExpoPushTokenAsync({ projectId });
+      const result = await withTimeout(Notifications.getExpoPushTokenAsync({ projectId }), UNREGISTER_TIMEOUT_MS);
       token = result.data;
     } catch {
       return;

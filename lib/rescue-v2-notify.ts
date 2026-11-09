@@ -13,9 +13,12 @@ export interface RescueNotifyData {
 /**
  * The route a notification opens. A rescue notice with no project (a refund for a project since deleted) opens the library, which is the
  * one place every thesis lives. A held publish opens History of its project, a rejected payment its payment screen. Every other route is
- * unchanged.
+ * unchanged, except a pre-drawer "/(tabs)/…" route, which opens its "(app)" screen whatever the flag.
  */
 export function notifyRoute(route: string, data: RescueNotifyData | null | undefined, enabled: boolean): string {
+  // The server still names the chat by its pre-drawer path ("/(tabs)/chat"), and old rows keep it. No "(tabs)" group exists any more:
+  // every screen lives under "(app)", so a tap on such a push opened the not-found screen.
+  if (route.startsWith("/(tabs)/")) return `/(app)/${route.slice("/(tabs)/".length)}`;
   if (!enabled || !route.startsWith("/(app)/rescue")) return route;
   const projectId = typeof data?.projectId === "string" && data.projectId !== "" ? data.projectId : null;
   if (!projectId) return "/(app)/rescue/library";

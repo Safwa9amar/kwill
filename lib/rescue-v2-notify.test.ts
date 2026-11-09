@@ -31,6 +31,11 @@ describe("notifyRoute", () => {
     expect(notifyRoute("/(app)/chat", { event: "publishHeld", projectId: "p1" }, true)).toBe("/(app)/chat");
   });
 
+  it("opens the (app) screen for a pre-drawer (tabs) route, whatever the flag", () => {
+    expect(notifyRoute("/(tabs)/chat", { thesisId: "t1" } as never, false)).toBe("/(app)/chat");
+    expect(notifyRoute("/(tabs)/chat", undefined, true)).toBe("/(app)/chat");
+  });
+
   it("changes nothing while the release flag is off", () => {
     expect(notifyRoute("/(app)/rescue?projectId=p1", { projectId: "p1", event: "publishHeld" }, false)).toBe("/(app)/rescue?projectId=p1");
   });

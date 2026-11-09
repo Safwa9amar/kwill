@@ -140,6 +140,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signInWithGoogle: async () => runGoogleSignIn(),
   signInWithApple: async () => runAppleSignIn(),
   signOut: async () => {
+    // Detach this device's push token from the account first, while the session still authorises the call: left in place, the
+    // signed-out account's pushes kept arriving here. Lazy import (push-notifications pulls in stores that read this one), and
+    // bounded, so a slow network never holds the logout.
+    if (get().session) {
+      await Promise.race([
+        import("@/lib/push-notifications").then((m) => m.unregisterCurrentPushToken()).catch(() => {}),
+        new Promise<void>((resolve) => setTimeout(resolve, 4000)),
+      ]);
+    }
     await supabase.auth.signOut();
     useProfileStore.getState().reset();
     set({ session: null, user: null, isAuthenticated: false, recoveryMode: false });
