@@ -648,7 +648,7 @@ exists (it does, §7.1). The dashboard calls the server's `/admin/rescue/*`, so 
 - Server: `src/lib/format/*` (18 files), `src/routes/rescue.ts` and its mount (`src/index.ts:42,164`); `app_settings`
   rows `env.RESCUE_AGENT`, `ai.feature.rescue.classify.model`, `ai.feature.rescue.repair.model`,
   `ai.feature.rescue.repair.provider`; table `rescue_runs` (7 rows now) after an export, if the owner wants one.
-- App: `app/(app)/rescue-choice.tsx`, `rescue-norms.tsx`, `rescue-verdict.tsx`, `rescue-questions.tsx`,
+- App: **DONE a0efdc5** (2026-11-09; also the `/api/rescue/*` client in `lib/api.ts` and the v1 `rescue` locale block). `app/(app)/rescue-choice.tsx`, `rescue-norms.tsx`, `rescue-verdict.tsx`, `rescue-questions.tsx`,
   `rescue-working.tsx`, `rescue-result.tsx`, `stores/rescue-store.ts`, their references in `app/_layout.tsx`, and the
   `__DEV__` row in `components/AppDrawer.tsx:313-327`.
 - Word: the canonical v1 scripts (§8.3 step 6).
