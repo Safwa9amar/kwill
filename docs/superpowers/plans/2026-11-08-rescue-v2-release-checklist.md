@@ -456,7 +456,7 @@ What gates Rescue v2:
 | Gate | Where | Now |
 |---|---|---|
 | `rescue.enabled` | `app_settings`, read fresh (`src/lib/rescue-run/config.ts:155`): unset = off (every route 503 `rescue_disabled` except config), `staff` = staff only, `1` = everyone | `1` on the online DB (test) |
-| `RESCUE_BRAIN` | server env: `session` (localhost only; refused under `NODE_ENV=production`) or `model` (M7, not built) | unset in `app_settings` |
+| `RESCUE_BRAIN` | server env: `session` (localhost only; refused under `NODE_ENV=production`), `model` (M7) or `bridge` (test accounts only, §9.1) | unset in `app_settings` |
 | `RESCUE_V2_ENABLED` | app, `lib/rescue-v2-enabled.ts`: `= __DEV__`; the release commit sets it to `true`. It gates the drawer row, home card, push routing, library and the If-Match tag | `__DEV__` |
 | Old v1 drawer row | `components/AppDrawer.tsx:313-327`, `__DEV__` only; release builds show "documents.import" there | dev only |
 | Price | `rescue.price_dzd` (unset = not for sale); iOS hides price and purchase (`PURCHASES_HIDDEN`) | 2500 |
@@ -472,6 +472,42 @@ Order:
 5. Ship the app binary with `RESCUE_V2_ENABLED = true` (§10).
 6. When the binary is on students' phones: `rescue.enabled = '1'`. Rollback = `'staff'` or delete the row (read fresh,
    no restart).
+
+### 9.1 Bridge brain on production: TEST ACCOUNTS ONLY (optional)
+
+`RESCUE_BRAIN=bridge` (server `a6303bf`..`2bd83d7`, 2026-11-09) lets the owner test the app against the
+production server while the brain's answers come from Claude Code on this Mac. **It uses the owner's Claude
+subscription and is for test accounts only.** The server refuses every user who is not in `rescue.bridge_user_ids`:
+they get the ordinary brain wait, never the bridge. **Real students are the model brain's (M7, `RESCUE_BRAIN=model`).**
+One server runs one brain, so a production server on `bridge` answers no real student at all; switch it only while no
+student can reach rescue (`rescue.enabled = 'staff'`), or keep it on `model`.
+
+Steps (OWNER says go; AGENT can run 1-3 and 5):
+
+1. Apply the table (idempotent, hand-written):
+   `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f sql/2026-11-09-rescue-brain-bridge.sql` (from `~/kwill-server`, the
+   production URL). Applied to the online test DB on 2026-11-09.
+2. Set the secret in the production env (cPanel node-selector, not `app_settings`): `RESCUE_BRAIN=bridge` and
+   `RESCUE_BRIDGE_SECRET=$(openssl rand -hex 24)` (48 characters; under 32 the bridge is off and every
+   `/admin/rescue/brain/*` route answers 503). Restart the app. Keep the secret in the owner's password manager.
+3. Set the allow-list (read fresh on every ask, no restart): the test accounts' user ids, comma separated.
+   `INSERT INTO app_settings (key, value) VALUES ('rescue.bridge_user_ids', '<uuid>,<uuid>') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`
+   Look the ids up with `SELECT id, email FROM auth.users WHERE email LIKE 'rescue-%@kwill.local';`.
+4. On this Mac, with Claude Code logged in to the owner's subscription (the script removes `ANTHROPIC_API_KEY` from the
+   child's environment):
+   ```bash
+   cd ~/kwill-server
+   RESCUE_BRIDGE_SECRET=<the secret from step 2> npx tsx scripts/brain-bridge.ts --server https://<prod-host>
+   #   --answerer manual  to answer from an interactive session (lab/tasks/<project>/<id>.task.json)
+   #   --stats lab/bridge/stats.json  for the counters; Ctrl-C stops after the tasks in flight
+   ```
+   `<prod-host>` is the API host of §0 (it must resolve first). The bridge refuses plain `http://` for anything but
+   localhost.
+5. After testing: `UPDATE app_settings SET value = '' WHERE key = 'rescue.bridge_user_ids';`, set `RESCUE_BRAIN=model`
+   (or unset the secret) and restart. The table can stay; its rows go with their projects.
+
+Proof (2026-11-09, local, online test DB, second test server on :3301): see the server's
+`scripts/rescue-e2e/README.md`, "Bridge brain proof".
 
 ---
 
