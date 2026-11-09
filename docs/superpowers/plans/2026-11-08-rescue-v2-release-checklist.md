@@ -645,9 +645,12 @@ exists (it does, §7.1). The dashboard calls the server's `/admin/rescue/*`, so 
 
 **D-1, old rescue code** (spec §13), once v2 is live and the old rows are no longer needed:
 
-- Server: `src/lib/format/*` (18 files), `src/routes/rescue.ts` and its mount (`src/index.ts:42,164`); `app_settings`
-  rows `env.RESCUE_AGENT`, `ai.feature.rescue.classify.model`, `ai.feature.rescue.repair.model`,
-  `ai.feature.rescue.repair.provider`; table `rescue_runs` (7 rows now) after an export, if the owner wants one.
+- Server: **DONE 08dafd2** (2026-11-09; dashboard 02e616f, a test fixture only: the dashboard never had v1 pages).
+  `src/routes/rescue.ts` and its mount, 15 of the 18 `src/lib/format/*` files, `rescue.repair`/`rescue.classify`,
+  `rescue_runs` in the schema. Kept: `transplant.ts`, `toc-policy.ts`, `typed-toc.ts` (live MCP tools use them).
+  DB: done by the lead with the owner's approval (`sql/2026-11-09-drop-old-rescue.sql`): `rescue_runs` dropped, the 4
+  `app_settings` rows deleted, its 3 storage objects removed; backup in `lab/backups/old-rescue-2026-11-09/`.
+  `ai_usage_log` rows tagged with the old features are kept (cost history).
 - App: **DONE a0efdc5** (2026-11-09; also the `/api/rescue/*` client in `lib/api.ts` and the v1 `rescue` locale block). `app/(app)/rescue-choice.tsx`, `rescue-norms.tsx`, `rescue-verdict.tsx`, `rescue-questions.tsx`,
   `rescue-working.tsx`, `rescue-result.tsx`, `stores/rescue-store.ts`, their references in `app/_layout.tsx`, and the
   `__DEV__` row in `components/AppDrawer.tsx:313-327`.
