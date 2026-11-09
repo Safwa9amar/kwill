@@ -65,7 +65,7 @@ Web-only deviations, recorded so they are not mistaken for gaps: no Camera butto
 
 ## Batch D — threads, history, quota
 
-- [ ] **D1. Load older messages.** Web shows the last 5 **forever** — no pagination at all. → `ai-service.ts` `loadOlderMessages` (M)
+- [x] **D1. Load older messages.** Web shows the last 5 **forever** — no pagination at all. → `ai-service.ts` `loadOlderMessages` (M)
 - [ ] **D2. Thread search.** Server-side full-text search with match snippets. → `ChatHistoryPanel.tsx` (M)
 - [ ] **D3. Thread rename / pin / archive / delete.** None of it exists on web. → `ChatHistoryPanel.tsx` (M)
 - [ ] **D4. Thread grouping + timestamps.** Pinned / per-thesis / unattached sections, relative times, attach badge. → `lib/thread-groups.ts` (S)

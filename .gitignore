@@ -70,3 +70,6 @@ credentials/
 # and Expo expects it committed so prebuild can find it.
 *-firebase-adminsdk-*.json
 firebase-service-account*.json
+
+# Marketing work (renders, node_modules, media) stays local
+docs/marketing/
